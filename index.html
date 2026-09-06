@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Connect — Communication Platform</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
+    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f; --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
+  #auth-screen { margin: auto; width: 320px; background: var(--panel); padding: 32px; border-radius: var(--radius); box-shadow: 0 20px 60px #0008; }
+  #auth-screen h1 { font-size: 22px; margin: 0 0 4px; }
+  #auth-screen p.tag { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid #2a2e39; background: #10121a; color: var(--text); font-size: 14px; }
+  input:focus { outline: none; border-color: var(--accent); }
+  button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
+  button.secondary { background: transparent; color: var(--accent); margin-top: 8px; }
+  #error { color: #f87171; font-size: 13px; min-height: 16px; margin-top: 8px; }
+  #app { display: none; width: 100%; height: 100vh; }
+  #app.active { display: flex; }
+  #sidebar { width: 280px; background: var(--panel); border-right: 1px solid #22252e; display: flex; flex-direction: column; }
+  #me-bar { padding: 16px; border-bottom: 1px solid #22252e; display: flex; justify-content: space-between; align-items: center; }
+  #me-bar .name { font-weight: 600; }
+  #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; }
+  #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid #22252e; }
+  #new-chat input { margin: 0; }
+  #new-chat button { width: auto; padding: 10px 14px; }
+  #conv-list { flex: 1; overflow-y: auto; }
+  .conv-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1c1f28; }
+  .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
+  .conv-item .who { font-weight: 600; font-size: 14px; }
+  .conv-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #chat-area { flex: 1; display: flex; flex-direction: column; }
+  #chat-header { padding: 16px 20px; border-bottom: 1px solid #22252e; font-weight: 600; }
+  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 60%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
+  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
+  .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
+  .bubble .time { display: block; font-size: 10px; opacity: 0.6; margin-top: 4px; }
+  #composer { padding: 16px; border-top: 1px solid #22252e; display: flex; gap: 8px; }
+  #composer input { margin: 0; flex: 1; }
+  #composer button { width: auto; padding: 12px 20px; }
+  #empty-state { margin: auto; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <h1>Connect</h1>
+  <p class="tag">One World. One Communication Layer.</p>
+  <input id="reg-username" placeholder="Username" autocomplete="username" />
+  <input id="reg-email" placeholder="Email" autocomplete="email" />
+  <input id="reg-password" type="password" placeholder="Password (किमान 6 अक्षरं)" autocomplete="current-password" />
+  <button id="login-btn">Login</button>
+  <button id="register-btn" class="secondary">नवीन खातं तयार करा</button>
+  <div id="error"></div>
+</div>
+
+<div id="app">
+  <div id="sidebar">
+    <div id="me-bar"><span class="name" id="me-name"></span><button class="logout" id="logout-btn">Logout</button></div>
+    <div id="new-chat"><input id="new-chat-username" placeholder="username टाका..." /><button id="new-chat-btn">Chat</button></div>
+    <div id="conv-list"></div>
+  </div>
+  <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
+</div>
+
+<script>
+// ---------- Supabase client ----------
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let me = null;             // { id, username }
+let activeConv = null;
+let messagesChannel = null;
+const $ = (id) => document.getElementById(id);
+
+// ---------- AUTH ----------
+$('register-btn').onclick = async () => {
+  $('error').textContent = '';
+  const username = $('reg-username').value.trim();
+  const email = $('reg-email').value.trim();
+  const password = $('reg-password').value;
+  if (!username || !email || !password) { $('error').textContent = 'सगळे field भरा'; return; }
+
+  // username आधीच वापरात आहे का तपासा
+  const { data: existing } = await supabase.from('profiles').select('id').eq('username', username).maybeSingle();
+  if (existing) { $('error').textContent = 'हे username आधीच वापरात आहे'; return; }
+
+  const { data, error } = await supabase.auth.signUp({
+    email, password,
+    options: { data: { username } } // trigger द्वारे profiles table मध्ये जाईल
+  });
+  if (error) { $('error').textContent = error.message; return; }
+  if (data.user) { me = { id: data.user.id, username }; enterApp(); }
+};
+
+$('login-btn').onclick = async () => {
+  $('error').textContent = '';
+  const email = $('reg-email').value.trim();
+  const password = $('reg-password').value;
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) { $('error').textContent = error.message; return; }
+  const { data: profile } = await supabase.from('profiles').select('username').eq('id', data.user.id).single();
+  me = { id: data.user.id, username: profile?.username || email };
+  enterApp();
+};
+
+$('logout-btn').onclick = async () => {
+  await supabase.auth.signOut();
+  if (messagesChannel) supabase.removeChannel(messagesChannel);
+  me = null; activeConv = null;
+  $('app').classList.remove('active');
+  $('auth-screen').style.display = 'block';
+};
+
+// पेज रिलोड झाल्यावर आधीच लॉगिन असेल तर थेट app मध्ये जा
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    const { data: profile } = await supabase.from('profiles').select('username').eq('id', session.user.id).single();
+    me = { id: session.user.id, username: profile?.username };
+    enterApp();
+  }
+})();
+
+// ---------- APP ----------
+function enterApp() {
+  $('auth-screen').style.display = 'none';
+  $('app').classList.add('active');
+  $('me-name').textContent = '@' + me.username;
+  subscribeRealtime();
+  loadConversations();
+}
+
+// Postgres Changes द्वारे नवीन मेसेज real-time ऐकणे
+function subscribeRealtime() {
+  messagesChannel = supabase
+    .channel('messages-listener')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      const msg = payload.new;
+      if (msg.conversation_id === activeConv) renderIncoming(msg);
+      loadConversations();
+    })
+    .subscribe();
+}
+
+async function loadConversations() {
+  const { data: memberRows } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const ids = (memberRows || []).map(r => r.conversation_id);
+  const list = $('conv-list');
+  list.innerHTML = '';
+  if (!ids.length) return;
+
+  const { data: convs } = await supabase.from('conversations').select('id, type, name').in('id', ids);
+  for (const c of convs || []) {
+    const { data: lastMsgs } = await supabase.from('messages')
+      .select('content, created_at').eq('conversation_id', c.id)
+      .order('created_at', { ascending: false }).limit(1);
+    const last = lastMsgs && lastMsgs[0];
+
+    const div = document.createElement('div');
+    div.className = 'conv-item' + (c.id === activeConv ? ' active' : '');
+    div.innerHTML = `<div class="who">${c.name || 'Direct chat'}</div><div class="preview">${last ? last.content : 'अजून मेसेज नाही'}</div>`;
+    div.onclick = () => openConversation(c.id, c.name || 'Chat');
+    list.appendChild(div);
+  }
+}
+
+$('new-chat-btn').onclick = async () => {
+  const username = $('new-chat-username').value.trim();
+  if (!username) return;
+
+  const { data: other, error: findErr } = await supabase.from('profiles').select('id, username').eq('username', username).maybeSingle();
+  if (findErr || !other) { alert('वापरकर्ता सापडला नाही'); return; }
+  if (other.id === me.id) { alert('स्वतःशी चॅट करता येत नाही'); return; }
+
+  // आधीच direct conversation आहे का शोधा
+  const { data: myConvs } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const myIds = (myConvs || []).map(r => r.conversation_id);
+  let existingId = null;
+  if (myIds.length) {
+    const { data: theirConvs } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
+    if (theirConvs && theirConvs.length) existingId = theirConvs[0].conversation_id;
+  }
+
+  let convId = existingId;
+  if (!convId) {
+    const { data: newConv, error: convErr } = await supabase.from('conversations').insert({ type: 'direct' }).select().single();
+    if (convErr) { alert(convErr.message); return; }
+    convId = newConv.id;
+    await supabase.from('conversation_members').insert([
+      { conversation_id: convId, user_id: me.id },
+      { conversation_id: convId, user_id: other.id },
+    ]);
+  }
+
+  $('new-chat-username').value = '';
+  await loadConversations();
+  openConversation(convId, '@' + username);
+};
+
+async function openConversation(id, title) {
+  activeConv = id;
+  loadConversations();
+  const area = $('chat-area');
+  area.innerHTML = `
+    <div id="chat-header">${title}</div>
+    <div id="messages"></div>
+    <div id="composer"><input id="msg-input" placeholder="मेसेज लिहा..." /><button id="send-btn">पाठवा</button></div>
+  `;
+  const { data: history } = await supabase.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true }).limit(200);
+  for (const m of history || []) renderIncoming(m);
+
+  $('send-btn').onclick = sendMessage;
+  $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+}
+
+async function sendMessage() {
+  const input = $('msg-input');
+  const content = input.value.trim();
+  if (!content || !activeConv) return;
+  input.value = '';
+  const { error } = await supabase.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content });
+  if (error) alert(error.message);
+  // टीप: पाठवणाऱ्यालाही मेसेज realtime subscription द्वारेच परत मिळेल (loop नाही, कारण insert इथूनच झालाय)
+}
+
+function renderIncoming(msg) {
+  const box = $('messages');
+  if (!box) return;
+  const mine = msg.sender_id === me.id;
+  const div = document.createElement('div');
+  div.className = 'bubble ' + (mine ? 'me' : 'them');
+  const time = new Date(msg.created_at).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' });
+  div.innerHTML = `${escapeHtml(msg.content)}<span class="time">${time}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
