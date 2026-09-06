@@ -72,7 +72,7 @@
 
 <script>
 // ---------- Supabase client ----------
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let me = null;             // { id, username }
 let activeConv = null;
 let messagesChannel = null;
@@ -87,10 +87,10 @@ $('register-btn').onclick = async () => {
   if (!username || !email || !password) { $('error').textContent = 'सगळे field भरा'; return; }
 
   // username आधीच वापरात आहे का तपासा
-  const { data: existing } = await supabase.from('profiles').select('id').eq('username', username).maybeSingle();
+  const { data: existing } = await sb.from('profiles').select('id').eq('username', username).maybeSingle();
   if (existing) { $('error').textContent = 'हे username आधीच वापरात आहे'; return; }
 
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await sb.auth.signUp({
     email, password,
     options: { data: { username } } // trigger द्वारे profiles table मध्ये जाईल
   });
@@ -102,16 +102,16 @@ $('login-btn').onclick = async () => {
   $('error').textContent = '';
   const email = $('reg-email').value.trim();
   const password = $('reg-password').value;
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
   if (error) { $('error').textContent = error.message; return; }
-  const { data: profile } = await supabase.from('profiles').select('username').eq('id', data.user.id).single();
+  const { data: profile } = await sb.from('profiles').select('username').eq('id', data.user.id).single();
   me = { id: data.user.id, username: profile?.username || email };
   enterApp();
 };
 
 $('logout-btn').onclick = async () => {
-  await supabase.auth.signOut();
-  if (messagesChannel) supabase.removeChannel(messagesChannel);
+  await sb.auth.signOut();
+  if (messagesChannel) sb.removeChannel(messagesChannel);
   me = null; activeConv = null;
   $('app').classList.remove('active');
   $('auth-screen').style.display = 'block';
@@ -119,9 +119,9 @@ $('logout-btn').onclick = async () => {
 
 // पेज रिलोड झाल्यावर आधीच लॉगिन असेल तर थेट app मध्ये जा
 (async () => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await sb.auth.getSession();
   if (session) {
-    const { data: profile } = await supabase.from('profiles').select('username').eq('id', session.user.id).single();
+    const { data: profile } = await sb.from('profiles').select('username').eq('id', session.user.id).single();
     me = { id: session.user.id, username: profile?.username };
     enterApp();
   }
@@ -149,15 +149,15 @@ function subscribeRealtime() {
 }
 
 async function loadConversations() {
-  const { data: memberRows } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
   const ids = (memberRows || []).map(r => r.conversation_id);
   const list = $('conv-list');
   list.innerHTML = '';
   if (!ids.length) return;
 
-  const { data: convs } = await supabase.from('conversations').select('id, type, name').in('id', ids);
+  const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
   for (const c of convs || []) {
-    const { data: lastMsgs } = await supabase.from('messages')
+    const { data: lastMsgs } = await sb.from('messages')
       .select('content, created_at').eq('conversation_id', c.id)
       .order('created_at', { ascending: false }).limit(1);
     const last = lastMsgs && lastMsgs[0];
@@ -174,25 +174,25 @@ $('new-chat-btn').onclick = async () => {
   const username = $('new-chat-username').value.trim();
   if (!username) return;
 
-  const { data: other, error: findErr } = await supabase.from('profiles').select('id, username').eq('username', username).maybeSingle();
+  const { data: other, error: findErr } = await sb.from('profiles').select('id, username').eq('username', username).maybeSingle();
   if (findErr || !other) { alert('वापरकर्ता सापडला नाही'); return; }
   if (other.id === me.id) { alert('स्वतःशी चॅट करता येत नाही'); return; }
 
   // आधीच direct conversation आहे का शोधा
-  const { data: myConvs } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
   const myIds = (myConvs || []).map(r => r.conversation_id);
   let existingId = null;
   if (myIds.length) {
-    const { data: theirConvs } = await supabase.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
+    const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
     if (theirConvs && theirConvs.length) existingId = theirConvs[0].conversation_id;
   }
 
   let convId = existingId;
   if (!convId) {
-    const { data: newConv, error: convErr } = await supabase.from('conversations').insert({ type: 'direct' }).select().single();
+    const { data: newConv, error: convErr } = await sb.from('conversations').insert({ type: 'direct' }).select().single();
     if (convErr) { alert(convErr.message); return; }
     convId = newConv.id;
-    await supabase.from('conversation_members').insert([
+    await sb.from('conversation_members').insert([
       { conversation_id: convId, user_id: me.id },
       { conversation_id: convId, user_id: other.id },
     ]);
@@ -212,7 +212,7 @@ async function openConversation(id, title) {
     <div id="messages"></div>
     <div id="composer"><input id="msg-input" placeholder="मेसेज लिहा..." /><button id="send-btn">पाठवा</button></div>
   `;
-  const { data: history } = await supabase.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true }).limit(200);
+  const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true }).limit(200);
   for (const m of history || []) renderIncoming(m);
 
   $('send-btn').onclick = sendMessage;
@@ -224,7 +224,7 @@ async function sendMessage() {
   const content = input.value.trim();
   if (!content || !activeConv) return;
   input.value = '';
-  const { error } = await supabase.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content });
+  const { error } = await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content });
   if (error) alert(error.message);
   // टीप: पाठवणाऱ्यालाही मेसेज realtime subscription द्वारेच परत मिळेल (loop नाही, कारण insert इथूनच झालाय)
 }
