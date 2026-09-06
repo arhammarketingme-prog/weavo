@@ -191,7 +191,7 @@ $('new-chat-btn').onclick = async () => {
 
   let convId = existingId;
   if (!convId) {
-    const { data: newConv, error: convErr } = await sb.from('conversations').insert({ type: 'direct' }).select().single();
+    const { data: newConv, error: convErr } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
     if (convErr) { alert(convErr.message); return; }
     convId = newConv.id;
     await sb.from('conversation_members').insert([

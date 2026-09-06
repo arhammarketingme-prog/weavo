@@ -1,8 +1,12 @@
 -- ============================================================
--- CONSOLIDATED FIX — हे एकच फाईल Supabase SQL Editor मध्ये Run कर
--- (fix-recursion.sql ऐवजी आता हेच वापर — यात तेही समाविष्ट आहे + conversations insert fix)
+-- CONSOLIDATED FIX v2 — हे एकच फाईल Supabase SQL Editor मध्ये Run कर
+-- (आधीच्या fix-recursion.sql / fix-all.sql ऐवजी आता हेच वापर)
 -- कितीही वेळा सुरक्षितपणे run करता येईल.
 -- ============================================================
+
+-- नवीन conversation तयार करून लगेच "select" केला की RLS ने अडवू नये,
+-- यासाठी "कोणी तयार केलं" हे साठवणारा column
+alter table conversations add column if not exists created_by uuid references profiles(id);
 
 create or replace function is_conversation_member(conv_id uuid, uid uuid)
 returns boolean
@@ -19,7 +23,7 @@ $$;
 drop policy if exists "फक्त सभासद आपलं conversation बघू शकतात" on conversations;
 create policy "फक्त सभासद आपलं conversation बघू शकतात"
   on conversations for select using (
-    is_conversation_member(id, auth.uid())
+    is_conversation_member(id, auth.uid()) or created_by = auth.uid()
   );
 
 drop policy if exists "लॉगिन केलेला कोणीही नवीन conversation तयार करू शकतो" on conversations;

@@ -62,8 +62,12 @@ create table if not exists conversations (
   id uuid primary key default gen_random_uuid(),
   type text not null default 'direct', -- direct | group | channel
   name text,
+  created_by uuid references profiles(id),
   created_at timestamptz default now()
 );
+
+-- आधीच table तयार असेल (जुन्या run मधून) तर column जोडतो
+alter table conversations add column if not exists created_by uuid references profiles(id);
 
 create table if not exists conversation_members (
   conversation_id uuid references conversations(id) on delete cascade,
@@ -80,7 +84,7 @@ alter table conversation_members enable row level security;
 drop policy if exists "फक्त सभासद आपलं conversation बघू शकतात" on conversations;
 create policy "फक्त सभासद आपलं conversation बघू शकतात"
   on conversations for select using (
-    is_conversation_member(id, auth.uid())
+    is_conversation_member(id, auth.uid()) or created_by = auth.uid()
   );
 
 drop policy if exists "लॉगिन केलेला कोणीही नवीन conversation तयार करू शकतो" on conversations;
