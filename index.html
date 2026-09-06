@@ -64,7 +64,7 @@
 <div id="app">
   <div id="sidebar">
     <div id="me-bar"><span class="name" id="me-name"></span><button class="logout" id="logout-btn">Logout</button></div>
-    <div id="new-chat"><input id="new-chat-username" placeholder="username टाका..." /><button id="new-chat-btn">Chat</button></div>
+    <div id="new-chat"><input id="new-chat-username" placeholder="username टाका (@ शिवाय)..." /><button id="new-chat-btn">Chat</button></div>
     <div id="conv-list"></div>
   </div>
   <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
@@ -171,7 +171,8 @@ async function loadConversations() {
 }
 
 $('new-chat-btn').onclick = async () => {
-  const username = $('new-chat-username').value.trim();
+  let username = $('new-chat-username').value.trim();
+  username = username.replace(/^@/, '').trim(); // "@" टाकलं असेल तर काढून टाकतो
   if (!username) return;
 
   const { data: other, error: findErr } = await sb.from('profiles').select('id, username').ilike('username', username).maybeSingle();
