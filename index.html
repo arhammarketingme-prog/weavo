@@ -87,7 +87,7 @@ $('register-btn').onclick = async () => {
   if (!username || !email || !password) { $('error').textContent = 'सगळे field भरा'; return; }
 
   // username आधीच वापरात आहे का तपासा
-  const { data: existing } = await sb.from('profiles').select('id').eq('username', username).maybeSingle();
+  const { data: existing } = await sb.from('profiles').select('id').ilike('username', username).maybeSingle();
   if (existing) { $('error').textContent = 'हे username आधीच वापरात आहे'; return; }
 
   const { data, error } = await sb.auth.signUp({
@@ -174,8 +174,9 @@ $('new-chat-btn').onclick = async () => {
   const username = $('new-chat-username').value.trim();
   if (!username) return;
 
-  const { data: other, error: findErr } = await sb.from('profiles').select('id, username').eq('username', username).maybeSingle();
-  if (findErr || !other) { alert('वापरकर्ता सापडला नाही'); return; }
+  const { data: other, error: findErr } = await sb.from('profiles').select('id, username').ilike('username', username).maybeSingle();
+  if (findErr) { console.error('Search error:', findErr); alert('शोधताना error आली: ' + findErr.message); return; }
+  if (!other) { alert('वापरकर्ता सापडला नाही — username बरोबर टाइप केलं आहे का तपासा, किंवा त्या व्यक्तीने अजून signup पूर्ण केलेला नसेल'); return; }
   if (other.id === me.id) { alert('स्वतःशी चॅट करता येत नाही'); return; }
 
   // आधीच direct conversation आहे का शोधा

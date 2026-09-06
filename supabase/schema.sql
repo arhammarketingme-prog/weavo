@@ -41,6 +41,20 @@ create trigger on_auth_user_created
   for each row execute function handle_new_user();
 
 -- 2) CONVERSATIONS
+
+-- Helper function: RLS policies मध्ये self-recursion टाळण्यासाठी (SECURITY DEFINER RLS bypass करतो)
+create or replace function is_conversation_member(conv_id uuid, uid uuid)
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1 from conversation_members
+    where conversation_id = conv_id and user_id = uid
+  );
+$$;
+
 create table if not exists conversations (
   id uuid primary key default gen_random_uuid(),
   type text not null default 'direct', -- direct | group | channel
@@ -62,7 +76,7 @@ alter table conversation_members enable row level security;
 
 create policy "फक्त सभासद आपलं conversation बघू शकतात"
   on conversations for select using (
-    exists (select 1 from conversation_members m where m.conversation_id = id and m.user_id = auth.uid())
+    is_conversation_member(id, auth.uid())
   );
 
 create policy "लॉगिन केलेला कोणीही नवीन conversation तयार करू शकतो"
@@ -70,7 +84,7 @@ create policy "लॉगिन केलेला कोणीही नवी�
 
 create policy "सभासदांची यादी सभासदांनाच दिसते"
   on conversation_members for select using (
-    exists (select 1 from conversation_members m where m.conversation_id = conversation_id and m.user_id = auth.uid())
+    is_conversation_member(conversation_id, auth.uid())
   );
 
 create policy "स्वतःला/इतरांना सभासद म्हणून जोडता येतं (create flow साठी)"
@@ -92,13 +106,13 @@ alter table messages enable row level security;
 
 create policy "फक्त त्या conversation चे सभासद मेसेज बघू शकतात"
   on messages for select using (
-    exists (select 1 from conversation_members m where m.conversation_id = messages.conversation_id and m.user_id = auth.uid())
+    is_conversation_member(messages.conversation_id, auth.uid())
   );
 
 create policy "फक्त सभासदच मेसेज पाठवू शकतात, आणि स्वतःच्याच नावाने"
   on messages for insert with check (
     auth.uid() = sender_id
-    and exists (select 1 from conversation_members m where m.conversation_id = messages.conversation_id and m.user_id = auth.uid())
+    and is_conversation_member(messages.conversation_id, auth.uid())
   );
 
 -- 4) REPORTS (safety basics)
