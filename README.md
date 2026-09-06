@@ -1,4 +1,4 @@
-# Connect (proposed name: Weavo / Nexlo) — Phase 1 MVP (Supabase + plain HTML)
+# Weavo — Phase 1 MVP (Supabase + plain HTML)
 
 Stack: **Supabase** (Postgres + Auth + Realtime, backend server लागत नाही) + **plain HTML/JS** (build step नाही) + **GitHub** (code hosting).
 
@@ -28,19 +28,21 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 
 - Auth (Supabase signup/login — email+password, username profile)
 - 1:1 direct conversation सुरू करणं
-- Real-time messaging (Supabase Realtime)
+- **Group messaging** (नाव + अनेक usernames टाकून group तयार करता येतो)
+- Real-time messaging (Supabase Realtime) — direct आणि group दोन्हीसाठी
 - Message history
 - Row Level Security (RLS) — database-level सुरक्षा
 - Report table (safety basics)
+- Favicon + Weavo branding
 
 ## पुढचे टप्पे
 
-1. Group messaging (schema आधीच multi-user support करतो)
-2. Communities/Channels CRUD
-3. WebRTC voice/video calling
-4. Privacy settings
-5. PWA shell (manifest + service worker)
-6. Storage (media साठी)
+1. Communities/Channels CRUD
+2. WebRTC voice/video calling
+3. Privacy settings
+4. PWA shell (manifest + service worker)
+5. Storage (media साठी)
+6. Group मध्ये admin/roles, सभासद काढणे-जोडणे
 
 ## GitHub वर टाकायचं कसं
 
