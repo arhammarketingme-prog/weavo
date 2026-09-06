@@ -16,12 +16,15 @@ create table if not exists profiles (
 
 alter table profiles enable row level security;
 
+drop policy if exists "Profiles सगळ्यांना दिसतील (username शोधण्यासाठी आवश्यक)" on profiles;
 create policy "Profiles सगळ्यांना दिसतील (username शोधण्यासाठी आवश्यक)"
   on profiles for select using (true);
 
+drop policy if exists "प्रत्येकजण फक्त स्वतःचा profile बदलू शकतो" on profiles;
 create policy "प्रत्येकजण फक्त स्वतःचा profile बदलू शकतो"
   on profiles for update using (auth.uid() = id);
 
+drop policy if exists "नवीन user स्वतःचा profile तयार करू शकतो" on profiles;
 create policy "नवीन user स्वतःचा profile तयार करू शकतो"
   on profiles for insert with check (auth.uid() = id);
 
@@ -74,19 +77,23 @@ create table if not exists conversation_members (
 alter table conversations enable row level security;
 alter table conversation_members enable row level security;
 
+drop policy if exists "फक्त सभासद आपलं conversation बघू शकतात" on conversations;
 create policy "फक्त सभासद आपलं conversation बघू शकतात"
   on conversations for select using (
     is_conversation_member(id, auth.uid())
   );
 
+drop policy if exists "लॉगिन केलेला कोणीही नवीन conversation तयार करू शकतो" on conversations;
 create policy "लॉगिन केलेला कोणीही नवीन conversation तयार करू शकतो"
   on conversations for insert with check (auth.uid() is not null);
 
+drop policy if exists "सभासदांची यादी सभासदांनाच दिसते" on conversation_members;
 create policy "सभासदांची यादी सभासदांनाच दिसते"
   on conversation_members for select using (
     is_conversation_member(conversation_id, auth.uid())
   );
 
+drop policy if exists "स्वतःला/इतरांना सभासद म्हणून जोडता येतं (create flow साठी)" on conversation_members;
 create policy "स्वतःला/इतरांना सभासद म्हणून जोडता येतं (create flow साठी)"
   on conversation_members for insert with check (auth.uid() is not null);
 
@@ -104,11 +111,13 @@ create table if not exists messages (
 
 alter table messages enable row level security;
 
+drop policy if exists "फक्त त्या conversation चे सभासद मेसेज बघू शकतात" on messages;
 create policy "फक्त त्या conversation चे सभासद मेसेज बघू शकतात"
   on messages for select using (
     is_conversation_member(messages.conversation_id, auth.uid())
   );
 
+drop policy if exists "फक्त सभासदच मेसेज पाठवू शकतात, आणि स्वतःच्याच नावाने" on messages;
 create policy "फक्त सभासदच मेसेज पाठवू शकतात, आणि स्वतःच्याच नावाने"
   on messages for insert with check (
     auth.uid() = sender_id
@@ -128,8 +137,17 @@ create table if not exists reports (
 
 alter table reports enable row level security;
 
+drop policy if exists "फक्त स्वतःचा report टाकता येतो" on reports;
 create policy "फक्त स्वतःचा report टाकता येतो"
   on reports for insert with check (auth.uid() = reporter_id);
 
--- 5) REALTIME चालू करणे (Supabase Realtime साठी)
-alter publication supabase_realtime add table messages;
+-- 5) REALTIME चालू करणे (Supabase Realtime साठी) — आधीच जोडलेलं असेल तर स्किप
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table messages;
+  end if;
+end $$;
