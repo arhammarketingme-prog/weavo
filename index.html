@@ -48,6 +48,7 @@
   .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
   .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
   .bubble .time { display: block; font-size: 10px; opacity: 0.6; margin-top: 4px; }
+  .bubble .sender { display: block; font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 3px; }
   #composer { padding: 16px; border-top: 1px solid #22252e; display: flex; gap: 8px; }
   #composer input { margin: 0; flex: 1; }
   #composer button { width: auto; padding: 12px 20px; }
@@ -162,6 +163,10 @@ function subscribeRealtime() {
     .subscribe();
 }
 
+let activeConvType = null;
+let activeMembers = {}; // user_id -> username, सध्याच्या conversation पुरतं (group मध्ये नाव दाखवण्यासाठी)
+const convTitleCache = {}; // conversation_id -> title (sidebar क्लिकसाठी)
+
 async function loadConversations() {
   const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
   const ids = (memberRows || []).map(r => r.conversation_id);
@@ -170,16 +175,33 @@ async function loadConversations() {
   if (!ids.length) return;
 
   const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
+
+  // Direct चॅट्ससाठी समोरच्या व्यक्तीचं username मिळवतो (group साठी c.name आधीच पुरेसं आहे)
+  const directIds = (convs || []).filter(c => c.type === 'direct').map(c => c.id);
+  const otherUsernames = {}; // conversation_id -> username
+  if (directIds.length) {
+    const { data: otherMembers } = await sb.from('conversation_members')
+      .select('conversation_id, user_id, profiles(username)')
+      .in('conversation_id', directIds)
+      .neq('user_id', me.id);
+    for (const row of otherMembers || []) {
+      otherUsernames[row.conversation_id] = row.profiles?.username || 'Unknown';
+    }
+  }
+
   for (const c of convs || []) {
     const { data: lastMsgs } = await sb.from('messages')
       .select('content, created_at').eq('conversation_id', c.id)
       .order('created_at', { ascending: false }).limit(1);
     const last = lastMsgs && lastMsgs[0];
 
+    const title = c.type === 'group' ? (c.name || 'Group') : ('@' + (otherUsernames[c.id] || '...'));
+    convTitleCache[c.id] = title;
+
     const div = document.createElement('div');
     div.className = 'conv-item' + (c.id === activeConv ? ' active' : '');
-    div.innerHTML = `<div class="who">${c.name || 'Direct chat'}</div><div class="preview">${last ? last.content : 'अजून मेसेज नाही'}</div>`;
-    div.onclick = () => openConversation(c.id, c.name || 'Chat');
+    div.innerHTML = `<div class="who">${title}</div><div class="preview">${last ? last.content : 'अजून मेसेज नाही'}</div>`;
+    div.onclick = () => openConversation(c.id, title, c.type);
     list.appendChild(div);
   }
 }
@@ -216,7 +238,7 @@ $('new-chat-btn').onclick = async () => {
 
   $('new-chat-username').value = '';
   await loadConversations();
-  openConversation(convId, '@' + username);
+  openConversation(convId, '@' + username, 'direct');
 };
 
 // ---------- GROUP CREATION ----------
@@ -254,11 +276,13 @@ $('new-group-btn').onclick = async () => {
   $('group-usernames').value = '';
   $('new-group').style.display = 'none';
   await loadConversations();
-  openConversation(newGroup.id, groupName);
+  openConversation(newGroup.id, groupName, 'group');
 };
 
-async function openConversation(id, title) {
+async function openConversation(id, title, type) {
   activeConv = id;
+  activeConvType = type || 'direct';
+  activeMembers = {};
   loadConversations();
   const area = $('chat-area');
   area.innerHTML = `
@@ -266,6 +290,16 @@ async function openConversation(id, title) {
     <div id="messages"></div>
     <div id="composer"><input id="msg-input" placeholder="मेसेज लिहा..." /><button id="send-btn">पाठवा</button></div>
   `;
+
+  // Group असेल तर सभासदांची नावं आधीच आणून ठेवतो (प्रत्येक मेसेजवर पाठवणाऱ्याचं नाव दाखवण्यासाठी)
+  if (activeConvType === 'group') {
+    const { data: members } = await sb.from('conversation_members')
+      .select('user_id, profiles(username)').eq('conversation_id', id);
+    for (const m of members || []) {
+      activeMembers[m.user_id] = m.profiles?.username || 'Unknown';
+    }
+  }
+
   const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true }).limit(200);
   for (const m of history || []) renderIncoming(m);
 
@@ -290,7 +324,9 @@ function renderIncoming(msg) {
   const div = document.createElement('div');
   div.className = 'bubble ' + (mine ? 'me' : 'them');
   const time = new Date(msg.created_at).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' });
-  div.innerHTML = `${escapeHtml(msg.content)}<span class="time">${time}</span>`;
+  const senderLabel = (activeConvType === 'group' && !mine)
+    ? `<span class="sender">${escapeHtml(activeMembers[msg.sender_id] || 'Unknown')}</span>` : '';
+  div.innerHTML = `${senderLabel}${escapeHtml(msg.content)}<span class="time">${time}</span>`;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
