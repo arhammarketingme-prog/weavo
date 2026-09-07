@@ -27,9 +27,17 @@
   #app { display: none; width: 100%; height: 100vh; }
   #app.active { display: flex; }
   #sidebar { width: 280px; background: var(--panel); border-right: 1px solid #22252e; display: flex; flex-direction: column; }
-  #me-bar { padding: 16px; border-bottom: 1px solid #22252e; display: flex; justify-content: space-between; align-items: center; }
+  #me-bar { padding: 16px; border-bottom: 1px solid #22252e; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  #me-bar .left { display: flex; align-items: center; gap: 10px; }
+  #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; overflow: hidden; flex-shrink: 0; }
+  #me-avatar img { width: 100%; height: 100%; object-fit: cover; }
   #me-bar .name { font-weight: 600; }
+  #me-bar .right { display: flex; align-items: center; gap: 4px; }
   #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; }
+  #settings-panel { display: none; padding: 14px 16px; background: #14161c; border-bottom: 1px solid #22252e; }
+  #settings-panel label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .typing-indicator { padding: 4px 20px; font-size: 12px; color: var(--muted); font-style: italic; }
+  .last-seen { font-size: 11px; color: var(--muted); font-weight: 400; }
   #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid #22252e; }
   #new-chat input { margin: 0; }
   #new-chat button { width: auto; padding: 10px 14px; }
@@ -92,7 +100,20 @@
 
 <div id="app">
   <div id="sidebar">
-    <div id="me-bar"><span class="name" id="me-name"></span><button class="logout" id="logout-btn">Logout</button></div>
+    <div id="me-bar">
+      <div class="left">
+        <div id="me-avatar">?</div>
+        <span class="name" id="me-name"></span>
+      </div>
+      <div class="right">
+        <button class="icon-btn" id="settings-btn" title="Settings">⚙</button>
+        <button class="logout" id="logout-btn">Logout</button>
+      </div>
+    </div>
+    <input type="file" id="avatar-input" accept="image/*" style="display:none" />
+    <div id="settings-panel">
+      <label><input type="checkbox" id="hide-last-seen-toggle" /> माझं last-seen लपवा (मग तुम्हालाही इतरांचं दिसणार नाही)</label>
+    </div>
     <div id="new-chat"><input id="new-chat-username" placeholder="username टाका (@ शिवाय)..." /><button id="new-chat-btn">Chat</button></div>
     <div id="tab-row">
       <button id="tab-toggle-group" class="link-btn">+ नवीन Group</button>
@@ -149,6 +170,7 @@ $('login-btn').onclick = async () => {
 $('logout-btn').onclick = async () => {
   await sb.auth.signOut();
   if (messagesChannel) sb.removeChannel(messagesChannel);
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
   me = null; activeConv = null;
   $('app').classList.remove('active');
   $('auth-screen').style.display = 'block';
@@ -165,12 +187,60 @@ $('logout-btn').onclick = async () => {
 })();
 
 // ---------- APP ----------
-function enterApp() {
+let myProfile = { avatar_url: null, hide_last_seen: false };
+let heartbeatTimer = null;
+
+async function enterApp() {
   $('auth-screen').style.display = 'none';
   $('app').classList.add('active');
   $('me-name').textContent = '@' + me.username;
   subscribeRealtime();
   loadConversations();
+
+  // Profile (avatar + privacy setting) आणून display करतो
+  const { data: p } = await sb.from('profiles').select('avatar_url, hide_last_seen').eq('id', me.id).single();
+  if (p) { myProfile = p; renderMyAvatar(); $('hide-last-seen-toggle').checked = !!p.hide_last_seen; }
+
+  // Heartbeat: दर 60 सेकंदांनी last_seen_at अपडेट (ऑनलाइन स्टेटससाठी)
+  updateLastSeen();
+  heartbeatTimer = setInterval(updateLastSeen, 60000);
+
+  $('settings-btn').onclick = () => {
+    const panel = $('settings-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  };
+  $('hide-last-seen-toggle').onchange = async (e) => {
+    await sb.from('profiles').update({ hide_last_seen: e.target.checked }).eq('id', me.id);
+    myProfile.hide_last_seen = e.target.checked;
+  };
+  $('me-avatar').onclick = () => $('avatar-input').click();
+  $('avatar-input').onchange = handleAvatarUpload;
+}
+
+function renderMyAvatar() {
+  const el = $('me-avatar');
+  if (myProfile.avatar_url) el.innerHTML = `<img src="${myProfile.avatar_url}" />`;
+  else el.textContent = (me.username || '?')[0].toUpperCase();
+}
+
+async function updateLastSeen() {
+  if (!me) return;
+  await sb.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', me.id);
+}
+
+async function handleAvatarUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { alert('फोटो 3MB पेक्षा लहान असावा'); return; }
+  const ext = file.name.split('.').pop();
+  const path = `avatars/${me.id}-${Date.now()}.${ext}`;
+  const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+  if (upErr) { alert('अपलोड चुकलं: ' + upErr.message); return; }
+  const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+  await sb.from('profiles').update({ avatar_url: pub.publicUrl }).eq('id', me.id);
+  myProfile.avatar_url = pub.publicUrl;
+  renderMyAvatar();
+  e.target.value = '';
 }
 
 // Postgres Changes द्वारे नवीन मेसेज real-time ऐकणे
@@ -311,20 +381,26 @@ $('new-group-btn').onclick = async () => {
 
 let replyingTo = null; // { id, content, senderLabel } — reply करताना कोणत्या मेसेजला उत्तर देतोय
 
+let otherDirectUserId = null; // सध्या उघडलेल्या direct चॅट मधल्या समोरच्या व्यक्तीचा id (typing/last-seen साठी)
+let typingChannel = null;
+let typingTimeout = null;
+
 async function openConversation(id, title, type) {
   activeConv = id;
   activeConvType = type || 'direct';
   activeMembers = {};
   replyingTo = null;
+  otherDirectUserId = null;
   loadConversations();
   const area = $('chat-area');
   area.innerHTML = `
     <div id="chat-header">
-      <span>${title}</span>
+      <span>${title}<span class="last-seen" id="header-last-seen"></span></span>
       ${activeConvType === 'group' ? '<button id="group-info-btn" class="icon-btn" title="Group Info">⋮</button>' : ''}
     </div>
     <div id="group-info-panel" style="display:none"></div>
     <div id="messages"></div>
+    <div class="typing-indicator" id="typing-indicator" style="display:none">टाइप करत आहे...</div>
     <div id="reply-preview" style="display:none"></div>
     <div id="composer">
       <button id="attach-btn" class="icon-btn" title="फोटो/फाईल पाठवा">📎</button>
@@ -338,13 +414,47 @@ async function openConversation(id, title, type) {
   if (activeConvType === 'group') {
     await refreshGroupMembers(id);
     $('group-info-btn').onclick = () => toggleGroupInfo(id);
+  } else {
+    // Direct chat: समोरच्या व्यक्तीचा last-seen/online दाखवतो (दोघांनीही hide केलं नसेल तरच)
+    const { data: memberRow } = await sb.from('conversation_members')
+      .select('user_id, profiles(username, last_seen_at, hide_last_seen)')
+      .eq('conversation_id', id).neq('user_id', me.id).maybeSingle();
+    if (memberRow) {
+      otherDirectUserId = memberRow.user_id;
+      const other = memberRow.profiles;
+      if (other && !other.hide_last_seen && !myProfile.hide_last_seen) {
+        const lastSeen = new Date(other.last_seen_at);
+        const isOnline = (Date.now() - lastSeen.getTime()) < 2 * 60 * 1000;
+        $('header-last-seen').textContent = isOnline ? ' • ऑनलाइन' : ' • शेवटचं ' + lastSeen.toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' });
+      }
+    }
   }
+
+  // Typing indicator: याच conversation साठी broadcast channel
+  if (typingChannel) sb.removeChannel(typingChannel);
+  typingChannel = sb.channel('typing-' + id)
+    .on('broadcast', { event: 'typing' }, (payload) => {
+      if (payload.payload.user_id === me.id) return;
+      const ind = $('typing-indicator');
+      if (!ind) return;
+      ind.style.display = 'block';
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => { ind.style.display = 'none'; }, 3000);
+    })
+    .subscribe();
 
   const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true }).limit(200);
   for (const m of history || []) renderIncoming(m);
 
   $('send-btn').onclick = sendMessage;
   $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+  let typingDebounce = null;
+  $('msg-input').oninput = () => {
+    clearTimeout(typingDebounce);
+    typingDebounce = setTimeout(() => {
+      typingChannel.send({ type: 'broadcast', event: 'typing', payload: { user_id: me.id } });
+    }, 200);
+  };
   $('attach-btn').onclick = () => $('file-input').click();
   $('file-input').onchange = handleFileUpload;
 }

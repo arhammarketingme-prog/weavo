@@ -29,10 +29,13 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - Auth (Supabase signup/login — email+password, username profile)
 - 1:1 direct conversation + Group messaging
 - Real-time messaging (Supabase Realtime)
-- **Photo/File sharing** (Supabase Storage, 10MB पर्यंत)
-- **Reply to message**, **Delete own message** (real-time सगळ्यांसाठी sync होतं)
-- **Group admin**: owner सभासद जोडू/काढू शकतो, कोणीही स्वतः group सोडू शकतो
-- **PWA**: installable (manifest + service worker + icons), offline app-shell
+- Photo/File sharing (Supabase Storage, 10MB पर्यंत)
+- Reply to message, Delete own message
+- Group admin: owner सभासद जोडू/काढू शकतो
+- PWA installable (manifest + service worker + icons)
+- **Profile photo/avatar अपलोड** (टॉप-लेफ्ट avatar वर क्लिक करून बदलता येतो)
+- **Typing indicator** ("टाइप करत आहे..." दुसऱ्याला दिसतं)
+- **Online/Last-seen** (direct चॅटमध्ये हेडरखाली दिसतं — दोघांनीही privacy मध्ये लपवलं नसेल तरच, ⚙ सेटिंग्जमधून लपवता येतं)
 - Row Level Security (RLS) — database-level सुरक्षा
 - Report table (safety basics)
 
@@ -40,10 +43,9 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 
 1. Communities/Channels CRUD
 2. WebRTC voice/video calling
-3. Privacy settings (last seen, disappearing messages)
-4. Profile photo/avatar अपलोड
-5. Browser push notifications
-6. Message edit (सध्या फक्त delete आहे), typing indicator, read receipts
+3. Message edit (सध्या फक्त delete आहे)
+4. Read receipts (✓✓)
+5. Disappearing messages
 
 ## GitHub वर टाकायचं कसं
 

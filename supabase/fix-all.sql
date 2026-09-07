@@ -84,3 +84,7 @@ create policy "सभासद स्वतःला काढू शकतो �
   on conversation_members for delete using (
     user_id = auth.uid() or is_conversation_owner(conversation_id, auth.uid())
   );
+
+-- ---------- 4) PRIVACY: avatar (आधीच होतं) + last-seen ----------
+alter table profiles add column if not exists hide_last_seen boolean default false;
+alter table profiles add column if not exists last_seen_at timestamptz default now();
