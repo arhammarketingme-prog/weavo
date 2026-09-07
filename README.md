@@ -27,22 +27,23 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 ## सध्या काय आहे
 
 - Auth (Supabase signup/login — email+password, username profile)
-- 1:1 direct conversation सुरू करणं
-- **Group messaging** (नाव + अनेक usernames टाकून group तयार करता येतो)
-- Real-time messaging (Supabase Realtime) — direct आणि group दोन्हीसाठी
-- Message history
+- 1:1 direct conversation + Group messaging
+- Real-time messaging (Supabase Realtime)
+- **Photo/File sharing** (Supabase Storage, 10MB पर्यंत)
+- **Reply to message**, **Delete own message** (real-time सगळ्यांसाठी sync होतं)
+- **Group admin**: owner सभासद जोडू/काढू शकतो, कोणीही स्वतः group सोडू शकतो
+- **PWA**: installable (manifest + service worker + icons), offline app-shell
 - Row Level Security (RLS) — database-level सुरक्षा
 - Report table (safety basics)
-- Favicon + Weavo branding
 
 ## पुढचे टप्पे
 
 1. Communities/Channels CRUD
 2. WebRTC voice/video calling
-3. Privacy settings
-4. PWA shell (manifest + service worker)
-5. Storage (media साठी)
-6. Group मध्ये admin/roles, सभासद काढणे-जोडणे
+3. Privacy settings (last seen, disappearing messages)
+4. Profile photo/avatar अपलोड
+5. Browser push notifications
+6. Message edit (सध्या फक्त delete आहे), typing indicator, read receipts
 
 ## GitHub वर टाकायचं कसं
 

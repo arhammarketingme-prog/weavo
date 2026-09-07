@@ -155,3 +155,42 @@ begin
     alter publication supabase_realtime add table messages;
   end if;
 end $$;
+
+-- 6) MEDIA (photo/file sharing) — Storage bucket + messages columns
+insert into storage.buckets (id, name, public)
+values ('chat-media', 'chat-media', true)
+on conflict (id) do nothing;
+
+drop policy if exists "लॉगिन केलेले chat-media मध्ये अपलोड करू शकतात" on storage.objects;
+create policy "लॉगिन केलेले chat-media मध्ये अपलोड करू शकतात"
+  on storage.objects for insert
+  with check (bucket_id = 'chat-media' and auth.uid() is not null);
+
+drop policy if exists "chat-media सगळ्यांना वाचता येतं" on storage.objects;
+create policy "chat-media सगळ्यांना वाचता येतं"
+  on storage.objects for select
+  using (bucket_id = 'chat-media');
+
+alter table messages add column if not exists media_url text;
+alter table messages add column if not exists media_type text;
+
+drop policy if exists "पाठवणारा स्वतःचा मेसेज delete करू शकतो" on messages;
+create policy "पाठवणारा स्वतःचा मेसेज delete करू शकतो"
+  on messages for update
+  using (auth.uid() = sender_id)
+  with check (auth.uid() = sender_id);
+
+-- 7) GROUP ADMIN — owner भूमिका, सभासद काढणं
+create or replace function is_conversation_owner(conv_id uuid, uid uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from conversation_members
+    where conversation_id = conv_id and user_id = uid and role = 'owner'
+  );
+$$;
+
+drop policy if exists "सभासद स्वतःला काढू शकतो किंवा owner इतरांना काढू शकतो" on conversation_members;
+create policy "सभासद स्वतःला काढू शकतो किंवा owner इतरांना काढू शकतो"
+  on conversation_members for delete using (
+    user_id = auth.uid() or is_conversation_owner(conversation_id, auth.uid())
+  );
