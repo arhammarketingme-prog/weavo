@@ -37,6 +37,7 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Typing indicator** ("टाइप करत आहे..." दुसऱ्याला दिसतं)
 - Online/Last-seen (direct चॅटमध्ये हेडरखाली दिसतं — दोघांनीही privacy मध्ये लपवलं नसेल तरच, ⚙ सेटिंग्जमधून लपवता येतं)
 - **Disappearing Messages** — प्रत्येक चॅटमध्ये ⏱ बटणाने "बंद / 24 तास / 7 दिवस" निवडता येतं; वेळ संपल्यावर मेसेज (आणि त्यातला फोटो/फाईल) कायमचा डिलीट होतो — "zero/near-zero storage" तत्वानुसार
+- **Communities/Channels** — broadcast-style: फक्त owner/admin पोस्ट करू शकतात, बाकीचे फक्त वाचतात; Public channels "🔍 Discover Channels" मधून कोणालाही शोधून join करता येतात
 - Row Level Security (RLS) — database-level सुरक्षा
 - Report table (safety basics)
 
@@ -55,10 +56,10 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 
 ## पुढचे टप्पे
 
-1. Communities/Channels CRUD
-2. WebRTC voice/video calling
-3. Message edit (सध्या फक्त delete आहे)
-4. Read receipts (✓✓)
+1. WebRTC voice/video calling
+2. Message edit (सध्या फक्त delete आहे)
+3. Read receipts (✓✓)
+4. Channel मध्ये comments/reactions (सध्या फक्त owner पोस्ट करू शकतो, subscribers react/comment करू शकत नाहीत)
 ## GitHub वर टाकायचं कसं
 
 ```bash

@@ -238,3 +238,37 @@ begin
 exception when others then
   raise notice 'pg_cron सेटअप करता आलं नाही — Supabase Dashboard च्या Database > Extensions मध्ये जाऊन "pg_cron" चालू करा, मग SQL Editor मध्ये फक्त हे एकदा चालवा: select cron.schedule(''cleanup-expired-messages'', ''0 * * * *'', ''select cleanup_expired_messages();'');';
 end $$;
+
+-- 10) COMMUNITIES/CHANNELS — broadcast-style: फक्त owner/admin पोस्ट करू शकतात, बाकीचे फक्त वाचतात
+alter table conversations add column if not exists is_public boolean default false;
+alter table conversations add column if not exists description text;
+
+-- Channel मध्ये पोस्ट करण्याचा अधिकार आहे का हे तपासणारं function
+create or replace function can_post_in_conversation(conv_id uuid, uid uuid)
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select case
+    when (select type from conversations where id = conv_id) = 'channel'
+      then exists (select 1 from conversation_members where conversation_id = conv_id and user_id = uid and role in ('owner', 'admin'))
+    else is_conversation_member(conv_id, uid)
+  end;
+$$;
+
+-- Public channels कोणालाही (सभासद नसतानाही) शोधता/बघता याव्यात
+drop policy if exists "फक्त सभासद आपलं conversation बघू शकतात" on conversations;
+create policy "फक्त सभासद आपलं conversation बघू शकतात"
+  on conversations for select using (
+    is_conversation_member(id, auth.uid()) or created_by = auth.uid() or (type = 'channel' and is_public = true)
+  );
+
+-- मेसेज पाठवण्याची अट: group/direct मध्ये कोणीही सभासद, channel मध्ये फक्त owner/admin
+drop policy if exists "फक्त सभासदच मेसेज पाठवू शकतात, आणि स्वतःच्याच नावाने" on messages;
+create policy "फक्त सभासदच मेसेज पाठवू शकतात, आणि स्वतःच्याच नावाने"
+  on messages for insert with check (
+    auth.uid() = sender_id
+    and can_post_in_conversation(messages.conversation_id, auth.uid())
+  );
+

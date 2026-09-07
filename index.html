@@ -41,11 +41,16 @@
   #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid #22252e; }
   #new-chat input { margin: 0; }
   #new-chat button { width: auto; padding: 10px 14px; }
-  #tab-row { padding: 0 16px; border-bottom: 1px solid #22252e; }
-  .link-btn { width: auto; background: transparent; color: var(--accent); padding: 8px 0; font-size: 12px; text-align: left; margin: 0; }
-  #new-group { padding: 12px 16px; border-bottom: 1px solid #22252e; display: flex; flex-direction: column; gap: 6px; }
-  #new-group input { margin: 0; }
-  #new-group button { width: auto; padding: 8px 14px; align-self: flex-start; }
+  #tab-row { padding: 8px 16px; border-bottom: 1px solid #22252e; display: flex; flex-direction: column; }
+  .link-btn { width: auto; background: transparent; color: var(--accent); padding: 4px 0; font-size: 12px; text-align: left; margin: 0; }
+  #new-group, #new-channel { padding: 12px 16px; border-bottom: 1px solid #22252e; display: flex; flex-direction: column; gap: 6px; }
+  #new-group input, #new-channel input { margin: 0; }
+  #new-group button, #new-channel button { width: auto; padding: 8px 14px; align-self: flex-start; }
+  #discover-panel { padding: 12px 16px; border-bottom: 1px solid #22252e; max-height: 220px; overflow-y: auto; }
+  .disc-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #1c1f28; }
+  .disc-item button { width: auto; padding: 5px 10px; font-size: 12px; margin: 0; }
+  .disc-empty { font-size: 12px; color: var(--muted); }
+  .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid #22252e; }
   #conv-list { flex: 1; overflow-y: auto; }
   .conv-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1c1f28; }
   .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
@@ -121,12 +126,21 @@
     <div id="new-chat"><input id="new-chat-username" placeholder="username टाका (@ शिवाय)..." /><button id="new-chat-btn">Chat</button></div>
     <div id="tab-row">
       <button id="tab-toggle-group" class="link-btn">+ नवीन Group</button>
+      <button id="tab-toggle-channel" class="link-btn">+ नवीन Channel</button>
+      <button id="tab-toggle-discover" class="link-btn">🔍 Discover Channels</button>
     </div>
     <div id="new-group" style="display:none">
       <input id="group-name" placeholder="Group चं नाव" />
       <input id="group-usernames" placeholder="usernames, कॉमाने वेगळे (उदा: raj, priya)" />
       <button id="new-group-btn">Group तयार करा</button>
     </div>
+    <div id="new-channel" style="display:none">
+      <input id="channel-name" placeholder="Channel चं नाव" />
+      <input id="channel-desc" placeholder="छोटं वर्णन (optional)" />
+      <label style="font-size:12px; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="channel-public" checked /> Public (कोणीही शोधून join करू शकेल)</label>
+      <button id="new-channel-btn">Channel तयार करा</button>
+    </div>
+    <div id="discover-panel" style="display:none"></div>
     <div id="conv-list"></div>
   </div>
   <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
@@ -299,7 +313,9 @@ async function loadConversations() {
       .order('created_at', { ascending: false }).limit(1);
     const last = lastMsgs && lastMsgs[0];
 
-    const title = c.type === 'group' ? (c.name || 'Group') : ('@' + (otherUsernames[c.id] || '...'));
+    const title = c.type === 'group' ? (c.name || 'Group')
+      : c.type === 'channel' ? ('# ' + (c.name || 'Channel'))
+      : ('@' + (otherUsernames[c.id] || '...'));
     convTitleCache[c.id] = title;
 
     const div = document.createElement('div');
@@ -346,9 +362,15 @@ $('new-chat-btn').onclick = async () => {
 };
 
 // ---------- GROUP CREATION ----------
+function closeAllPanels() {
+  ['new-group', 'new-channel', 'discover-panel'].forEach(id => { $(id).style.display = 'none'; });
+}
+
 $('tab-toggle-group').onclick = () => {
   const box = $('new-group');
-  box.style.display = box.style.display === 'none' ? 'flex' : 'none';
+  const willOpen = box.style.display === 'none';
+  closeAllPanels();
+  box.style.display = willOpen ? 'flex' : 'none';
 };
 
 $('new-group-btn').onclick = async () => {
@@ -383,6 +405,68 @@ $('new-group-btn').onclick = async () => {
   openConversation(newGroup.id, groupName, 'group');
 };
 
+// ---------- CHANNEL CREATION ----------
+$('tab-toggle-channel').onclick = () => {
+  const box = $('new-channel');
+  const willOpen = box.style.display === 'none';
+  closeAllPanels();
+  box.style.display = willOpen ? 'flex' : 'none';
+};
+
+$('new-channel-btn').onclick = async () => {
+  const name = $('channel-name').value.trim();
+  const desc = $('channel-desc').value.trim();
+  const isPublic = $('channel-public').checked;
+  if (!name) { alert('Channel ला नाव द्या'); return; }
+
+  const { data: newChannel, error } = await sb.from('conversations')
+    .insert({ type: 'channel', name, description: desc, is_public: isPublic, created_by: me.id }).select().single();
+  if (error) { alert(error.message); return; }
+
+  await sb.from('conversation_members').insert({ conversation_id: newChannel.id, user_id: me.id, role: 'owner' });
+
+  $('channel-name').value = ''; $('channel-desc').value = '';
+  $('new-channel').style.display = 'none';
+  await loadConversations();
+  openConversation(newChannel.id, '# ' + name, 'channel');
+};
+
+// ---------- DISCOVER CHANNELS ----------
+$('tab-toggle-discover').onclick = async () => {
+  const box = $('discover-panel');
+  const willOpen = box.style.display === 'none';
+  closeAllPanels();
+  if (!willOpen) return;
+  box.style.display = 'block';
+  box.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+
+  const { data: myMemberships } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const joinedIds = (myMemberships || []).map(r => r.conversation_id);
+
+  const { data: publicChannels } = await sb.from('conversations').select('id, name, description').eq('type', 'channel').eq('is_public', true);
+  const available = (publicChannels || []).filter(c => !joinedIds.includes(c.id));
+
+  if (!available.length) { box.innerHTML = '<div class="disc-empty">सध्या कोणतेही नवीन public channels नाहीत</div>'; return; }
+
+  box.innerHTML = available.map(c => `
+    <div class="disc-item">
+      <span>${escapeHtml('# ' + c.name)}${c.description ? ' — ' + escapeHtml(c.description) : ''}</span>
+      <button class="disc-join" data-id="${c.id}" data-name="${escapeHtml(c.name)}">Join</button>
+    </div>
+  `).join('');
+
+  box.querySelectorAll('.disc-join').forEach(btn => {
+    btn.onclick = async () => {
+      const convId = btn.dataset.id;
+      const { error } = await sb.from('conversation_members').insert({ conversation_id: convId, user_id: me.id, role: 'subscriber' });
+      if (error) { alert(error.message); return; }
+      closeAllPanels();
+      await loadConversations();
+      openConversation(convId, '# ' + btn.dataset.name, 'channel');
+    };
+  });
+};
+
 let replyingTo = null; // { id, content, senderLabel } — reply करताना कोणत्या मेसेजला उत्तर देतोय
 
 let otherDirectUserId = null; // सध्या उघडलेल्या direct चॅट मधल्या समोरच्या व्यक्तीचा id (typing/last-seen साठी)
@@ -403,7 +487,7 @@ async function openConversation(id, title, type) {
       <span>${title}<span class="last-seen" id="header-last-seen"></span></span>
       <span class="header-actions">
         <button id="disappear-btn" class="icon-btn" title="Disappearing messages">⏱</button>
-        ${activeConvType === 'group' ? '<button id="group-info-btn" class="icon-btn" title="Group Info">⋮</button>' : ''}
+        ${(activeConvType === 'group' || activeConvType === 'channel') ? '<button id="group-info-btn" class="icon-btn" title="Members/Info">⋮</button>' : ''}
       </span>
     </div>
     <div id="disappear-panel" style="display:none"></div>
@@ -424,10 +508,22 @@ async function openConversation(id, title, type) {
   activeDisappearingSeconds = convRow?.disappearing_seconds || null;
   $('disappear-btn').onclick = () => toggleDisappearPanel(id);
 
-  // Group असेल तर सभासदांची नावं + role आधीच आणून ठेवतो
-  if (activeConvType === 'group') {
+  // Group/Channel असेल तर सभासदांची नावं + role आधीच आणून ठेवतो
+  if (activeConvType === 'group' || activeConvType === 'channel') {
     await refreshGroupMembers(id);
     $('group-info-btn').onclick = () => toggleGroupInfo(id);
+
+    // Channel मध्ये फक्त owner/admin पोस्ट करू शकतात — बाकीच्यांसाठी composer लपवतो
+    if (activeConvType === 'channel') {
+      const myRole = activeMemberRoles[me.id];
+      if (myRole !== 'owner' && myRole !== 'admin') {
+        $('composer').style.display = 'none';
+        const note = document.createElement('div');
+        note.className = 'readonly-note';
+        note.textContent = 'हे broadcast channel आहे — फक्त admins पोस्ट करू शकतात, तुम्ही फक्त वाचू शकता';
+        $('composer').insertAdjacentElement('afterend', note);
+      }
+    }
   } else {
     // Direct chat: समोरच्या व्यक्तीचा last-seen/online दाखवतो (दोघांनीही hide केलं नसेल तरच)
     const { data: memberRow } = await sb.from('conversation_members')
