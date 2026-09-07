@@ -88,3 +88,35 @@ create policy "सभासद स्वतःला काढू शकतो �
 -- ---------- 4) PRIVACY: avatar (आधीच होतं) + last-seen ----------
 alter table profiles add column if not exists hide_last_seen boolean default false;
 alter table profiles add column if not exists last_seen_at timestamptz default now();
+
+-- ---------- 5) DISAPPEARING MESSAGES + AUTO-CLEANUP ----------
+alter table messages add column if not exists expires_at timestamptz;
+alter table conversations add column if not exists disappearing_seconds integer;
+
+drop policy if exists "सभासद disappearing सेटिंग बदलू शकतात" on conversations;
+create policy "सभासद disappearing सेटिंग बदलू शकतात"
+  on conversations for update using (
+    is_conversation_member(id, auth.uid())
+  );
+
+create or replace function cleanup_expired_messages()
+returns void language plpgsql security definer as $$
+begin
+  delete from storage.objects
+  where bucket_id = 'chat-media'
+    and name in (
+      select substring(media_url from '/chat-media/(.*)$')
+      from messages
+      where expires_at is not null and expires_at < now() and media_url is not null
+    );
+  delete from messages where expires_at is not null and expires_at < now();
+end;
+$$;
+
+do $$
+begin
+  create extension if not exists pg_cron;
+  perform cron.schedule('cleanup-expired-messages', '0 * * * *', 'select cleanup_expired_messages();');
+exception when others then
+  raise notice 'pg_cron आपोआप सेटअप झालं नाही — README मध्ये manual स्टेप बघा.';
+end $$;

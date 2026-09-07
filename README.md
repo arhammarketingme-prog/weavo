@@ -35,9 +35,23 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - PWA installable (manifest + service worker + icons)
 - **Profile photo/avatar अपलोड** (टॉप-लेफ्ट avatar वर क्लिक करून बदलता येतो)
 - **Typing indicator** ("टाइप करत आहे..." दुसऱ्याला दिसतं)
-- **Online/Last-seen** (direct चॅटमध्ये हेडरखाली दिसतं — दोघांनीही privacy मध्ये लपवलं नसेल तरच, ⚙ सेटिंग्जमधून लपवता येतं)
+- Online/Last-seen (direct चॅटमध्ये हेडरखाली दिसतं — दोघांनीही privacy मध्ये लपवलं नसेल तरच, ⚙ सेटिंग्जमधून लपवता येतं)
+- **Disappearing Messages** — प्रत्येक चॅटमध्ये ⏱ बटणाने "बंद / 24 तास / 7 दिवस" निवडता येतं; वेळ संपल्यावर मेसेज (आणि त्यातला फोटो/फाईल) कायमचा डिलीट होतो — "zero/near-zero storage" तत्वानुसार
 - Row Level Security (RLS) — database-level सुरक्षा
 - Report table (safety basics)
+
+## Storage आर्किटेक्चर बद्दल प्रामाणिक टीप
+
+पूर्णपणे "zero storage" शक्य नाही — मेसेज दुसऱ्या व्यक्तीपर्यंत पोचवायला, ऑफलाइन डिलिव्हरीसाठी, इतिहास दाखवायला Supabase च्या Postgres/Storage मध्ये काहीतरी ठेवावंच लागतं (WhatsApp/Signal सुद्धा तात्पुरतं तरी साठवतातच). आपण जे केलंय ते "जवळपास-शून्य, वेळेनुसार आपोआप नष्ट होणारं" storage:
+- Disappearing messages चालू असतील तर मेसेज+मीडिया ठराविक वेळेनंतर कायमचे डिलीट होतात
+- हे दर तासाला आपोआप चालतं (Supabase च्या pg_cron extension द्वारे)
+
+**जर आपोआप cleanup चालू झालं नाही तर** (schema.sql/fix-all.sql run केल्यावर "pg_cron सेटअप करता आलं नाही" असा notice SQL Editor मध्ये दिसला तर):
+1. Supabase Dashboard → Database → Extensions → "pg_cron" शोधून Enable कर
+2. मग SQL Editor मध्ये फक्त हे एकदा चालव:
+   ```sql
+   select cron.schedule('cleanup-expired-messages', '0 * * * *', 'select cleanup_expired_messages();');
+   ```
 
 ## पुढचे टप्पे
 
@@ -45,8 +59,6 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 2. WebRTC voice/video calling
 3. Message edit (सध्या फक्त delete आहे)
 4. Read receipts (✓✓)
-5. Disappearing messages
-
 ## GitHub वर टाकायचं कसं
 
 ```bash

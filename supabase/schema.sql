@@ -198,3 +198,43 @@ create policy "सभासद स्वतःला काढू शकतो �
 -- 8) PRIVACY: last-seen / online status
 alter table profiles add column if not exists hide_last_seen boolean default false;
 alter table profiles add column if not exists last_seen_at timestamptz default now();
+
+-- 9) DISAPPEARING MESSAGES + AUTOMATIC CLEANUP ("zero/near-zero storage" तत्वानुसार)
+alter table messages add column if not exists expires_at timestamptz;
+alter table conversations add column if not exists disappearing_seconds integer; -- null = बंद
+
+drop policy if exists "सभासद disappearing सेटिंग बदलू शकतात" on conversations;
+create policy "सभासद disappearing सेटिंग बदलू शकतात"
+  on conversations for update using (
+    is_conversation_member(id, auth.uid())
+  );
+
+-- Expire झालेले मेसेज + त्यांचे media files पूर्णपणे काढून टाकणारं function
+create or replace function cleanup_expired_messages()
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  -- expire झालेल्या मेसेजची media फाईल असेल तर आधी storage मधून काढतो
+  delete from storage.objects
+  where bucket_id = 'chat-media'
+    and name in (
+      select substring(media_url from '/chat-media/(.*)$')
+      from messages
+      where expires_at is not null and expires_at < now() and media_url is not null
+    );
+
+  -- मग मेसेज रो सुद्धा काढतो
+  delete from messages where expires_at is not null and expires_at < now();
+end;
+$$;
+
+-- दर तासाला आपोआप चालवण्यासाठी pg_cron (उपलब्ध असेल तर) — नसेल तर हा भाग सुरक्षितपणे स्किप होतो
+do $$
+begin
+  create extension if not exists pg_cron;
+  perform cron.schedule('cleanup-expired-messages', '0 * * * *', 'select cleanup_expired_messages();');
+exception when others then
+  raise notice 'pg_cron सेटअप करता आलं नाही — Supabase Dashboard च्या Database > Extensions मध्ये जाऊन "pg_cron" चालू करा, मग SQL Editor मध्ये फक्त हे एकदा चालवा: select cron.schedule(''cleanup-expired-messages'', ''0 * * * *'', ''select cleanup_expired_messages();'');';
+end $$;

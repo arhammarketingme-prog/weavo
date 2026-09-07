@@ -53,6 +53,10 @@
   .conv-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #chat-area { flex: 1; display: flex; flex-direction: column; }
   #chat-header { padding: 16px 20px; border-bottom: 1px solid #22252e; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .header-actions { display: flex; gap: 4px; }
+  #disappear-panel { background: #14161c; border-bottom: 1px solid #22252e; padding: 14px 20px; }
+  .disappear-opt { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); padding: 8px 4px; font-weight: 400; margin: 0; }
+  .disappear-opt:hover { background: var(--accent-soft); }
   .icon-btn { width: auto; background: transparent; padding: 6px 10px; font-size: 16px; margin: 0; }
   #group-info-panel { background: #14161c; border-bottom: 1px solid #22252e; padding: 14px 20px; max-height: 240px; overflow-y: auto; }
   .gi-title { font-weight: 600; margin-bottom: 8px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
@@ -382,6 +386,7 @@ $('new-group-btn').onclick = async () => {
 let replyingTo = null; // { id, content, senderLabel } — reply करताना कोणत्या मेसेजला उत्तर देतोय
 
 let otherDirectUserId = null; // सध्या उघडलेल्या direct चॅट मधल्या समोरच्या व्यक्तीचा id (typing/last-seen साठी)
+let activeDisappearingSeconds = null; // सध्याच्या conversation ची disappearing setting (सेकंदात, null = बंद)
 let typingChannel = null;
 let typingTimeout = null;
 
@@ -396,8 +401,12 @@ async function openConversation(id, title, type) {
   area.innerHTML = `
     <div id="chat-header">
       <span>${title}<span class="last-seen" id="header-last-seen"></span></span>
-      ${activeConvType === 'group' ? '<button id="group-info-btn" class="icon-btn" title="Group Info">⋮</button>' : ''}
+      <span class="header-actions">
+        <button id="disappear-btn" class="icon-btn" title="Disappearing messages">⏱</button>
+        ${activeConvType === 'group' ? '<button id="group-info-btn" class="icon-btn" title="Group Info">⋮</button>' : ''}
+      </span>
     </div>
+    <div id="disappear-panel" style="display:none"></div>
     <div id="group-info-panel" style="display:none"></div>
     <div id="messages"></div>
     <div class="typing-indicator" id="typing-indicator" style="display:none">टाइप करत आहे...</div>
@@ -409,6 +418,11 @@ async function openConversation(id, title, type) {
       <button id="send-btn">पाठवा</button>
     </div>
   `;
+
+  // Disappearing messages सध्याची सेटिंग आणून घेतो
+  const { data: convRow } = await sb.from('conversations').select('disappearing_seconds').eq('id', id).single();
+  activeDisappearingSeconds = convRow?.disappearing_seconds || null;
+  $('disappear-btn').onclick = () => toggleDisappearPanel(id);
 
   // Group असेल तर सभासदांची नावं + role आधीच आणून ठेवतो
   if (activeConvType === 'group') {
@@ -443,7 +457,9 @@ async function openConversation(id, title, type) {
     })
     .subscribe();
 
-  const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true }).limit(200);
+  const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+    .order('created_at', { ascending: true }).limit(200);
   for (const m of history || []) renderIncoming(m);
 
   $('send-btn').onclick = sendMessage;
@@ -470,6 +486,31 @@ async function refreshGroupMembers(convId) {
     activeMembers[m.user_id] = m.profiles?.username || 'Unknown';
     activeMemberRoles[m.user_id] = m.role;
   }
+}
+
+// ---------- DISAPPEARING MESSAGES ----------
+function toggleDisappearPanel(convId) {
+  const panel = $('disappear-panel');
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+
+  const options = [
+    { label: 'बंद', value: '' },
+    { label: '24 तास', value: 86400 },
+    { label: '7 दिवस', value: 604800 },
+  ];
+  panel.innerHTML = `<div class="gi-title">Disappearing Messages (जुने मेसेज आपोआप डिलीट)</div>` +
+    options.map(o => `<button class="disappear-opt" data-val="${o.value}">${o.label}${activeDisappearingSeconds == o.value || (!activeDisappearingSeconds && !o.value) ? ' ✓' : ''}</button>`).join('');
+  panel.style.display = 'block';
+
+  panel.querySelectorAll('.disappear-opt').forEach(btn => {
+    btn.onclick = async () => {
+      const val = btn.dataset.val ? parseInt(btn.dataset.val) : null;
+      const { error } = await sb.from('conversations').update({ disappearing_seconds: val }).eq('id', convId);
+      if (error) { alert(error.message); return; }
+      activeDisappearingSeconds = val;
+      panel.style.display = 'none';
+    };
+  });
 }
 
 function toggleGroupInfo(convId) {
@@ -523,12 +564,16 @@ function setReplyTarget(msg) {
 }
 
 // ---------- SEND (टेक्स्ट) ----------
+function computeExpiresAt() {
+  return activeDisappearingSeconds ? new Date(Date.now() + activeDisappearingSeconds * 1000).toISOString() : null;
+}
+
 async function sendMessage() {
   const input = $('msg-input');
   const content = input.value.trim();
   if (!content || !activeConv) return;
   input.value = '';
-  const payload = { conversation_id: activeConv, sender_id: me.id, content };
+  const payload = { conversation_id: activeConv, sender_id: me.id, content, expires_at: computeExpiresAt() };
   if (replyingTo) payload.reply_to = replyingTo.id;
   const { error } = await sb.from('messages').insert(payload);
   if (error) alert(error.message);
@@ -553,6 +598,7 @@ async function handleFileUpload(e) {
     conversation_id: activeConv, sender_id: me.id,
     content: mediaType === 'image' ? '' : file.name,
     media_url: pub.publicUrl, media_type: mediaType,
+    expires_at: computeExpiresAt(),
   });
   if (error) alert(error.message);
   e.target.value = '';
@@ -572,6 +618,7 @@ function renderIncoming(msg) {
   const box = $('messages');
   if (!box) return;
   if (msg.deleted) return; // delete झालेला मेसेज दाखवायचा नाही
+  if (msg.expires_at && new Date(msg.expires_at) < new Date()) return; // आधीच expire झालेला (cleanup अजून चालला नसेल तर सुद्धा client वर लपवतो)
 
   const mine = msg.sender_id === me.id;
   const div = document.createElement('div');
