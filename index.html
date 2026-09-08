@@ -63,9 +63,11 @@
   .call-btn { width: auto; padding: 12px 24px; border-radius: 24px; font-weight: 600; }
   .call-btn.accept { background: #22c55e; }
   .call-btn.decline { background: #ef4444; }
-  .video-grid { position: relative; margin-bottom: 20px; }
-  #remote-video { width: 100%; max-height: 50vh; background: #000; border-radius: 12px; object-fit: cover; }
-  #local-video { position: absolute; bottom: 10px; right: 10px; width: 90px; border-radius: 8px; border: 2px solid var(--panel); background: #000; }
+  .video-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; justify-content: center; }
+  .video-tile { position: relative; width: 160px; }
+  .video-tile video { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 10px; object-fit: cover; }
+  .call-overlay.audio-only .video-tile video { display: none; }
+  .call-overlay.audio-only .video-tile { width: 60px; height: 60px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; }
   .call-icon-btn { width: 52px; height: 52px; border-radius: 50%; font-size: 20px; background: #2a2e39; margin: 0; padding: 0; }
   .call-icon-btn.hangup { background: #ef4444; }
   .call-icon-btn.muted { background: #ef4444; }
@@ -193,9 +195,8 @@
 <div id="active-call-overlay" class="call-overlay" style="display:none">
   <div class="call-box wide">
     <div id="call-status" class="call-sub"></div>
-    <div class="video-grid">
-      <video id="remote-video" autoplay playsinline></video>
-      <video id="local-video" autoplay playsinline muted></video>
+    <div class="video-grid" id="video-grid">
+      <div class="video-tile local-tile"><video id="local-video" autoplay playsinline muted></video></div>
     </div>
     <div class="call-btn-row">
       <button id="mute-btn" class="call-icon-btn" title="Mute">🎙️</button>
@@ -245,7 +246,7 @@ $('login-btn').onclick = async () => {
 };
 
 $('logout-btn').onclick = async () => {
-  if (pc) endCall(true);
+  if (amIInCall) endCall(true);
   await sb.auth.signOut();
   if (messagesChannel) sb.removeChannel(messagesChannel);
   if (heartbeatTimer) clearInterval(heartbeatTimer);
@@ -349,10 +350,14 @@ function subscribeRealtime() {
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_members' }, (payload) => {
       const row = payload.new;
-      // समोरच्याने चॅट वाचला (last_read_at अपडेट) — तर आपल्या मेसेजवरचं ✓✓ live अपडेट करतो
-      if (row.conversation_id === activeConv && row.user_id !== me.id) {
+      if (row.conversation_id !== activeConv || row.user_id === me.id) return;
+      if (activeConvType === 'direct') {
+        // समोरच्याने चॅट वाचला (last_read_at अपडेट) — तर आपल्या मेसेजवरचं ✓✓ live अपडेट करतो
         otherLastReadAt = row.last_read_at;
         refreshReadTicks();
+      } else if (activeConvType === 'group' || activeConvType === 'channel') {
+        activeMemberLastRead[row.user_id] = row.last_read_at;
+        refreshGroupReadTicks();
       }
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, (payload) => {
@@ -549,6 +554,7 @@ $('tab-toggle-discover').onclick = async () => {
 };
 
 let replyingTo = null; // { id, content, senderLabel } — reply करताना कोणत्या मेसेजला उत्तर देतोय
+let channelCanPost = true; // channel मध्ये मी post करू शकतो का (owner/admin असल्यास true)
 
 let otherDirectUserId = null; // सध्या उघडलेल्या direct चॅट मधल्या समोरच्या व्यक्तीचा id (typing/last-seen साठी)
 let activeDisappearingSeconds = null; // सध्याच्या conversation ची disappearing setting (सेकंदात, null = बंद)
@@ -556,7 +562,7 @@ let typingChannel = null;
 let typingTimeout = null;
 
 async function openConversation(id, title, type) {
-  if (pc) { alert('कॉल चालू असताना दुसरा चॅट उघडता येणार नाही — आधी कॉल संपवा'); return; }
+  if (amIInCall) { alert('कॉल चालू असताना दुसरा चॅट उघडता येणार नाही — आधी कॉल संपवा'); return; }
   activeConv = id;
   activeConvType = type || 'direct';
   activeMembers = {};
@@ -569,7 +575,7 @@ async function openConversation(id, title, type) {
     <div id="chat-header">
       <span>${title}<span class="last-seen" id="header-last-seen"></span></span>
       <span class="header-actions">
-        ${type === 'direct' ? '<button id="voice-call-btn" class="icon-btn" title="Voice Call">📞</button><button id="video-call-btn" class="icon-btn" title="Video Call">🎥</button>' : ''}
+        ${(type === 'direct' || type === 'group') ? '<button id="voice-call-btn" class="icon-btn" title="Voice Call">📞</button><button id="video-call-btn" class="icon-btn" title="Video Call">🎥</button>' : ''}
         <button id="disappear-btn" class="icon-btn" title="Disappearing messages">⏱</button>
         ${(activeConvType === 'group' || activeConvType === 'channel') ? '<button id="group-info-btn" class="icon-btn" title="Members/Info">⋮</button>' : ''}
       </span>
@@ -597,18 +603,23 @@ async function openConversation(id, title, type) {
     await refreshGroupMembers(id);
     $('group-info-btn').onclick = () => toggleGroupInfo(id);
 
-    // Channel मध्ये फक्त owner/admin पोस्ट करू शकतात — बाकीच्यांसाठी composer लपवतो
+    // Channel मध्ये फक्त owner/admin पोस्ट करू शकतात — बाकीच्यांसाठी composer लपवतो, पण comment करता यावं म्हणून global flag ठेवतो
     if (activeConvType === 'channel') {
       const myRole = activeMemberRoles[me.id];
-      if (myRole !== 'owner' && myRole !== 'admin') {
+      channelCanPost = (myRole === 'owner' || myRole === 'admin');
+      if (!channelCanPost) {
         $('composer').style.display = 'none';
         const note = document.createElement('div');
         note.className = 'readonly-note';
-        note.textContent = 'हे broadcast channel आहे — फक्त admins पोस्ट करू शकतात, तुम्ही फक्त वाचू शकता';
+        note.id = 'channel-readonly-note';
+        note.textContent = 'हे broadcast channel आहे — फक्त admins पोस्ट करू शकतात. एखाद्या पोस्टवरच्या ↩ बटणाने तुम्ही comment करू शकता.';
         $('composer').insertAdjacentElement('afterend', note);
       }
+    } else {
+      channelCanPost = true;
     }
   } else {
+    channelCanPost = true;
     // Direct chat: समोरच्या व्यक्तीचा last-seen/online + last_read_at (read receipts साठी) दाखवतो
     const { data: memberRow } = await sb.from('conversation_members')
       .select('user_id, last_read_at, profiles(username, last_seen_at, hide_last_seen)')
@@ -636,10 +647,15 @@ async function openConversation(id, title, type) {
       clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => { ind.style.display = 'none'; }, 3000);
     })
+    .on('broadcast', { event: 'call-join' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id) return;
+      handleCallJoin(id, title, p);
+    })
     .on('broadcast', { event: 'call-offer' }, (msg) => {
       const p = msg.payload;
       if (p.from === me.id) return;
-      handleIncomingOffer(id, title, p);
+      handleCallOffer(p);
     })
     .on('broadcast', { event: 'call-answer' }, (msg) => {
       const p = msg.payload;
@@ -648,17 +664,17 @@ async function openConversation(id, title, type) {
     })
     .on('broadcast', { event: 'call-ice' }, (msg) => {
       const p = msg.payload;
-      if (p.from === me.id || !pc) return;
-      pc.addIceCandidate(new RTCIceCandidate(p.candidate)).catch(() => {});
+      if (p.from === me.id) return;
+      handleCallIce(p);
     })
-    .on('broadcast', { event: 'call-end' }, (msg) => {
+    .on('broadcast', { event: 'call-leave' }, (msg) => {
       const p = msg.payload;
       if (p.from === me.id) return;
-      endCall(false);
+      handleCallLeave(p);
     })
     .subscribe();
 
-  if (type === 'direct') {
+  if (type === 'direct' || type === 'group') {
     $('voice-call-btn').onclick = () => startCall(id, title, 'audio');
     $('video-call-btn').onclick = () => startCall(id, title, 'video');
   }
@@ -669,6 +685,7 @@ async function openConversation(id, title, type) {
   for (const m of history || []) renderIncoming(m);
   await markAsRead(id);
   refreshReadTicks();
+  refreshGroupReadTicks();
 
   $('send-btn').onclick = sendMessage;
   $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
@@ -687,64 +704,85 @@ async function openConversation(id, title, type) {
 // WEBRTC CALLING (Voice/Video) — signaling Supabase broadcast वरून,
 // media direct peer-to-peer (कोणताही मीडिया सर्व्हरवर साठवला जात नाही)
 // ============================================================
-const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-let pc = null;
+// STUN (मोफत, Google) + TURN (मोफत Open Relay Project — कडक/corporate नेटवर्कवर सुद्धा कॉल जोडला जाण्यासाठी)
+// टीप: हे सार्वजनिक demo credentials आहेत, उच्च-वापरासाठी विश्वासार्ह नाहीत; मोठ्या प्रमाणावर वापरासाठी स्वतःचा coturn किंवा paid TURN service (Twilio/Metered) घ्यावा.
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  ],
+};
+let peers = {}; // userId -> RTCPeerConnection (mesh: प्रत्येक इतर सभासदासाठी वेगळं connection)
 let localStream = null;
-let pendingOffer = null; // येणाऱ्या कॉलचा offer, Accept दाबेपर्यंत साठवून ठेवतो
+let amIInCall = false;
 let currentCallConvId = null;
 let currentCallTitle = null;
-let isCaller = false;
+let currentCallType = null;
+let showingIncomingFor = null; // कोणाचा ring popup सध्या दाखवतोय (डुप्लिकेट टाळण्यासाठी)
+let pendingCallInfo = null;
 let callTimerInterval = null;
 
-function createPeerConnection(convId) {
+function createPeerConnectionFor(uid) {
   const conn = new RTCPeerConnection(ICE_SERVERS);
   conn.onicecandidate = (e) => {
-    if (e.candidate) typingChannel.send({ type: 'broadcast', event: 'call-ice', payload: { from: me.id, candidate: e.candidate } });
+    if (e.candidate) typingChannel.send({ type: 'broadcast', event: 'call-ice', payload: { from: me.id, to: uid, candidate: e.candidate } });
   };
-  conn.ontrack = (e) => {
-    const remoteVideo = $('remote-video');
-    if (remoteVideo && remoteVideo.srcObject !== e.streams[0]) remoteVideo.srcObject = e.streams[0];
-  };
+  conn.ontrack = (e) => addRemoteTile(uid, e.streams[0]);
   conn.onconnectionstatechange = () => {
-    if (['disconnected', 'failed', 'closed'].includes(conn.connectionState)) endCall(false);
+    if (['disconnected', 'failed', 'closed'].includes(conn.connectionState)) removePeer(uid);
   };
+  if (localStream) localStream.getTracks().forEach(t => conn.addTrack(t, localStream));
+  peers[uid] = conn;
   return conn;
 }
 
+async function offerTo(uid) {
+  const conn = createPeerConnectionFor(uid);
+  const offer = await conn.createOffer();
+  await conn.setLocalDescription(offer);
+  typingChannel.send({ type: 'broadcast', event: 'call-offer', payload: { from: me.id, to: uid, sdp: offer } });
+}
+
+// कॉल सुरू करणे: स्वतः "join" होतो + बाकीच्यांना ring पाठवतो (1:1 आणि group दोन्हीसाठी हाच मार्ग)
 async function startCall(convId, title, type) {
-  if (pc) { alert('आधीच एक कॉल सुरू आहे'); return; }
+  if (amIInCall) { alert('आधीच एक कॉल सुरू आहे'); return; }
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
   } catch (err) {
     alert('Microphone/Camera access मिळालं नाही: ' + err.message);
     return;
   }
-  isCaller = true;
+  amIInCall = true;
   currentCallConvId = convId;
   currentCallTitle = title;
-  pc = createPeerConnection(convId);
-  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-  showActiveCallUI(type, 'रिंग वाजतेय...');
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  typingChannel.send({ type: 'broadcast', event: 'call-offer', payload: { from: me.id, sdp: offer, callType: type, fromName: me.username } });
+  currentCallType = type;
+  showActiveCallUI(type, 'इतरांची वाट बघतोय...');
+  typingChannel.send({ type: 'broadcast', event: 'call-join', payload: { from: me.id, callType: type, fromName: me.username } });
 }
 
-function handleIncomingOffer(convId, title, payload) {
-  if (pc) return; // आधीच कॉलवर असेल तर दुर्लक्ष (busy)
-  pendingOffer = payload;
-  currentCallConvId = convId;
-  currentCallTitle = title;
-  $('incoming-call-text').textContent = '@' + (payload.fromName || 'कोणीतरी') + ' — ' + (payload.callType === 'video' ? 'Video' : 'Voice') + ' कॉल करतोय';
-  $('incoming-call-overlay').style.display = 'flex';
+// कोणीतरी join झाल्याचं ऐकल्यावर: मी आधीच कॉलवर असेन तर त्यांना offer पाठवतो (mesh तयार होतो);
+// नसेन तर हा त्यांचा "ring" समजून incoming-call popup दाखवतो
+function handleCallJoin(convId, title, payload) {
+  if (payload.from === me.id) return;
+  if (currentCallConvId && currentCallConvId !== convId) return; // वेगळ्या चॅटमधला कॉल असेल तर दुर्लक्ष
+
+  if (amIInCall) {
+    if (!peers[payload.from]) offerTo(payload.from);
+  } else {
+    if (showingIncomingFor === payload.from) return;
+    showingIncomingFor = payload.from;
+    pendingCallInfo = { convId, title, callType: payload.callType };
+    $('incoming-call-text').textContent = '@' + (payload.fromName || 'कोणीतरी') + ' — ' + (payload.callType === 'video' ? 'Video' : 'Voice') + ' कॉल करतोय';
+    $('incoming-call-overlay').style.display = 'flex';
+  }
 }
 
 async function acceptCall() {
   $('incoming-call-overlay').style.display = 'none';
-  if (!pendingOffer) return;
-  const { callType, sdp } = pendingOffer;
+  if (!pendingCallInfo) return;
+  const { convId, title, callType } = pendingCallInfo;
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === 'video' });
   } catch (err) {
@@ -752,38 +790,79 @@ async function acceptCall() {
     declineCall();
     return;
   }
-  isCaller = false;
-  pc = createPeerConnection(currentCallConvId);
-  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-  await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  typingChannel.send({ type: 'broadcast', event: 'call-answer', payload: { from: me.id, sdp: answer } });
-
+  amIInCall = true;
+  currentCallConvId = convId;
+  currentCallTitle = title;
+  currentCallType = callType;
   showActiveCallUI(callType, 'कॉल सुरू आहे');
   startCallTimer();
-  pendingOffer = null;
+  typingChannel.send({ type: 'broadcast', event: 'call-join', payload: { from: me.id, callType, fromName: me.username } });
+  showingIncomingFor = null;
+  pendingCallInfo = null;
 }
 
 function declineCall() {
   $('incoming-call-overlay').style.display = 'none';
-  if (typingChannel) typingChannel.send({ type: 'broadcast', event: 'call-end', payload: { from: me.id } });
-  pendingOffer = null;
+  showingIncomingFor = null;
+  pendingCallInfo = null;
 }
 
-async function handleCallAnswer(payload) {
-  if (!pc || !isCaller) return;
-  await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+function handleCallOffer(payload) {
+  if (payload.to !== me.id) return;
+  const conn = peers[payload.from] || createPeerConnectionFor(payload.from);
+  (async () => {
+    await conn.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+    const answer = await conn.createAnswer();
+    await conn.setLocalDescription(answer);
+    typingChannel.send({ type: 'broadcast', event: 'call-answer', payload: { from: me.id, to: payload.from, sdp: answer } });
+  })();
+}
+
+function handleCallAnswer(payload) {
+  if (payload.to !== me.id) return;
+  const conn = peers[payload.from];
+  if (conn) conn.setRemoteDescription(new RTCSessionDescription(payload.sdp));
   $('call-status').textContent = 'कॉल सुरू आहे';
-  startCallTimer();
+  if (!callTimerInterval) startCallTimer();
+}
+
+function handleCallIce(payload) {
+  if (payload.to !== me.id) return;
+  const conn = peers[payload.from];
+  if (conn) conn.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(() => {});
+}
+
+function handleCallLeave(payload) {
+  removePeer(payload.from);
+}
+
+function removePeer(uid) {
+  if (peers[uid]) { peers[uid].close(); delete peers[uid]; }
+  const tile = document.getElementById('remote-tile-' + uid);
+  if (tile) tile.remove();
+}
+
+function addRemoteTile(uid, stream) {
+  let tile = document.getElementById('remote-tile-' + uid);
+  let video;
+  if (!tile) {
+    tile = document.createElement('div');
+    tile.className = 'video-tile';
+    tile.id = 'remote-tile-' + uid;
+    video = document.createElement('video');
+    video.autoplay = true; video.playsInline = true;
+    tile.appendChild(video);
+    $('video-grid').appendChild(tile);
+  } else {
+    video = tile.querySelector('video');
+  }
+  if (video.srcObject !== stream) video.srcObject = stream;
 }
 
 function showActiveCallUI(type, statusText) {
   $('active-call-overlay').style.display = 'flex';
+  $('active-call-overlay').classList.toggle('audio-only', type !== 'video');
   $('call-status').textContent = statusText;
-  $('local-video').style.display = type === 'video' ? 'block' : 'none';
-  $('remote-video').style.display = type === 'video' ? 'block' : 'none';
   if (localStream) $('local-video').srcObject = localStream;
 
   $('mute-btn').onclick = () => {
@@ -813,17 +892,20 @@ function startCallTimer() {
 }
 
 function endCall(notifyPeer) {
-  clearInterval(callTimerInterval);
-  if (notifyPeer && typingChannel) typingChannel.send({ type: 'broadcast', event: 'call-end', payload: { from: me.id } });
+  clearInterval(callTimerInterval); callTimerInterval = null;
+  if (notifyPeer && typingChannel && amIInCall) typingChannel.send({ type: 'broadcast', event: 'call-leave', payload: { from: me.id } });
+  Object.keys(peers).forEach(uid => { peers[uid].close(); });
+  peers = {};
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-  if (pc) { pc.close(); pc = null; }
+  document.querySelectorAll('.video-tile[id^="remote-tile-"]').forEach(el => el.remove());
   $('active-call-overlay').style.display = 'none';
   $('incoming-call-overlay').style.display = 'none';
-  $('remote-video').srcObject = null;
   $('local-video').srcObject = null;
-  isCaller = false;
+  amIInCall = false;
   currentCallConvId = null;
-  pendingOffer = null;
+  currentCallType = null;
+  showingIncomingFor = null;
+  pendingCallInfo = null;
 }
 
 $('accept-call-btn').onclick = acceptCall;
@@ -831,15 +913,27 @@ $('decline-call-btn').onclick = declineCall;
 
 // ---------- GROUP INFO PANEL ----------
 let activeMemberRoles = {}; // user_id -> role, आणि सोबत activeMembers मध्ये username
+let activeMemberLastRead = {}; // user_id -> last_read_at (group read receipts साठी)
 
 async function refreshGroupMembers(convId) {
   const { data: members } = await sb.from('conversation_members')
-    .select('user_id, role, profiles(username)').eq('conversation_id', convId);
-  activeMembers = {}; activeMemberRoles = {};
+    .select('user_id, role, last_read_at, profiles(username)').eq('conversation_id', convId);
+  activeMembers = {}; activeMemberRoles = {}; activeMemberLastRead = {};
   for (const m of members || []) {
     activeMembers[m.user_id] = m.profiles?.username || 'Unknown';
     activeMemberRoles[m.user_id] = m.role;
+    activeMemberLastRead[m.user_id] = m.last_read_at;
   }
+}
+
+function groupReadCount(msgCreatedAt) {
+  const t = new Date(msgCreatedAt).getTime();
+  let count = 0;
+  for (const [uid, lastRead] of Object.entries(activeMemberLastRead)) {
+    if (uid === me.id) continue;
+    if (lastRead && new Date(lastRead).getTime() >= t) count++;
+  }
+  return count;
 }
 
 // ---------- DISAPPEARING MESSAGES ----------
@@ -913,7 +1007,12 @@ function setReplyTarget(msg) {
   const bar = $('reply-preview');
   bar.style.display = 'flex';
   bar.innerHTML = `<div class="reply-text"><b>${escapeHtml(senderLabel || 'Reply')}</b>: ${escapeHtml(replyingTo.content.slice(0, 60))}</div><button id="cancel-reply">✕</button>`;
-  $('cancel-reply').onclick = () => { replyingTo = null; bar.style.display = 'none'; bar.innerHTML = ''; };
+  $('cancel-reply').onclick = () => {
+    replyingTo = null; bar.style.display = 'none'; bar.innerHTML = '';
+    if (!channelCanPost) $('composer').style.display = 'none'; // channel मध्ये comment cancel केलं तर composer परत लपवतो
+  };
+  // Channel मध्ये पोस्ट करण्याचा अधिकार नसेल तर फक्त comment (reply) साठी तात्पुरता composer दाखवतो
+  if (!channelCanPost) $('composer').style.display = 'flex';
   $('msg-input').focus();
 }
 
@@ -931,7 +1030,10 @@ async function sendMessage() {
   if (replyingTo) payload.reply_to = replyingTo.id;
   const { error } = await sb.from('messages').insert(payload);
   if (error) alert(error.message);
-  if (replyingTo) { replyingTo = null; $('reply-preview').style.display = 'none'; $('reply-preview').innerHTML = ''; }
+  if (replyingTo) {
+    replyingTo = null; $('reply-preview').style.display = 'none'; $('reply-preview').innerHTML = '';
+    if (!channelCanPost) $('composer').style.display = 'none'; // channel मध्ये comment पाठवून झाल्यावर composer परत लपवतो
+  }
 }
 
 // ---------- PHOTO/FILE UPLOAD ----------
@@ -1006,6 +1108,18 @@ function refreshReadTicks() {
   });
 }
 
+function refreshGroupReadTicks() {
+  document.querySelectorAll('.bubble.me[data-msg-id]').forEach(bubble => {
+    const tick = bubble.querySelector('.tick');
+    if (!tick) return;
+    const createdAt = bubble.dataset.createdAt;
+    if (!createdAt) return;
+    const readCount = groupReadCount(createdAt);
+    tick.textContent = readCount > 0 ? `✓✓ Read by ${readCount}` : '✓ Sent';
+    tick.classList.toggle('read', readCount > 0);
+  });
+}
+
 // ---------- REACTIONS ----------
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
@@ -1067,6 +1181,7 @@ function renderIncoming(msg) {
   const div = document.createElement('div');
   div.className = 'bubble ' + (mine ? 'me' : 'them');
   div.dataset.msgId = msg.id;
+  div.dataset.createdAt = msg.created_at;
   const time = new Date(msg.created_at).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' });
   const senderLabel = (activeConvType !== 'direct' && !mine)
     ? `<span class="sender">${escapeHtml(activeMembers[msg.sender_id] || 'Unknown')}</span>` : '';
@@ -1082,8 +1197,13 @@ function renderIncoming(msg) {
   }
 
   const replyHtml = msg.reply_to ? `<div class="reply-quote">↩ उत्तर</div>` : '';
-  const tickHtml = mine && activeConvType === 'direct'
-    ? `<span class="tick" data-created-at="${msg.created_at}">✓</span>` : '';
+  let tickHtml = '';
+  if (mine && activeConvType === 'direct') {
+    tickHtml = `<span class="tick" data-created-at="${msg.created_at}">✓</span>`;
+  } else if (mine && (activeConvType === 'group' || activeConvType === 'channel')) {
+    const readCount = groupReadCount(msg.created_at);
+    tickHtml = readCount > 0 ? `<span class="tick read">✓✓ Read by ${readCount}</span>` : `<span class="tick">✓ Sent</span>`;
+  }
   const actionsHtml = `<div class="bubble-actions">
     <span class="act-reply" title="Reply">↩</span>
     <span class="act-react" title="React">😊</span>
@@ -1103,6 +1223,7 @@ function renderIncoming(msg) {
   box.scrollTop = box.scrollHeight;
   loadReactionsFor(msg.id);
   refreshReadTicks();
+  refreshGroupReadTicks();
 }
 
 function escapeHtml(s) {

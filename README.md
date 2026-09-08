@@ -38,18 +38,20 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - Online/Last-seen (direct चॅटमध्ये हेडरखाली दिसतं — दोघांनीही privacy मध्ये लपवलं नसेल तरच, ⚙ सेटिंग्जमधून लपवता येतं)
 - **Disappearing Messages** — प्रत्येक चॅटमध्ये ⏱ बटणाने "बंद / 24 तास / 7 दिवस" निवडता येतं; वेळ संपल्यावर मेसेज (आणि त्यातला फोटो/फाईल) कायमचा डिलीट होतो — "zero/near-zero storage" तत्वानुसार
 - **Communities/Channels** — broadcast-style: फक्त owner/admin पोस्ट करू शकतात, बाकीचे फक्त वाचतात; Public channels "🔍 Discover Channels" मधून कोणालाही शोधून join करता येतात
-- **Voice/Video Calling (WebRTC)** — Direct चॅटमध्ये 📞/🎥 बटणाने कॉल करता येतो; media थेट peer-to-peer जातो (सर्व्हरवर कॉल रेकॉर्ड/साठवला जात नाही), फक्त सिग्नलिंग (कोण कोणाला कॉल करतंय) Supabase Realtime वरून होतं
+- **Voice/Video Calling (WebRTC)** — Direct आणि Group चॅटमध्ये 📞/🎥 बटणाने कॉल करता येतो (multi-person mesh — प्रत्येकजण प्रत्येकाशी थेट जोडला जातो); media थेट peer-to-peer जातो (सर्व्हरवर कॉल रेकॉर्ड/साठवला जात नाही), फक्त सिग्नलिंग Supabase Realtime वरून होतं
 - **Message Edit** — स्वतःच्या टेक्स्ट मेसेजवर ✏️ ने बदल करता येतो, "(edited)" टॅग दिसतो
-- **Read Receipts (✓✓)** — Direct चॅटमध्ये समोरच्याने वाचल्यावर टिक निळी होते, live अपडेट होते
+- **Read Receipts** — Direct चॅटमध्ये ✓✓ टिक निळी होते; Group/Channel मध्ये "Read by N" दाखवतो — सगळीकडे live अपडेट
 - **Reactions** — कोणत्याही मेसेजवर 😊 दाबून 👍❤️😂😮😢🙏 यापैकी react करता येतं — Group/Channel सगळीकडे, Channel मध्ये subscribers (जे पोस्ट करू शकत नाहीत) त्यांनाही react करता येतं
+- **Channel Comments** — Channel मध्ये subscribers स्वतः नवीन पोस्ट करू शकत नाहीत, पण एखाद्या पोस्टवरच्या ↩ बटणाने comment (reply) करू शकतात
 - Row Level Security (RLS) — database-level सुरक्षा
 - Report table (safety basics)
 
 ## Calling बद्दल महत्त्वाची टीप
 
-- सध्या फक्त **STUN server** (मोफत, Google चा) वापरलाय, **TURN server नाही**. बहुतांश नेटवर्कवर (home wifi, mobile data) कॉल चालेल, पण काही strict/corporate नेटवर्कवर जोडला जाणार नाही — त्यासाठी स्वतःचा TURN सर्व्हर (coturn) लागतो, जो पुढच्या टप्प्यात जोडता येईल.
-- कॉल सुरू असताना दुसरा चॅट उघडता येणार नाही (आधी कॉल संपवावा लागेल) — सध्याच्या सिंगल-सिग्नलिंग-चॅनल आर्किटेक्चरची मर्यादा.
-- Group/Channel कॉल्स अजून नाहीत — फक्त 1:1.
+- **STUN + TURN दोन्ही** आता जोडलेले आहेत (TURN: मोफत Open Relay Project). बहुतांश नेटवर्कवर, तसंच काही strict/corporate नेटवर्कवरही कॉल जोडला जाईल. हे सार्वजनिक demo TURN credentials आहेत — मोठ्या प्रमाणावर (शेकडो/हजारो users) वापरासाठी विश्वासार्ह नाही, तेव्हा स्वतःचा coturn किंवा paid service (Twilio/Metered) घ्यावा.
+- कॉल सुरू असताना दुसरा चॅट उघडता येणार नाही (आधी कॉल संपवावा लागेल).
+- Group calls मध्ये प्रत्येक सभासद इतर प्रत्येकाशी थेट जोडला जातो (mesh) — मोठ्या ग्रुप्ससाठी (8-10+ लोक) हे जड होऊ शकतं; खऱ्या मोठ्या ग्रुप कॉल्ससाठी SFU (media server) लागतो, जो अजून नाही.
+- Channel calls अजून नाहीत — फक्त direct आणि group.
 
 ## Storage आर्किटेक्चर बद्दल प्रामाणिक टीप
 
@@ -67,10 +69,11 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 
 ## पुढचे टप्पे
 
-1. TURN server जोडणं (call reliability सुधारण्यासाठी)
-2. Group/Channel calls
-3. Channel मध्ये threaded comments (सध्या फक्त reactions आहेत, comments नाहीत)
-4. Read receipts group/channel साठी (सध्या फक्त direct चॅटमध्ये)
+1. Channel calls (सध्या फक्त direct + group)
+2. मोठ्या group calls साठी SFU/media server (सध्याचा mesh ८-१० लोकांपर्यंत ठीक आहे, त्यापेक्षा मोठ्यासाठी जड होईल)
+3. Comments ला स्वतःचं threaded view (सध्या comments messages listमध्येच "↩ उत्तर" टॅगसह दिसतात, वेगळा thread view नाही)
+4. Business/Creator profiles, advertising (मूळ spec चे Phase 2/3 चे मोठे, वेगळे टप्पे)
+
 ## GitHub वर टाकायचं कसं
 
 ```bash

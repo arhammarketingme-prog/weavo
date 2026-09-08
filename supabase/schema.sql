@@ -333,3 +333,19 @@ begin
   end if;
 end $$;
 
+
+-- 13) CHANNEL COMMENTS — subscribers top-level post करू शकत नाहीत, पण एखाद्या पोस्टला comment (reply) करू शकतात
+drop policy if exists "फक्त सभासदच मेसेज पाठवू शकतात, आणि स्वतःच्याच नावाने" on messages;
+create policy "फक्त सभासदच मेसेज पाठवू शकतात, आणि स्वतःच्याच नावाने"
+  on messages for insert with check (
+    auth.uid() = sender_id
+    and (
+      can_post_in_conversation(messages.conversation_id, auth.uid())
+      or (
+        messages.reply_to is not null
+        and (select type from conversations where id = messages.conversation_id) = 'channel'
+        and is_conversation_member(messages.conversation_id, auth.uid())
+      )
+    )
+  );
+
