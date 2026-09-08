@@ -859,6 +859,25 @@ const ICE_SERVERS = {
     { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
   ],
 };
+
+// कमी resolution/bitrate — कमकुवत नेटवर्क किंवा दूरच्या TURN relay वरून जाताना lag कमी करण्यासाठी
+function getMediaConstraints(isVideo) {
+  return {
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: isVideo ? { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 24, max: 24 } } : false,
+  };
+}
+
+// Peer connection ला bitrate-cap लावतो (विशेषतः video साठी) — यामुळे buffering/lag कमी होतो
+async function capVideoBitrate(pc, kbps = 400) {
+  const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+  if (!sender) return;
+  const params = sender.getParameters();
+  if (!params.encodings) params.encodings = [{}];
+  params.encodings[0].maxBitrate = kbps * 1000;
+  try { await sender.setParameters(params); } catch (e) { /* काही ब्राउझर support करत नाहीत, दुर्लक्ष */ }
+}
+
 let peers = {}; // userId -> RTCPeerConnection (mesh: प्रत्येक इतर सभासदासाठी वेगळं connection)
 let localStream = null;
 let amIInCall = false;
@@ -885,6 +904,7 @@ function createPeerConnectionFor(uid) {
 
 async function offerTo(uid) {
   const conn = createPeerConnectionFor(uid);
+  await capVideoBitrate(conn);
   const offer = await conn.createOffer();
   await conn.setLocalDescription(offer);
   typingChannel.send({ type: 'broadcast', event: 'call-offer', payload: { from: me.id, to: uid, sdp: offer } });
@@ -894,7 +914,7 @@ async function offerTo(uid) {
 async function startCall(convId, title, type) {
   if (amIInCall) { alert('आधीच एक कॉल सुरू आहे'); return; }
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
+    localStream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(type === 'video'));
   } catch (err) {
     alert('Microphone/Camera access मिळालं नाही: ' + err.message);
     return;
@@ -929,7 +949,7 @@ async function acceptCall() {
   if (!pendingCallInfo) return;
   const { convId, title, callType } = pendingCallInfo;
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === 'video' });
+    localStream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(callType === 'video'));
   } catch (err) {
     alert('Microphone/Camera access मिळालं नाही: ' + err.message);
     declineCall();
@@ -956,6 +976,7 @@ function handleCallOffer(payload) {
   if (payload.to !== me.id) return;
   const conn = peers[payload.from] || createPeerConnectionFor(payload.from);
   (async () => {
+    await capVideoBitrate(conn);
     await conn.setRemoteDescription(new RTCSessionDescription(payload.sdp));
     const answer = await conn.createAnswer();
     await conn.setLocalDescription(answer);
