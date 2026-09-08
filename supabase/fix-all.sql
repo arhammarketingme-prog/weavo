@@ -231,3 +231,39 @@ create policy "फक्त सभासदच मेसेज पाठवू �
     )
   );
 
+
+-- 14) ACCOUNT TYPES + BUSINESS DIRECTORY + CREATOR BIO
+alter table profiles add column if not exists account_type text default 'personal'; -- personal | creator | business
+alter table profiles add column if not exists bio text;
+
+create table if not exists business_profiles (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid references profiles(id) unique,
+  name text not null,
+  category text,
+  location text,
+  phone text,
+  website text,
+  hours text,
+  description text,
+  created_at timestamptz default now()
+);
+
+alter table business_profiles enable row level security;
+
+drop policy if exists "Business profiles सगळ्यांना दिसतात" on business_profiles;
+create policy "Business profiles सगळ्यांना दिसतात"
+  on business_profiles for select using (true);
+
+drop policy if exists "मालक स्वतःचा business profile तयार करू शकतो" on business_profiles;
+create policy "मालक स्वतःचा business profile तयार करू शकतो"
+  on business_profiles for insert with check (auth.uid() = owner_id);
+
+drop policy if exists "मालक स्वतःचा business profile बदलू शकतो" on business_profiles;
+create policy "मालक स्वतःचा business profile बदलू शकतो"
+  on business_profiles for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+drop policy if exists "मालक स्वतःचा business profile काढू शकतो" on business_profiles;
+create policy "मालक स्वतःचा business profile काढू शकतो"
+  on business_profiles for delete using (auth.uid() = owner_id);
+

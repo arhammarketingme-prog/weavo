@@ -43,8 +43,18 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Read Receipts** — Direct चॅटमध्ये ✓✓ टिक निळी होते; Group/Channel मध्ये "Read by N" दाखवतो — सगळीकडे live अपडेट
 - **Reactions** — कोणत्याही मेसेजवर 😊 दाबून 👍❤️😂😮😢🙏 यापैकी react करता येतं — Group/Channel सगळीकडे, Channel मध्ये subscribers (जे पोस्ट करू शकत नाहीत) त्यांनाही react करता येतं
 - **Channel Comments** — Channel मध्ये subscribers स्वतः नवीन पोस्ट करू शकत नाहीत, पण एखाद्या पोस्टवरच्या ↩ बटणाने comment (reply) करू शकतात
+- **Account Types + Business Directory** — ⚙ Settings मध्ये Personal/Creator/Business निवडता येतं; Creator साठी Bio, Business साठी नाव/category/location/phone/website/तास/वर्णन भरता येतं; "🏢 Discover Businesses" मधून सगळे businesses शोधून थेट owner शी chat सुरू करता येतो
 - Row Level Security (RLS) — database-level सुरक्षा
 - Report table (safety basics)
+
+## महत्त्वाची मर्यादा — Advertising/Monetization
+
+मूळ spec मध्ये advertising campaigns, payments, creator monetization याचा उल्लेख आहे — **हे मुद्दाम बांधलेलं नाही.** कारणं:
+- खरा payment processing (Stripe वगैरे) लागतो — हा आर्थिक/कायदेशीर निर्णयाचा भाग आहे, कोडने ठरवण्याचा नाही
+- Ad campaign targeting, analytics, billing यासाठी वेगळी, गंभीर backend infrastructure लागते
+- Business Directory इथे बांधलाय तो **मोफत listing** आहे — पैसे भरून जाहिरात करण्याची सोय नाही
+
+हे टप्प्याटप्प्याने पुढे बांधता येईल, पण त्याआधी व्यवसाय मॉडेल, payment provider, आणि कायदेशीर सल्ला निश्चित करणं आवश्यक आहे.
 
 ## Calling बद्दल महत्त्वाची टीप
 
@@ -72,7 +82,8 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 1. Channel calls (सध्या फक्त direct + group)
 2. मोठ्या group calls साठी SFU/media server (सध्याचा mesh ८-१० लोकांपर्यंत ठीक आहे, त्यापेक्षा मोठ्यासाठी जड होईल)
 3. Comments ला स्वतःचं threaded view (सध्या comments messages listमध्येच "↩ उत्तर" टॅगसह दिसतात, वेगळा thread view नाही)
-4. Business/Creator profiles, advertising (मूळ spec चे Phase 2/3 चे मोठे, वेगळे टप्पे)
+4. Business profiles साठी फोटो अपलोड (सध्या फक्त मजकूर फील्ड्स)
+5. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
 
 ## GitHub वर टाकायचं कसं
 

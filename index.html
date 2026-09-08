@@ -36,6 +36,11 @@
   #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; }
   #settings-panel { display: none; padding: 14px 16px; background: #14161c; border-bottom: 1px solid #22252e; }
   #settings-panel label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .settings-row { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .settings-label { font-size: 12px; color: var(--muted); }
+  #settings-panel select, #settings-panel textarea, #business-fields input, #business-fields textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #2a2e39; background: #10121a; color: var(--text); font-size: 13px; }
+  #settings-panel button, #business-fields button { width: auto; padding: 8px 14px; margin-top: 6px; align-self: flex-start; }
+  #business-fields { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #22252e; padding-top: 12px; }
   .typing-indicator { padding: 4px 20px; font-size: 12px; color: var(--muted); font-style: italic; }
   .last-seen { font-size: 11px; color: var(--muted); font-weight: 400; }
   #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid #22252e; }
@@ -50,6 +55,12 @@
   .disc-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #1c1f28; }
   .disc-item button { width: auto; padding: 5px 10px; font-size: 12px; margin: 0; }
   .disc-empty { font-size: 12px; color: var(--muted); }
+  .biz-card { border-bottom: 1px solid #1c1f28; padding: 10px 0; font-size: 13px; }
+  .biz-name { font-weight: 600; }
+  .biz-cat { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .biz-line { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .biz-desc { margin-top: 4px; font-size: 12px; }
+  .biz-chat { width: auto; padding: 6px 12px; font-size: 12px; margin-top: 8px; }
   .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid #22252e; }
 
   /* ---------- CALLING ---------- */
@@ -155,11 +166,35 @@
     <input type="file" id="avatar-input" accept="image/*" style="display:none" />
     <div id="settings-panel">
       <label><input type="checkbox" id="hide-last-seen-toggle" /> माझं last-seen लपवा (मग तुम्हालाही इतरांचं दिसणार नाही)</label>
+      <div class="settings-row">
+        <label class="settings-label">Account type</label>
+        <select id="account-type-select">
+          <option value="personal">Personal</option>
+          <option value="creator">Creator</option>
+          <option value="business">Business</option>
+        </select>
+      </div>
+      <div id="creator-bio-row" class="settings-row" style="display:none">
+        <label class="settings-label">Bio</label>
+        <textarea id="bio-input" placeholder="स्वतःबद्दल थोडक्यात..." rows="2"></textarea>
+        <button id="save-bio-btn">Save Bio</button>
+      </div>
+      <div id="business-fields" style="display:none">
+        <input id="biz-name" placeholder="Business चं नाव" />
+        <input id="biz-category" placeholder="Category (उदा: Restaurant, Salon)" />
+        <input id="biz-location" placeholder="Location" />
+        <input id="biz-phone" placeholder="Phone" />
+        <input id="biz-website" placeholder="Website (optional)" />
+        <input id="biz-hours" placeholder="वेळ (उदा: 9am-9pm)" />
+        <textarea id="biz-desc" placeholder="वर्णन" rows="2"></textarea>
+        <button id="save-business-btn">Business Profile Save करा</button>
+      </div>
     </div>
     <div id="new-chat"><input id="new-chat-username" placeholder="username टाका (@ शिवाय)..." /><button id="new-chat-btn">Chat</button></div>
     <div id="tab-row">
       <button id="tab-toggle-group" class="link-btn">+ नवीन Group</button>
       <button id="tab-toggle-channel" class="link-btn">+ नवीन Channel</button>
+      <button id="tab-toggle-business" class="link-btn">🏢 Discover Businesses</button>
       <button id="tab-toggle-discover" class="link-btn">🔍 Discover Channels</button>
     </div>
     <div id="new-group" style="display:none">
@@ -174,6 +209,7 @@
       <button id="new-channel-btn">Channel तयार करा</button>
     </div>
     <div id="discover-panel" style="display:none"></div>
+    <div id="discover-business-panel" style="display:none"></div>
     <div id="conv-list"></div>
   </div>
   <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
@@ -276,9 +312,16 @@ async function enterApp() {
   subscribeRealtime();
   loadConversations();
 
-  // Profile (avatar + privacy setting) आणून display करतो
-  const { data: p } = await sb.from('profiles').select('avatar_url, hide_last_seen').eq('id', me.id).single();
-  if (p) { myProfile = p; renderMyAvatar(); $('hide-last-seen-toggle').checked = !!p.hide_last_seen; }
+  // Profile (avatar + privacy setting + account type + bio) आणून display करतो
+  const { data: p } = await sb.from('profiles').select('avatar_url, hide_last_seen, account_type, bio').eq('id', me.id).single();
+  if (p) {
+    myProfile = p; renderMyAvatar();
+    $('hide-last-seen-toggle').checked = !!p.hide_last_seen;
+    $('account-type-select').value = p.account_type || 'personal';
+    $('bio-input').value = p.bio || '';
+    updateAccountTypeUI(p.account_type || 'personal');
+    if (p.account_type === 'business') await loadMyBusinessProfile();
+  }
 
   // Heartbeat: दर 60 सेकंदांनी last_seen_at अपडेट (ऑनलाइन स्टेटससाठी)
   updateLastSeen();
@@ -294,6 +337,53 @@ async function enterApp() {
   };
   $('me-avatar').onclick = () => $('avatar-input').click();
   $('avatar-input').onchange = handleAvatarUpload;
+
+  $('account-type-select').onchange = async (e) => {
+    const val = e.target.value;
+    await sb.from('profiles').update({ account_type: val }).eq('id', me.id);
+    updateAccountTypeUI(val);
+    if (val === 'business') await loadMyBusinessProfile();
+  };
+  $('save-bio-btn').onclick = async () => {
+    await sb.from('profiles').update({ bio: $('bio-input').value.trim() }).eq('id', me.id);
+    alert('Bio save झाली');
+  };
+  $('save-business-btn').onclick = saveBusinessProfile;
+}
+
+function updateAccountTypeUI(accountType) {
+  $('creator-bio-row').style.display = (accountType === 'creator' || accountType === 'business') ? 'flex' : 'none';
+  $('business-fields').style.display = accountType === 'business' ? 'flex' : 'none';
+}
+
+async function loadMyBusinessProfile() {
+  const { data } = await sb.from('business_profiles').select('*').eq('owner_id', me.id).maybeSingle();
+  if (data) {
+    $('biz-name').value = data.name || '';
+    $('biz-category').value = data.category || '';
+    $('biz-location').value = data.location || '';
+    $('biz-phone').value = data.phone || '';
+    $('biz-website').value = data.website || '';
+    $('biz-hours').value = data.hours || '';
+    $('biz-desc').value = data.description || '';
+  }
+}
+
+async function saveBusinessProfile() {
+  const name = $('biz-name').value.trim();
+  if (!name) { alert('Business चं नाव आवश्यक आहे'); return; }
+  const payload = {
+    owner_id: me.id, name,
+    category: $('biz-category').value.trim(),
+    location: $('biz-location').value.trim(),
+    phone: $('biz-phone').value.trim(),
+    website: $('biz-website').value.trim(),
+    hours: $('biz-hours').value.trim(),
+    description: $('biz-desc').value.trim(),
+  };
+  const { error } = await sb.from('business_profiles').upsert(payload, { onConflict: 'owner_id' });
+  if (error) { alert(error.message); return; }
+  alert('Business Profile save झाली');
 }
 
 function renderMyAvatar() {
@@ -449,7 +539,7 @@ $('new-chat-btn').onclick = async () => {
 
 // ---------- GROUP CREATION ----------
 function closeAllPanels() {
-  ['new-group', 'new-channel', 'discover-panel'].forEach(id => { $(id).style.display = 'none'; });
+  ['new-group', 'new-channel', 'discover-panel', 'discover-business-panel'].forEach(id => { $(id).style.display = 'none'; });
 }
 
 $('tab-toggle-group').onclick = () => {
@@ -549,6 +639,61 @@ $('tab-toggle-discover').onclick = async () => {
       closeAllPanels();
       await loadConversations();
       openConversation(convId, '# ' + btn.dataset.name, 'channel');
+    };
+  });
+};
+
+// ---------- DISCOVER BUSINESSES ----------
+$('tab-toggle-business').onclick = async () => {
+  const box = $('discover-business-panel');
+  const willOpen = box.style.display === 'none';
+  closeAllPanels();
+  if (!willOpen) return;
+  box.style.display = 'block';
+  box.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+
+  const { data: businesses } = await sb.from('business_profiles').select('id, name, category, location, phone, website, hours, description, owner_id, profiles(username)');
+
+  if (!businesses || !businesses.length) { box.innerHTML = '<div class="disc-empty">अजून कोणतेही business profiles नाहीत</div>'; return; }
+
+  box.innerHTML = businesses.map(b => `
+    <div class="biz-card">
+      <div class="biz-name">${escapeHtml(b.name)}${b.category ? ' <span class="biz-cat">(' + escapeHtml(b.category) + ')</span>' : ''}</div>
+      ${b.location ? `<div class="biz-line">📍 ${escapeHtml(b.location)}</div>` : ''}
+      ${b.phone ? `<div class="biz-line">📞 ${escapeHtml(b.phone)}</div>` : ''}
+      ${b.hours ? `<div class="biz-line">🕒 ${escapeHtml(b.hours)}</div>` : ''}
+      ${b.website ? `<div class="biz-line">🔗 ${escapeHtml(b.website)}</div>` : ''}
+      ${b.description ? `<div class="biz-desc">${escapeHtml(b.description)}</div>` : ''}
+      <button class="biz-chat" data-username="${escapeHtml(b.profiles?.username || '')}">@${escapeHtml(b.profiles?.username || '')} शी Chat करा</button>
+    </div>
+  `).join('');
+
+  box.querySelectorAll('.biz-chat').forEach(btn => {
+    btn.onclick = async () => {
+      const username = btn.dataset.username;
+      if (!username) return;
+      const { data: other } = await sb.from('profiles').select('id, username').eq('username', username).maybeSingle();
+      if (!other) { alert('वापरकर्ता सापडला नाही'); return; }
+      const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+      const myIds = (myConvs || []).map(r => r.conversation_id);
+      let existingId = null;
+      if (myIds.length) {
+        const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
+        if (theirConvs && theirConvs.length) existingId = theirConvs[0].conversation_id;
+      }
+      let convId = existingId;
+      if (!convId) {
+        const { data: newConv, error } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+        if (error) { alert(error.message); return; }
+        convId = newConv.id;
+        await sb.from('conversation_members').insert([
+          { conversation_id: convId, user_id: me.id },
+          { conversation_id: convId, user_id: other.id },
+        ]);
+      }
+      closeAllPanels();
+      await loadConversations();
+      openConversation(convId, '@' + username, 'direct');
     };
   });
 };
