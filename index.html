@@ -51,6 +51,24 @@
   .disc-item button { width: auto; padding: 5px 10px; font-size: 12px; margin: 0; }
   .disc-empty { font-size: 12px; color: var(--muted); }
   .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid #22252e; }
+
+  /* ---------- CALLING ---------- */
+  .call-overlay { position: fixed; inset: 0; background: rgba(10,11,15,0.92); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .call-box { background: var(--panel); padding: 32px; border-radius: 20px; text-align: center; width: 300px; box-shadow: 0 20px 60px #0008; }
+  .call-box.wide { width: min(90vw, 480px); }
+  .call-avatar { font-size: 48px; margin-bottom: 12px; }
+  .call-name { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .call-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .call-btn-row { display: flex; gap: 16px; justify-content: center; }
+  .call-btn { width: auto; padding: 12px 24px; border-radius: 24px; font-weight: 600; }
+  .call-btn.accept { background: #22c55e; }
+  .call-btn.decline { background: #ef4444; }
+  .video-grid { position: relative; margin-bottom: 20px; }
+  #remote-video { width: 100%; max-height: 50vh; background: #000; border-radius: 12px; object-fit: cover; }
+  #local-video { position: absolute; bottom: 10px; right: 10px; width: 90px; border-radius: 8px; border: 2px solid var(--panel); background: #000; }
+  .call-icon-btn { width: 52px; height: 52px; border-radius: 50%; font-size: 20px; background: #2a2e39; margin: 0; padding: 0; }
+  .call-icon-btn.hangup { background: #ef4444; }
+  .call-icon-btn.muted { background: #ef4444; }
   #conv-list { flex: 1; overflow-y: auto; }
   .conv-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1c1f28; }
   .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
@@ -146,6 +164,34 @@
   <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
 </div>
 
+<!-- ---------- CALLING (WebRTC) ---------- -->
+<div id="incoming-call-overlay" class="call-overlay" style="display:none">
+  <div class="call-box">
+    <div class="call-avatar">📞</div>
+    <div id="incoming-call-text" class="call-name"></div>
+    <div class="call-sub">Incoming call...</div>
+    <div class="call-btn-row">
+      <button id="decline-call-btn" class="call-btn decline">नकार</button>
+      <button id="accept-call-btn" class="call-btn accept">स्वीकार</button>
+    </div>
+  </div>
+</div>
+
+<div id="active-call-overlay" class="call-overlay" style="display:none">
+  <div class="call-box wide">
+    <div id="call-status" class="call-sub"></div>
+    <div class="video-grid">
+      <video id="remote-video" autoplay playsinline></video>
+      <video id="local-video" autoplay playsinline muted></video>
+    </div>
+    <div class="call-btn-row">
+      <button id="mute-btn" class="call-icon-btn" title="Mute">🎙️</button>
+      <button id="camera-btn" class="call-icon-btn" title="Camera">📷</button>
+      <button id="hangup-btn" class="call-icon-btn hangup" title="Hang up">📵</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ---------- Supabase client ----------
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -186,6 +232,7 @@ $('login-btn').onclick = async () => {
 };
 
 $('logout-btn').onclick = async () => {
+  if (pc) endCall(true);
   await sb.auth.signOut();
   if (messagesChannel) sb.removeChannel(messagesChannel);
   if (heartbeatTimer) clearInterval(heartbeatTimer);
@@ -475,6 +522,7 @@ let typingChannel = null;
 let typingTimeout = null;
 
 async function openConversation(id, title, type) {
+  if (pc) { alert('कॉल चालू असताना दुसरा चॅट उघडता येणार नाही — आधी कॉल संपवा'); return; }
   activeConv = id;
   activeConvType = type || 'direct';
   activeMembers = {};
@@ -486,6 +534,7 @@ async function openConversation(id, title, type) {
     <div id="chat-header">
       <span>${title}<span class="last-seen" id="header-last-seen"></span></span>
       <span class="header-actions">
+        ${type === 'direct' ? '<button id="voice-call-btn" class="icon-btn" title="Voice Call">📞</button><button id="video-call-btn" class="icon-btn" title="Video Call">🎥</button>' : ''}
         <button id="disappear-btn" class="icon-btn" title="Disappearing messages">⏱</button>
         ${(activeConvType === 'group' || activeConvType === 'channel') ? '<button id="group-info-btn" class="icon-btn" title="Members/Info">⋮</button>' : ''}
       </span>
@@ -540,7 +589,7 @@ async function openConversation(id, title, type) {
     }
   }
 
-  // Typing indicator: याच conversation साठी broadcast channel
+  // Typing indicator + Calling (WebRTC signaling) — दोन्हीसाठी हाच एक broadcast channel वापरतो
   if (typingChannel) sb.removeChannel(typingChannel);
   typingChannel = sb.channel('typing-' + id)
     .on('broadcast', { event: 'typing' }, (payload) => {
@@ -551,7 +600,32 @@ async function openConversation(id, title, type) {
       clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => { ind.style.display = 'none'; }, 3000);
     })
+    .on('broadcast', { event: 'call-offer' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id) return;
+      handleIncomingOffer(id, title, p);
+    })
+    .on('broadcast', { event: 'call-answer' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id) return;
+      handleCallAnswer(p);
+    })
+    .on('broadcast', { event: 'call-ice' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id || !pc) return;
+      pc.addIceCandidate(new RTCIceCandidate(p.candidate)).catch(() => {});
+    })
+    .on('broadcast', { event: 'call-end' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id) return;
+      endCall(false);
+    })
     .subscribe();
+
+  if (type === 'direct') {
+    $('voice-call-btn').onclick = () => startCall(id, title, 'audio');
+    $('video-call-btn').onclick = () => startCall(id, title, 'video');
+  }
 
   const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id)
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
@@ -570,6 +644,152 @@ async function openConversation(id, title, type) {
   $('attach-btn').onclick = () => $('file-input').click();
   $('file-input').onchange = handleFileUpload;
 }
+
+// ============================================================
+// WEBRTC CALLING (Voice/Video) — signaling Supabase broadcast वरून,
+// media direct peer-to-peer (कोणताही मीडिया सर्व्हरवर साठवला जात नाही)
+// ============================================================
+const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+let pc = null;
+let localStream = null;
+let pendingOffer = null; // येणाऱ्या कॉलचा offer, Accept दाबेपर्यंत साठवून ठेवतो
+let currentCallConvId = null;
+let currentCallTitle = null;
+let isCaller = false;
+let callTimerInterval = null;
+
+function createPeerConnection(convId) {
+  const conn = new RTCPeerConnection(ICE_SERVERS);
+  conn.onicecandidate = (e) => {
+    if (e.candidate) typingChannel.send({ type: 'broadcast', event: 'call-ice', payload: { from: me.id, candidate: e.candidate } });
+  };
+  conn.ontrack = (e) => {
+    const remoteVideo = $('remote-video');
+    if (remoteVideo && remoteVideo.srcObject !== e.streams[0]) remoteVideo.srcObject = e.streams[0];
+  };
+  conn.onconnectionstatechange = () => {
+    if (['disconnected', 'failed', 'closed'].includes(conn.connectionState)) endCall(false);
+  };
+  return conn;
+}
+
+async function startCall(convId, title, type) {
+  if (pc) { alert('आधीच एक कॉल सुरू आहे'); return; }
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
+  } catch (err) {
+    alert('Microphone/Camera access मिळालं नाही: ' + err.message);
+    return;
+  }
+  isCaller = true;
+  currentCallConvId = convId;
+  currentCallTitle = title;
+  pc = createPeerConnection(convId);
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+  showActiveCallUI(type, 'रिंग वाजतेय...');
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  typingChannel.send({ type: 'broadcast', event: 'call-offer', payload: { from: me.id, sdp: offer, callType: type, fromName: me.username } });
+}
+
+function handleIncomingOffer(convId, title, payload) {
+  if (pc) return; // आधीच कॉलवर असेल तर दुर्लक्ष (busy)
+  pendingOffer = payload;
+  currentCallConvId = convId;
+  currentCallTitle = title;
+  $('incoming-call-text').textContent = '@' + (payload.fromName || 'कोणीतरी') + ' — ' + (payload.callType === 'video' ? 'Video' : 'Voice') + ' कॉल करतोय';
+  $('incoming-call-overlay').style.display = 'flex';
+}
+
+async function acceptCall() {
+  $('incoming-call-overlay').style.display = 'none';
+  if (!pendingOffer) return;
+  const { callType, sdp } = pendingOffer;
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === 'video' });
+  } catch (err) {
+    alert('Microphone/Camera access मिळालं नाही: ' + err.message);
+    declineCall();
+    return;
+  }
+  isCaller = false;
+  pc = createPeerConnection(currentCallConvId);
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+  await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  typingChannel.send({ type: 'broadcast', event: 'call-answer', payload: { from: me.id, sdp: answer } });
+
+  showActiveCallUI(callType, 'कॉल सुरू आहे');
+  startCallTimer();
+  pendingOffer = null;
+}
+
+function declineCall() {
+  $('incoming-call-overlay').style.display = 'none';
+  if (typingChannel) typingChannel.send({ type: 'broadcast', event: 'call-end', payload: { from: me.id } });
+  pendingOffer = null;
+}
+
+async function handleCallAnswer(payload) {
+  if (!pc || !isCaller) return;
+  await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+  $('call-status').textContent = 'कॉल सुरू आहे';
+  startCallTimer();
+}
+
+function showActiveCallUI(type, statusText) {
+  $('active-call-overlay').style.display = 'flex';
+  $('call-status').textContent = statusText;
+  $('local-video').style.display = type === 'video' ? 'block' : 'none';
+  $('remote-video').style.display = type === 'video' ? 'block' : 'none';
+  if (localStream) $('local-video').srcObject = localStream;
+
+  $('mute-btn').onclick = () => {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (!audioTrack) return;
+    audioTrack.enabled = !audioTrack.enabled;
+    $('mute-btn').classList.toggle('muted', !audioTrack.enabled);
+  };
+  $('camera-btn').onclick = () => {
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+    videoTrack.enabled = !videoTrack.enabled;
+    $('camera-btn').classList.toggle('muted', !videoTrack.enabled);
+  };
+  $('hangup-btn').onclick = () => endCall(true);
+}
+
+function startCallTimer() {
+  let seconds = 0;
+  clearInterval(callTimerInterval);
+  callTimerInterval = setInterval(() => {
+    seconds++;
+    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    $('call-status').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+function endCall(notifyPeer) {
+  clearInterval(callTimerInterval);
+  if (notifyPeer && typingChannel) typingChannel.send({ type: 'broadcast', event: 'call-end', payload: { from: me.id } });
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (pc) { pc.close(); pc = null; }
+  $('active-call-overlay').style.display = 'none';
+  $('incoming-call-overlay').style.display = 'none';
+  $('remote-video').srcObject = null;
+  $('local-video').srcObject = null;
+  isCaller = false;
+  currentCallConvId = null;
+  pendingOffer = null;
+}
+
+$('accept-call-btn').onclick = acceptCall;
+$('decline-call-btn').onclick = declineCall;
 
 // ---------- GROUP INFO PANEL ----------
 let activeMemberRoles = {}; // user_id -> role, आणि सोबत activeMembers मध्ये username
