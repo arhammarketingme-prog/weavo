@@ -69,6 +69,19 @@
   .call-icon-btn { width: 52px; height: 52px; border-radius: 50%; font-size: 20px; background: #2a2e39; margin: 0; padding: 0; }
   .call-icon-btn.hangup { background: #ef4444; }
   .call-icon-btn.muted { background: #ef4444; }
+
+  /* ---------- EDIT / TICKS / REACTIONS ---------- */
+  .edit-input { background: #0d0f14; border: 1px solid var(--accent); color: white; border-radius: 6px; padding: 4px 8px; font-size: 14px; width: 160px; }
+  .edit-save { width: auto; padding: 4px 10px; font-size: 12px; margin-left: 4px; }
+  .edited-tag { font-size: 11px; opacity: 0.6; font-style: italic; }
+  .tick { font-size: 11px; margin-left: 4px; opacity: 0.7; }
+  .tick.read { color: #60a5fa; opacity: 1; }
+  .reaction-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .pill { background: #23262f; border-radius: 10px; padding: 1px 7px; font-size: 12px; cursor: pointer; }
+  .pill.mine { background: var(--accent); }
+  .reaction-picker { position: absolute; bottom: 100%; right: 0; background: #23262f; border-radius: 20px; padding: 6px 10px; display: flex; gap: 6px; box-shadow: 0 8px 24px #0008; margin-bottom: 4px; z-index: 5; }
+  .pick-emoji { cursor: pointer; font-size: 18px; }
+  .pick-emoji:hover { transform: scale(1.2); }
   #conv-list { flex: 1; overflow-y: auto; }
   .conv-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1c1f28; }
   .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
@@ -314,7 +327,10 @@ function subscribeRealtime() {
     .channel('messages-listener')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
       const msg = payload.new;
-      if (msg.conversation_id === activeConv) renderIncoming(msg);
+      if (msg.conversation_id === activeConv) {
+        renderIncoming(msg);
+        if (msg.sender_id !== me.id) markAsRead(activeConv);
+      }
       loadConversations();
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
@@ -322,8 +338,26 @@ function subscribeRealtime() {
       if (msg.deleted) {
         const el = document.querySelector(`[data-msg-id="${msg.id}"]`);
         if (el) el.remove();
+      } else if (msg.conversation_id === activeConv) {
+        // edit झालेला असेल तर तेवढाच content अपडेट करतो
+        const el = document.querySelector(`[data-msg-id="${msg.id}"] .msg-content`);
+        if (el && msg.edited) {
+          el.innerHTML = `${escapeHtml(msg.content)}<span class="edited-tag"> (edited)</span>`;
+        }
       }
       if (msg.conversation_id === activeConv) loadConversations();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_members' }, (payload) => {
+      const row = payload.new;
+      // समोरच्याने चॅट वाचला (last_read_at अपडेट) — तर आपल्या मेसेजवरचं ✓✓ live अपडेट करतो
+      if (row.conversation_id === activeConv && row.user_id !== me.id) {
+        otherLastReadAt = row.last_read_at;
+        refreshReadTicks();
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, (payload) => {
+      const msgId = (payload.new && payload.new.message_id) || (payload.old && payload.old.message_id);
+      if (msgId && document.querySelector(`[data-msg-id="${msgId}"]`)) loadReactionsFor(msgId);
     })
     .subscribe();
 }
@@ -528,6 +562,7 @@ async function openConversation(id, title, type) {
   activeMembers = {};
   replyingTo = null;
   otherDirectUserId = null;
+  otherLastReadAt = null;
   loadConversations();
   const area = $('chat-area');
   area.innerHTML = `
@@ -574,12 +609,13 @@ async function openConversation(id, title, type) {
       }
     }
   } else {
-    // Direct chat: समोरच्या व्यक्तीचा last-seen/online दाखवतो (दोघांनीही hide केलं नसेल तरच)
+    // Direct chat: समोरच्या व्यक्तीचा last-seen/online + last_read_at (read receipts साठी) दाखवतो
     const { data: memberRow } = await sb.from('conversation_members')
-      .select('user_id, profiles(username, last_seen_at, hide_last_seen)')
+      .select('user_id, last_read_at, profiles(username, last_seen_at, hide_last_seen)')
       .eq('conversation_id', id).neq('user_id', me.id).maybeSingle();
     if (memberRow) {
       otherDirectUserId = memberRow.user_id;
+      otherLastReadAt = memberRow.last_read_at;
       const other = memberRow.profiles;
       if (other && !other.hide_last_seen && !myProfile.hide_last_seen) {
         const lastSeen = new Date(other.last_seen_at);
@@ -631,6 +667,8 @@ async function openConversation(id, title, type) {
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .order('created_at', { ascending: true }).limit(200);
   for (const m of history || []) renderIncoming(m);
+  await markAsRead(id);
+  refreshReadTicks();
 
   $('send-btn').onclick = sendMessage;
   $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
@@ -929,6 +967,95 @@ async function deleteMessage(msgId) {
   if (el) el.remove();
 }
 
+// ---------- EDIT ----------
+function startEditMessage(msg) {
+  const el = document.querySelector(`[data-msg-id="${msg.id}"]`);
+  if (!el) return;
+  const contentEl = el.querySelector('.msg-content');
+  if (!contentEl) return;
+  const original = msg.content;
+  contentEl.innerHTML = `<input class="edit-input" value="${escapeHtml(original)}" /><button class="edit-save">Save</button>`;
+  el.querySelector('.edit-input').focus();
+  el.querySelector('.edit-save').onclick = async () => {
+    const newContent = el.querySelector('.edit-input').value.trim();
+    if (!newContent) return;
+    const { error } = await sb.from('messages').update({ content: newContent, edited: true }).eq('id', msg.id);
+    if (error) { alert(error.message); return; }
+    contentEl.textContent = newContent;
+    if (!el.querySelector('.edited-tag')) {
+      const tag = document.createElement('span'); tag.className = 'edited-tag'; tag.textContent = ' (edited)';
+      contentEl.appendChild(tag);
+    }
+  };
+}
+
+// ---------- READ RECEIPTS ----------
+let otherLastReadAt = null; // सध्याच्या direct चॅटमधल्या समोरच्याने शेवटचं कधी वाचलं
+
+async function markAsRead(convId) {
+  await sb.from('conversation_members').update({ last_read_at: new Date().toISOString() }).eq('conversation_id', convId).eq('user_id', me.id);
+}
+
+function refreshReadTicks() {
+  if (activeConvType !== 'direct') return;
+  document.querySelectorAll('.bubble.me .tick').forEach(tick => {
+    const msgTime = new Date(tick.dataset.createdAt);
+    const isRead = otherLastReadAt && new Date(otherLastReadAt) >= msgTime;
+    tick.textContent = isRead ? '✓✓' : '✓';
+    tick.classList.toggle('read', !!isRead);
+  });
+}
+
+// ---------- REACTIONS ----------
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+async function toggleReaction(msgId, emoji) {
+  const { data: existing } = await sb.from('message_reactions').select('id').eq('message_id', msgId).eq('user_id', me.id).eq('emoji', emoji).maybeSingle();
+  if (existing) {
+    await sb.from('message_reactions').delete().eq('id', existing.id);
+  } else {
+    await sb.from('message_reactions').insert({ message_id: msgId, user_id: me.id, emoji });
+  }
+}
+
+async function loadReactionsFor(msgId) {
+  const { data } = await sb.from('message_reactions').select('emoji, user_id').eq('message_id', msgId);
+  renderReactionPills(msgId, data || []);
+}
+
+function renderReactionPills(msgId, reactions) {
+  const el = document.querySelector(`[data-msg-id="${msgId}"] .reaction-pills`);
+  if (!el) return;
+  const counts = {};
+  reactions.forEach(r => { counts[r.emoji] = counts[r.emoji] || { count: 0, mine: false }; counts[r.emoji].count++; if (r.user_id === me.id) counts[r.emoji].mine = true; });
+  el.innerHTML = Object.entries(counts).map(([emoji, info]) =>
+    `<span class="pill ${info.mine ? 'mine' : ''}" data-emoji="${emoji}" data-msg="${msgId}">${emoji} ${info.count}</span>`
+  ).join('');
+  el.querySelectorAll('.pill').forEach(p => { p.onclick = () => toggleReaction(p.dataset.msg, p.dataset.emoji); });
+}
+
+function toggleReactionPicker(msgId, anchorEl) {
+  let picker = document.querySelector('.reaction-picker');
+  if (picker) { picker.remove(); if (picker.dataset.for === msgId) return; }
+  picker = document.createElement('div');
+  picker.className = 'reaction-picker';
+  picker.dataset.for = msgId;
+  picker.innerHTML = REACTION_EMOJIS.map(e => `<span class="pick-emoji">${e}</span>`).join('');
+  anchorEl.appendChild(picker);
+  picker.querySelectorAll('.pick-emoji').forEach(el => {
+    el.onclick = async (ev) => {
+      ev.stopPropagation();
+      await toggleReaction(msgId, el.textContent);
+      picker.remove();
+    };
+  });
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.reaction-picker') && !e.target.closest('.act-react')) {
+    document.querySelectorAll('.reaction-picker').forEach(p => p.remove());
+  }
+});
+
 // ---------- RENDER ----------
 function renderIncoming(msg) {
   const box = $('messages');
@@ -941,7 +1068,7 @@ function renderIncoming(msg) {
   div.className = 'bubble ' + (mine ? 'me' : 'them');
   div.dataset.msgId = msg.id;
   const time = new Date(msg.created_at).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' });
-  const senderLabel = (activeConvType === 'group' && !mine)
+  const senderLabel = (activeConvType !== 'direct' && !mine)
     ? `<span class="sender">${escapeHtml(activeMembers[msg.sender_id] || 'Unknown')}</span>` : '';
 
   let bodyHtml = '';
@@ -951,22 +1078,31 @@ function renderIncoming(msg) {
   } else if (msg.media_url) {
     bodyHtml += `<a href="${msg.media_url}" target="_blank" class="msg-file">📎 ${escapeHtml(msg.content || 'फाईल')}</a>`;
   } else {
-    bodyHtml += escapeHtml(msg.content);
+    bodyHtml += `<span class="msg-content">${escapeHtml(msg.content)}${msg.edited ? '<span class="edited-tag"> (edited)</span>' : ''}</span>`;
   }
 
   const replyHtml = msg.reply_to ? `<div class="reply-quote">↩ उत्तर</div>` : '';
+  const tickHtml = mine && activeConvType === 'direct'
+    ? `<span class="tick" data-created-at="${msg.created_at}">✓</span>` : '';
   const actionsHtml = `<div class="bubble-actions">
     <span class="act-reply" title="Reply">↩</span>
+    <span class="act-react" title="React">😊</span>
+    ${mine && !msg.media_url ? '<span class="act-edit" title="Edit">✏️</span>' : ''}
     ${mine ? '<span class="act-delete" title="Delete">🗑</span>' : ''}
   </div>`;
 
-  div.innerHTML = `${senderLabel}${replyHtml}${bodyHtml}<span class="time">${time}</span>${actionsHtml}`;
+  div.innerHTML = `${senderLabel}${replyHtml}${bodyHtml}<div class="reaction-pills"></div><span class="time">${time}${tickHtml}</span>${actionsHtml}`;
   div.querySelector('.act-reply').onclick = () => setReplyTarget(msg);
+  div.querySelector('.act-react').onclick = (e) => toggleReactionPicker(msg.id, div);
   const delBtn = div.querySelector('.act-delete');
   if (delBtn) delBtn.onclick = () => deleteMessage(msg.id);
+  const editBtn = div.querySelector('.act-edit');
+  if (editBtn) editBtn.onclick = () => startEditMessage(msg);
 
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
+  loadReactionsFor(msg.id);
+  refreshReadTicks();
 }
 
 function escapeHtml(s) {

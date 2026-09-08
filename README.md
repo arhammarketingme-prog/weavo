@@ -39,6 +39,9 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Disappearing Messages** — प्रत्येक चॅटमध्ये ⏱ बटणाने "बंद / 24 तास / 7 दिवस" निवडता येतं; वेळ संपल्यावर मेसेज (आणि त्यातला फोटो/फाईल) कायमचा डिलीट होतो — "zero/near-zero storage" तत्वानुसार
 - **Communities/Channels** — broadcast-style: फक्त owner/admin पोस्ट करू शकतात, बाकीचे फक्त वाचतात; Public channels "🔍 Discover Channels" मधून कोणालाही शोधून join करता येतात
 - **Voice/Video Calling (WebRTC)** — Direct चॅटमध्ये 📞/🎥 बटणाने कॉल करता येतो; media थेट peer-to-peer जातो (सर्व्हरवर कॉल रेकॉर्ड/साठवला जात नाही), फक्त सिग्नलिंग (कोण कोणाला कॉल करतंय) Supabase Realtime वरून होतं
+- **Message Edit** — स्वतःच्या टेक्स्ट मेसेजवर ✏️ ने बदल करता येतो, "(edited)" टॅग दिसतो
+- **Read Receipts (✓✓)** — Direct चॅटमध्ये समोरच्याने वाचल्यावर टिक निळी होते, live अपडेट होते
+- **Reactions** — कोणत्याही मेसेजवर 😊 दाबून 👍❤️😂😮😢🙏 यापैकी react करता येतं — Group/Channel सगळीकडे, Channel मध्ये subscribers (जे पोस्ट करू शकत नाहीत) त्यांनाही react करता येतं
 - Row Level Security (RLS) — database-level सुरक्षा
 - Report table (safety basics)
 
@@ -64,11 +67,10 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 
 ## पुढचे टप्पे
 
-1. Message edit (सध्या फक्त delete आहे)
-2. Read receipts (✓✓)
-3. Channel मध्ये comments/reactions (सध्या फक्त owner पोस्ट करू शकतो, subscribers react/comment करू शकत नाहीत)
-4. TURN server जोडणं (call reliability सुधारण्यासाठी)
-5. Group/Channel calls
+1. TURN server जोडणं (call reliability सुधारण्यासाठी)
+2. Group/Channel calls
+3. Channel मध्ये threaded comments (सध्या फक्त reactions आहेत, comments नाहीत)
+4. Read receipts group/channel साठी (सध्या फक्त direct चॅटमध्ये)
 ## GitHub वर टाकायचं कसं
 
 ```bash

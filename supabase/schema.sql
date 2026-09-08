@@ -272,3 +272,64 @@ create policy "फक्त सभासदच मेसेज पाठवू �
     and can_post_in_conversation(messages.conversation_id, auth.uid())
   );
 
+
+-- 11) READ RECEIPTS — last_read_at प्रत्येक सभासदासाठी
+alter table conversation_members add column if not exists last_read_at timestamptz default now();
+
+drop policy if exists "सभासद स्वतःचं last_read_at अपडेट करू शकतो" on conversation_members;
+create policy "सभासद स्वतःचं last_read_at अपडेट करू शकतो"
+  on conversation_members for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- 12) REACTIONS — कोणत्याही मेसेजवर (group/channel मध्ये subscribers सुद्धा react करू शकतात)
+create table if not exists message_reactions (
+  id uuid primary key default gen_random_uuid(),
+  message_id uuid references messages(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz default now(),
+  unique (message_id, user_id, emoji)
+);
+
+alter table message_reactions enable row level security;
+
+create or replace function message_conversation_id(msg_id uuid)
+returns uuid language sql security definer stable as $$
+  select conversation_id from messages where id = msg_id;
+$$;
+
+drop policy if exists "सभासद reactions बघू शकतात" on message_reactions;
+create policy "सभासद reactions बघू शकतात"
+  on message_reactions for select using (
+    is_conversation_member(message_conversation_id(message_id), auth.uid())
+  );
+
+drop policy if exists "सभासद react करू शकतात" on message_reactions;
+create policy "सभासद react करू शकतात"
+  on message_reactions for insert with check (
+    auth.uid() = user_id and is_conversation_member(message_conversation_id(message_id), auth.uid())
+  );
+
+drop policy if exists "स्वतःची reaction काढू शकतो" on message_reactions;
+create policy "स्वतःची reaction काढू शकतो"
+  on message_reactions for delete using (auth.uid() = user_id);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'message_reactions'
+  ) then
+    alter publication supabase_realtime add table message_reactions;
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'conversation_members'
+  ) then
+    alter publication supabase_realtime add table conversation_members;
+  end if;
+end $$;
+
