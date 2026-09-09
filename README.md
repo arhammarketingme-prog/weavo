@@ -44,8 +44,12 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Reactions** — कोणत्याही मेसेजवर 😊 दाबून 👍❤️😂😮😢🙏 यापैकी react करता येतं — Group/Channel सगळीकडे, Channel मध्ये subscribers (जे पोस्ट करू शकत नाहीत) त्यांनाही react करता येतं
 - **Channel Comments** — Channel मध्ये subscribers स्वतः नवीन पोस्ट करू शकत नाहीत, पण एखाद्या पोस्टवरच्या ↩ बटणाने comment (reply) करू शकतात
 - **Account Types + Business Directory** — ⚙ Settings मध्ये Personal/Creator/Business निवडता येतं; Creator साठी Bio, Business साठी नाव/category/location/phone/website/तास/वर्णन भरता येतं; "🏢 Discover Businesses" मधून सगळे businesses शोधून थेट owner शी chat सुरू करता येतो
+- **Mobile-responsive UI** — फोनवर WhatsApp-स्टाईल list ↔ chat toggle (← Back बटण), टच-फ्रेंडली
+- **Voice Messages** — 🎤 दाबून रेकॉर्ड, timer सकट, पाठवल्यावर player म्हणून ऐकता येतं
+- **Sidebar polish** — प्रत्येक चॅटसाठी avatar (फोटो किंवा रंगीत आद्याक्षर), unread indicator dot
+- **Mute** — प्रत्येक चॅटमध्ये 🔔/🔕 बटणाने mute/unmute (मेसेज येत राहतील, फक्त unread dot दिसणार नाही)
+- **Block + Report** — Direct चॅटमध्ये ⋮ मेनूतून व्यक्तीला block करता येतो (त्यांचे मेसेज दिसेनासे होतात, नवीन मेसेज पाठवता येत नाही) किंवा report करता येतो
 - Row Level Security (RLS) — database-level सुरक्षा
-- Report table (safety basics)
 
 ## महत्त्वाची मर्यादा — Advertising/Monetization
 
@@ -84,7 +88,13 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 2. मोठ्या group calls साठी SFU/media server (सध्याचा mesh ८-१० लोकांपर्यंत ठीक आहे, त्यापेक्षा मोठ्यासाठी जड होईल)
 3. Comments ला स्वतःचं threaded view (सध्या comments messages listमध्येच "↩ उत्तर" टॅगसह दिसतात, वेगळा thread view नाही)
 4. Business profiles साठी फोटो अपलोड (सध्या फक्त मजकूर फील्ड्स)
-5. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
+5. Message search, forward message, pin/archive chat (अजून बांधलेले नाहीत)
+6. Push notifications (सध्या फक्त app उघडं असताना live अपडेट होतं; बंद असताना notification येत नाही — त्यासाठी अजून एक थर लागतो)
+7. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
+
+## Block बद्दल एक प्रामाणिक मर्यादा
+
+Block केल्यावर त्या व्यक्तीचे मेसेज **तुमच्या स्क्रीनवर दिसणं बंद होतं आणि नवीन मेसेज पाठवता येत नाहीत** (app-level तपासणी). पण हे database-level हार्ड सुरक्षा-भिंत नाही — technically हुशार वापरकर्ता browser मधून थेट काहीतरी छेडछाड करून पाठवू शकतो, कारण दोन विशिष्ट व्यक्तींमधलं "कोणी कोणाला block केलं" हे नातं conversations tableवर उपलब्ध नसल्यामुळे RLS मध्ये पूर्णपणे अडवणं शक्य नव्हतं. रोजच्या वापरासाठी हे पुरेसं आहे, पण गंभीर गैरवापर रोखण्यासाठी अजून मजबूत करता येईल.
 
 ## GitHub वर टाकायचं कसं
 

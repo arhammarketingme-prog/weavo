@@ -27,6 +27,18 @@
   #app { display: none; width: 100%; height: 100vh; }
   #app.active { display: flex; }
   #sidebar { width: 280px; background: var(--panel); border-right: 1px solid #22252e; display: flex; flex-direction: column; }
+  #back-btn { display: none; }
+
+  /* ---------- MOBILE RESPONSIVE (WhatsApp-स्टाईल: list ↔ chat toggle) ---------- */
+  @media (max-width: 768px) {
+    #sidebar { width: 100%; }
+    #chat-area { width: 100%; }
+    #app.chat-open #sidebar { display: none; }
+    #app:not(.chat-open) #chat-area { display: none; }
+    #back-btn { display: inline-flex !important; }
+    .call-box.wide { width: 92vw; }
+    .video-tile { width: 44vw; }
+  }
   #me-bar { padding: 16px; border-bottom: 1px solid #22252e; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   #me-bar .left { display: flex; align-items: center; gap: 10px; }
   #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; overflow: hidden; flex-shrink: 0; }
@@ -96,12 +108,18 @@
   .pick-emoji { cursor: pointer; font-size: 18px; }
   .pick-emoji:hover { transform: scale(1.2); }
   #conv-list { flex: 1; overflow-y: auto; }
-  .conv-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1c1f28; }
+  .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid #1c1f28; display: flex; align-items: center; gap: 12px; }
   .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
+  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; overflow: hidden; flex-shrink: 0; }
+  .conv-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .conv-text { flex: 1; min-width: 0; }
   .conv-item .who { font-weight: 600; font-size: 14px; }
   .conv-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .unread-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
   #chat-area { flex: 1; display: flex; flex-direction: column; }
-  #chat-header { padding: 16px 20px; border-bottom: 1px solid #22252e; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  #chat-header { padding: 14px 16px; border-bottom: 1px solid #22252e; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .header-title-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .header-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .header-actions { display: flex; gap: 4px; }
   #disappear-panel { background: #14161c; border-bottom: 1px solid #22252e; padding: 14px 20px; }
   .disappear-opt { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); padding: 8px 4px; font-weight: 400; margin: 0; }
@@ -114,11 +132,17 @@
   .gi-add { display: flex; gap: 6px; margin-top: 10px; }
   .gi-add input { margin: 0; flex: 1; }
   .gi-add button { width: auto; padding: 8px 12px; }
+  .di-action { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); padding: 10px 4px; font-weight: 400; margin: 0; border-top: 1px solid #22252e; }
+  .di-action:hover { background: var(--accent-soft); }
+  #direct-info-panel { background: #14161c; border-bottom: 1px solid #22252e; padding: 14px 20px; }
   #reply-preview { padding: 8px 20px; background: #1c1f28; border-top: 1px solid #22252e; display: flex; justify-content: space-between; align-items: center; }
   .reply-text { font-size: 12px; color: var(--muted); }
   #cancel-reply { width: auto; background: transparent; color: var(--muted); padding: 2px 8px; margin: 0; }
   .reply-quote { font-size: 11px; opacity: 0.7; border-left: 2px solid var(--accent); padding-left: 6px; margin-bottom: 4px; }
   .msg-image { max-width: 220px; border-radius: 10px; display: block; cursor: pointer; margin-bottom: 4px; }
+  .msg-audio { max-width: 220px; height: 36px; }
+  #mic-btn.recording { background: #ef4444; color: white; }
+  #recording-indicator { color: #ef4444; font-size: 13px; display: flex; align-items: center; padding: 0 6px; white-space: nowrap; }
   .msg-file { color: inherit; text-decoration: underline; font-size: 13px; }
   .caption { margin-top: 4px; }
   .bubble { position: relative; }
@@ -323,6 +347,10 @@ async function enterApp() {
     if (p.account_type === 'business') await loadMyBusinessProfile();
   }
 
+  // Block केलेल्या लोकांची यादी आणतो
+  const { data: blocked } = await sb.from('blocked_users').select('blocked_id').eq('blocker_id', me.id);
+  blockedUserIds = new Set((blocked || []).map(b => b.blocked_id));
+
   // Heartbeat: दर 60 सेकंदांनी last_seen_at अपडेट (ऑनलाइन स्टेटससाठी)
   updateLastSeen();
   heartbeatTimer = setInterval(updateLastSeen, 60000);
@@ -458,45 +486,67 @@ function subscribeRealtime() {
 }
 
 let activeConvType = null;
+let blockedUserIds = new Set(); // मी block केलेले users (त्यांचे मेसेज दाखवायचे नाहीत)
 let activeMembers = {}; // user_id -> username, सध्याच्या conversation पुरतं (group मध्ये नाव दाखवण्यासाठी)
 const convTitleCache = {}; // conversation_id -> title (sidebar क्लिकसाठी)
 
 async function loadConversations() {
-  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id, last_read_at, muted').eq('user_id', me.id);
   const ids = (memberRows || []).map(r => r.conversation_id);
+  const myLastRead = {};
+  const myMuted = {};
+  (memberRows || []).forEach(r => { myLastRead[r.conversation_id] = r.last_read_at; myMuted[r.conversation_id] = r.muted; });
   const list = $('conv-list');
   list.innerHTML = '';
   if (!ids.length) return;
 
   const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
 
-  // Direct चॅट्ससाठी समोरच्या व्यक्तीचं username मिळवतो (group साठी c.name आधीच पुरेसं आहे)
+  // Direct चॅट्ससाठी समोरच्या व्यक्तीचं username + avatar मिळवतो (group/channel साठी c.name आधीच पुरेसं आहे)
   const directIds = (convs || []).filter(c => c.type === 'direct').map(c => c.id);
-  const otherUsernames = {}; // conversation_id -> username
+  const otherInfo = {}; // conversation_id -> { username, avatar_url }
   if (directIds.length) {
     const { data: otherMembers } = await sb.from('conversation_members')
-      .select('conversation_id, user_id, profiles(username)')
+      .select('conversation_id, user_id, profiles(username, avatar_url)')
       .in('conversation_id', directIds)
       .neq('user_id', me.id);
     for (const row of otherMembers || []) {
-      otherUsernames[row.conversation_id] = row.profiles?.username || 'Unknown';
+      otherInfo[row.conversation_id] = { username: row.profiles?.username || 'Unknown', avatar_url: row.profiles?.avatar_url };
     }
   }
 
   for (const c of convs || []) {
     const { data: lastMsgs } = await sb.from('messages')
-      .select('content, created_at').eq('conversation_id', c.id)
+      .select('content, created_at, sender_id, media_type').eq('conversation_id', c.id)
       .order('created_at', { ascending: false }).limit(1);
     const last = lastMsgs && lastMsgs[0];
 
     const title = c.type === 'group' ? (c.name || 'Group')
       : c.type === 'channel' ? ('# ' + (c.name || 'Channel'))
-      : ('@' + (otherUsernames[c.id] || '...'));
+      : ('@' + (otherInfo[c.id]?.username || '...'));
     convTitleCache[c.id] = title;
+
+    const isUnread = !!(last && last.sender_id !== me.id && (!myLastRead[c.id] || new Date(last.created_at) > new Date(myLastRead[c.id])));
+    const isMuted = !!myMuted[c.id];
+    let previewText = 'अजून मेसेज नाही';
+    if (last) previewText = last.media_type ? (last.media_type === 'image' ? '📷 फोटो' : last.media_type === 'audio' ? '🎤 Voice message' : '📎 फाईल') : (last.content || '');
+
+    const avatarUrl = c.type === 'direct' ? otherInfo[c.id]?.avatar_url : null;
+    const avatarLetter = (c.type === 'channel' ? '#' : title.replace('@', '')[0] || '?').toUpperCase();
+    const avatarHtml = avatarUrl
+      ? `<img src="${avatarUrl}" />`
+      : `<span>${escapeHtml(avatarLetter)}</span>`;
 
     const div = document.createElement('div');
     div.className = 'conv-item' + (c.id === activeConv ? ' active' : '');
-    div.innerHTML = `<div class="who">${title}</div><div class="preview">${last ? last.content : 'अजून मेसेज नाही'}</div>`;
+    div.innerHTML = `
+      <div class="conv-avatar">${avatarHtml}</div>
+      <div class="conv-text">
+        <div class="who">${title}${isMuted ? ' 🔕' : ''}</div>
+        <div class="preview">${escapeHtml(previewText)}</div>
+      </div>
+      ${isUnread && !isMuted ? '<span class="unread-dot"></span>' : ''}
+    `;
     div.onclick = () => openConversation(c.id, title, c.type);
     list.appendChild(div);
   }
@@ -715,25 +765,33 @@ async function openConversation(id, title, type) {
   otherDirectUserId = null;
   otherLastReadAt = null;
   loadConversations();
+  $('app').classList.add('chat-open'); // मोबाईलवर chat उघडताना sidebar लपवतो
   const area = $('chat-area');
   area.innerHTML = `
     <div id="chat-header">
-      <span>${title}<span class="last-seen" id="header-last-seen"></span></span>
+      <button id="back-btn" class="icon-btn" title="Back">←</button>
+      <span class="header-title-wrap"><span class="header-title">${title}</span><span class="last-seen" id="header-last-seen"></span></span>
       <span class="header-actions">
         ${(type === 'direct' || type === 'group') ? '<button id="voice-call-btn" class="icon-btn" title="Voice Call">📞</button><button id="video-call-btn" class="icon-btn" title="Video Call">🎥</button>' : ''}
+        <button id="mute-toggle-btn" class="icon-btn" title="Mute">🔔</button>
         <button id="disappear-btn" class="icon-btn" title="Disappearing messages">⏱</button>
         ${(activeConvType === 'group' || activeConvType === 'channel') ? '<button id="group-info-btn" class="icon-btn" title="Members/Info">⋮</button>' : ''}
+        ${type === 'direct' ? '<button id="direct-info-btn" class="icon-btn" title="Options">⋮</button>' : ''}
       </span>
     </div>
     <div id="disappear-panel" style="display:none"></div>
     <div id="group-info-panel" style="display:none"></div>
+    <div id="direct-info-panel" style="display:none"></div>
     <div id="messages"></div>
+    <div id="blocked-notice" style="display:none" class="readonly-note">तुम्ही या व्यक्तीला block केलं आहे — यांचे नवीन मेसेज दिसणार नाहीत.</div>
     <div class="typing-indicator" id="typing-indicator" style="display:none">टाइप करत आहे...</div>
     <div id="reply-preview" style="display:none"></div>
     <div id="composer">
       <button id="attach-btn" class="icon-btn" title="फोटो/फाईल पाठवा">📎</button>
       <input type="file" id="file-input" style="display:none" accept="image/*,.pdf,.doc,.docx,.zip,.txt" />
       <input id="msg-input" placeholder="मेसेज लिहा..." />
+      <button id="mic-btn" class="icon-btn" title="Voice message">🎤</button>
+      <span id="recording-indicator" style="display:none">● <span id="rec-timer">0:00</span></span>
       <button id="send-btn">पाठवा</button>
     </div>
   `;
@@ -824,6 +882,26 @@ async function openConversation(id, title, type) {
     $('video-call-btn').onclick = () => startCall(id, title, 'video');
   }
 
+  // Mute toggle — सध्याच्या conversation साठी माझी mute स्थिती आणतो
+  const { data: myMemberRow } = await sb.from('conversation_members').select('muted').eq('conversation_id', id).eq('user_id', me.id).maybeSingle();
+  let isMuted = !!myMemberRow?.muted;
+  $('mute-toggle-btn').textContent = isMuted ? '🔕' : '🔔';
+  $('mute-toggle-btn').onclick = async () => {
+    isMuted = !isMuted;
+    await sb.from('conversation_members').update({ muted: isMuted }).eq('conversation_id', id).eq('user_id', me.id);
+    $('mute-toggle-btn').textContent = isMuted ? '🔕' : '🔔';
+    loadConversations();
+  };
+
+  // Direct chat: Block/Report मेनू
+  if (type === 'direct' && otherDirectUserId) {
+    $('direct-info-btn').onclick = () => toggleDirectInfoPanel(otherDirectUserId, otherInfoUsername(title));
+    if (blockedUserIds.has(otherDirectUserId)) {
+      $('blocked-notice').style.display = 'block';
+      $('composer').style.display = 'none';
+    }
+  }
+
   const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id)
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .order('created_at', { ascending: true }).limit(200);
@@ -831,6 +909,7 @@ async function openConversation(id, title, type) {
   await markAsRead(id);
   refreshReadTicks();
   refreshGroupReadTicks();
+  loadConversations(); // unread dot लगेच हटावी म्हणून
 
   $('send-btn').onclick = sendMessage;
   $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
@@ -842,7 +921,13 @@ async function openConversation(id, title, type) {
     }, 200);
   };
   $('attach-btn').onclick = () => $('file-input').click();
+  $('back-btn').onclick = () => { $('app').classList.remove('chat-open'); };
+  $('mic-btn').onclick = toggleVoiceRecording;
   $('file-input').onchange = handleFileUpload;
+}
+
+function otherInfoUsername(title) {
+  return title.replace(/^@/, '');
 }
 
 // ============================================================
@@ -1127,6 +1212,46 @@ function toggleDisappearPanel(convId) {
   });
 }
 
+// ---------- DIRECT CHAT INFO (Block/Report) ----------
+function toggleDirectInfoPanel(otherUserId, otherUsername) {
+  const panel = $('direct-info-panel');
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+
+  const isBlocked = blockedUserIds.has(otherUserId);
+  panel.innerHTML = `
+    <div class="gi-row"><span>@${escapeHtml(otherUsername)}</span></div>
+    <button class="di-action" id="di-block-btn">${isBlocked ? '✅ Unblock करा' : '🚫 Block करा'}</button>
+    <button class="di-action" id="di-report-btn">⚠️ Report करा</button>
+  `;
+  panel.style.display = 'block';
+
+  $('di-block-btn').onclick = async () => {
+    if (isBlocked) {
+      await sb.from('blocked_users').delete().eq('blocker_id', me.id).eq('blocked_id', otherUserId);
+      blockedUserIds.delete(otherUserId);
+      alert('Unblock केलं');
+    } else {
+      if (!confirm('@' + otherUsername + ' ला block करायचं?')) return;
+      await sb.from('blocked_users').insert({ blocker_id: me.id, blocked_id: otherUserId });
+      blockedUserIds.add(otherUserId);
+      alert('Block केलं');
+    }
+    panel.style.display = 'none';
+    $('blocked-notice').style.display = blockedUserIds.has(otherUserId) ? 'block' : 'none';
+    $('composer').style.display = blockedUserIds.has(otherUserId) ? 'none' : 'flex';
+    document.querySelectorAll(`.bubble[data-sender="${otherUserId}"]`).forEach(el => el.style.display = blockedUserIds.has(otherUserId) ? 'none' : 'flex');
+  };
+
+  $('di-report-btn').onclick = async () => {
+    const category = prompt('कारण लिहा (उदा: Spam, Harassment, Fraud, इ.):');
+    if (!category) return;
+    const { error } = await sb.from('reports').insert({ reporter_id: me.id, target_type: 'user', target_id: otherUserId, category });
+    if (error) { alert(error.message); return; }
+    alert('Report पाठवला गेला, धन्यवाद.');
+    panel.style.display = 'none';
+  };
+}
+
 function toggleGroupInfo(convId) {
   const panel = $('group-info-panel');
   if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
@@ -1224,6 +1349,64 @@ async function handleFileUpload(e) {
   });
   if (error) alert(error.message);
   e.target.value = '';
+}
+
+// ---------- VOICE MESSAGES ----------
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimerInterval = null;
+let recordingSeconds = 0;
+
+async function toggleVoiceRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  let micStream;
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    alert('Microphone access मिळालं नाही: ' + err.message);
+    return;
+  }
+  audioChunks = [];
+  mediaRecorder = new MediaRecorder(micStream);
+  mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+  mediaRecorder.onstop = async () => {
+    micStream.getTracks().forEach(t => t.stop());
+    clearInterval(recordingTimerInterval);
+    $('recording-indicator').style.display = 'none';
+    $('mic-btn').classList.remove('recording');
+    recordingSeconds = 0;
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    if (blob.size < 500) return; // खूप छोटं (चुकून क्लिक) असेल तर पाठवायचं नाही
+    await uploadAndSendVoice(blob);
+  };
+  mediaRecorder.start();
+  $('mic-btn').classList.add('recording');
+  $('recording-indicator').style.display = 'inline';
+  recordingSeconds = 0;
+  $('rec-timer').textContent = '0:00';
+  recordingTimerInterval = setInterval(() => {
+    recordingSeconds++;
+    const m = String(Math.floor(recordingSeconds / 60)).padStart(1, '0');
+    const s = String(recordingSeconds % 60).padStart(2, '0');
+    $('rec-timer').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+async function uploadAndSendVoice(blob) {
+  if (!activeConv) return;
+  const path = `${activeConv}/voice-${crypto.randomUUID()}.webm`;
+  const { error: upErr } = await sb.storage.from('chat-media').upload(path, blob, { contentType: 'audio/webm' });
+  if (upErr) { alert('Voice message अपलोड चुकलं: ' + upErr.message); return; }
+  const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+  const { error } = await sb.from('messages').insert({
+    conversation_id: activeConv, sender_id: me.id, content: '',
+    media_url: pub.publicUrl, media_type: 'audio',
+    expires_at: computeExpiresAt(),
+  });
+  if (error) alert(error.message);
 }
 
 // ---------- DELETE ----------
@@ -1342,12 +1525,14 @@ function renderIncoming(msg) {
   if (!box) return;
   if (msg.deleted) return; // delete झालेला मेसेज दाखवायचा नाही
   if (msg.expires_at && new Date(msg.expires_at) < new Date()) return; // आधीच expire झालेला (cleanup अजून चालला नसेल तर सुद्धा client वर लपवतो)
+  if (blockedUserIds.has(msg.sender_id)) return; // block केलेल्या व्यक्तीचा मेसेज दाखवायचा नाही
 
   const mine = msg.sender_id === me.id;
   const div = document.createElement('div');
   div.className = 'bubble ' + (mine ? 'me' : 'them');
   div.dataset.msgId = msg.id;
   div.dataset.createdAt = msg.created_at;
+  div.dataset.sender = msg.sender_id;
   const time = new Date(msg.created_at).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' });
   const senderLabel = (activeConvType !== 'direct' && !mine)
     ? `<span class="sender">${escapeHtml(activeMembers[msg.sender_id] || 'Unknown')}</span>` : '';
@@ -1356,6 +1541,8 @@ function renderIncoming(msg) {
   if (msg.media_url && msg.media_type === 'image') {
     bodyHtml += `<img src="${msg.media_url}" class="msg-image" onclick="window.open('${msg.media_url}','_blank')" />`;
     if (msg.content) bodyHtml += `<div class="caption">${escapeHtml(msg.content)}</div>`;
+  } else if (msg.media_url && msg.media_type === 'audio') {
+    bodyHtml += `<audio controls src="${msg.media_url}" class="msg-audio"></audio>`;
   } else if (msg.media_url) {
     bodyHtml += `<a href="${msg.media_url}" target="_blank" class="msg-file">📎 ${escapeHtml(msg.content || 'फाईल')}</a>`;
   } else {

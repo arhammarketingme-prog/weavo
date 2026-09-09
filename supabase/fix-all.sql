@@ -267,3 +267,31 @@ drop policy if exists "मालक स्वतःचा business profile क�
 create policy "मालक स्वतःचा business profile काढू शकतो"
   on business_profiles for delete using (auth.uid() = owner_id);
 
+
+-- 15) MUTE + BLOCK
+alter table conversation_members add column if not exists muted boolean default false;
+
+create table if not exists blocked_users (
+  blocker_id uuid references profiles(id) on delete cascade,
+  blocked_id uuid references profiles(id) on delete cascade,
+  created_at timestamptz default now(),
+  primary key (blocker_id, blocked_id)
+);
+
+alter table blocked_users enable row level security;
+
+drop policy if exists "स्वतःची blocked यादी बघू शकतो" on blocked_users;
+create policy "स्वतःची blocked यादी बघू शकतो"
+  on blocked_users for select using (auth.uid() = blocker_id);
+
+drop policy if exists "स्वतः कोणाला तरी block करू शकतो" on blocked_users;
+create policy "स्वतः कोणाला तरी block करू शकतो"
+  on blocked_users for insert with check (auth.uid() = blocker_id);
+
+drop policy if exists "स्वतःचा block काढू शकतो (unblock)" on blocked_users;
+create policy "स्वतःचा block काढू शकतो (unblock)"
+  on blocked_users for delete using (auth.uid() = blocker_id);
+
+-- टीप: नवीन conversation सुरू करताना block तपासणी frontend मध्ये केली जाते
+-- (त्या दोन विशिष्ट व्यक्तींमधलं नातं conversations table वर उपलब्ध नसल्यामुळे DB-level इथे शक्य नाही)
+
