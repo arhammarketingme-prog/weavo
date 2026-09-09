@@ -29,3 +29,27 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });
+
+// ---------- PUSH NOTIFICATIONS ----------
+self.addEventListener('push', (event) => {
+  let data = { title: 'Weavo', body: 'नवीन मेसेज' };
+  try { data = event.data.json(); } catch (e) { /* ignore */ }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Weavo', {
+      body: data.body || 'नवीन मेसेज',
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
+      data: { conversationId: data.conversationId },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clientsArr) => {
+      if (clientsArr.length) return clientsArr[0].focus();
+      return self.clients.openWindow('./index.html');
+    })
+  );
+});

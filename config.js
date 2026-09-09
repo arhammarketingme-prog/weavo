@@ -5,3 +5,8 @@
 
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
+
+// Push notifications साठी — VAPID public key (Edge Function डिप्लॉय करताना generate करा, README बघा)
+// रिकामं ठेवलं तर notifications फीचर आपोआप लपेल, बाकी app व्यवस्थित चालेल.
+const VAPID_PUBLIC_KEY = "";
+

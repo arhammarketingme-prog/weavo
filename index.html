@@ -195,6 +195,10 @@
     <input type="file" id="avatar-input" accept="image/*" style="display:none" />
     <div id="settings-panel">
       <label><input type="checkbox" id="hide-last-seen-toggle" /> माझं last-seen लपवा (मग तुम्हालाही इतरांचं दिसणार नाही)</label>
+      <div class="settings-row" id="notif-settings-row" style="display:none">
+        <button id="enable-notif-btn">🔔 Push Notifications चालू करा</button>
+        <span id="notif-status" class="settings-label"></span>
+      </div>
       <div class="settings-row">
         <label class="settings-label">Account type</label>
         <select id="account-type-select">
@@ -382,6 +386,56 @@ async function enterApp() {
     alert('Bio save झाली');
   };
   $('save-business-btn').onclick = saveBusinessProfile;
+
+  setupPushNotifications();
+}
+
+// ---------- PUSH NOTIFICATIONS ----------
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+function setupPushNotifications() {
+  const supported = 'serviceWorker' in navigator && 'PushManager' in window && VAPID_PUBLIC_KEY;
+  if (!supported) return; // VAPID key सेट नसेल किंवा browser support नसेल तर हे फीचर लपवतो
+
+  $('notif-settings-row').style.display = 'flex';
+
+  if (Notification.permission === 'granted') {
+    $('notif-status').textContent = 'चालू आहे ✓';
+    $('enable-notif-btn').style.display = 'none';
+  } else if (Notification.permission === 'denied') {
+    $('notif-status').textContent = 'Browser मध्ये बंद केलं आहे';
+    $('enable-notif-btn').style.display = 'none';
+  }
+
+  $('enable-notif-btn').onclick = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') { $('notif-status').textContent = 'परवानगी नाकारली'; return; }
+
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+      const subJson = sub.toJSON();
+      await sb.from('push_subscriptions').upsert({
+        user_id: me.id,
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys.p256dh,
+        auth_key: subJson.keys.auth,
+      }, { onConflict: 'user_id,endpoint' });
+
+      $('notif-status').textContent = 'चालू आहे ✓';
+      $('enable-notif-btn').style.display = 'none';
+    } catch (err) {
+      alert('Notifications चालू करता आलं नाही: ' + err.message);
+    }
+  };
 }
 
 function updateAccountTypeUI(accountType) {
@@ -1375,6 +1429,7 @@ function toggleGroupInfo(convId) {
   if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
 
   const isOwner = activeMemberRoles[me.id] === 'owner';
+  const isOwnerOrAdmin = isOwner || activeMemberRoles[me.id] === 'admin';
   let html = '<div class="gi-title">सभासद</div>';
   for (const [uid, uname] of Object.entries(activeMembers)) {
     const role = activeMemberRoles[uid];
@@ -1382,7 +1437,9 @@ function toggleGroupInfo(convId) {
     if (isOwner && uid !== me.id) html += `<button class="gi-remove" data-uid="${uid}">काढा</button>`;
     html += `</div>`;
   }
-  html += `<div class="gi-add"><input id="gi-add-input" placeholder="username (नवीन सभासद)" /><button id="gi-add-btn">जोडा</button></div>`;
+  if (isOwnerOrAdmin) {
+    html += `<div class="gi-add"><input id="gi-add-input" placeholder="username (नवीन सभासद)" /><button id="gi-add-btn">जोडा</button></div>`;
+  }
   panel.innerHTML = html;
   panel.style.display = 'block';
 
@@ -1396,6 +1453,7 @@ function toggleGroupInfo(convId) {
     };
   });
 
+  if (!isOwnerOrAdmin) return; // add-member handlers फक्त owner/admin साठी लागतात
   $('gi-add-btn').onclick = async () => {
     let uname = $('gi-add-input').value.trim().replace(/^@/, '');
     if (!uname) return;

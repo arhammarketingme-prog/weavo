@@ -52,7 +52,8 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Pin / Archive** — 📌 ने चॅट वर पिन करता येतो (यादीत सगळ्यात वर दिसतो), 🗄 ने archive (यादीतून लपतो, खालच्या "Archived" विभागातून परत मिळतो)
 - **In-chat Search** — 🔍 ने सध्याच्या चॅटमध्ये (अलीकडचे २०० मेसेज) मजकूर शोधता येतो
 - **Forward** — कोणत्याही मेसेजवर ↪ दाबून दुसऱ्या कोणत्याही चॅटमध्ये तोच मेसेज (टेक्स्ट/फोटो/फाईल) पाठवता येतो
-- Row Level Security (RLS) — database-level सुरक्षा
+- **Push Notifications** (ऐच्छिक सेटअप — खाली सूचना) — app बंद असतानाही नवीन मेसेजचं notification
+- Row Level Security (RLS) — database-level सुरक्षा, या राऊंडमध्ये आणखी घट्ट केलेली (खाली बघा)
 
 ## महत्त्वाची मर्यादा — Advertising/Monetization
 
@@ -92,12 +93,71 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 3. Comments ला स्वतःचं threaded view (सध्या comments messages listमध्येच "↩ उत्तर" टॅगसह दिसतात, वेगळा thread view नाही)
 4. Business profiles साठी फोटो अपलोड (सध्या फक्त मजकूर फील्ड्स)
 5. Global search (सगळ्या चॅट्समध्ये/लोकांमध्ये शोधणं — सध्या फक्त एका चॅटमध्ये शोध आहे)
-6. Push notifications (सध्या फक्त app उघडं असताना live अपडेट होतं; बंद असताना notification येत नाही — त्यासाठी अजून एक थर लागतो)
+6. Column-level privacy (last_seen_at/hide_last_seen सध्या row-level RLS ने संरक्षित आहे — म्हणजे लॉगिन केलेला कोणीही profiles वाचू शकतो, पण त्यातला exact last-seen timestamp थेट query करून बघता येऊ शकतो; app स्वतः तो दाखवताना privacy पाळते, पण database-level column-lock अजून नाही — अजून घट्ट करता येईल)
 7. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
 
 ## Block बद्दल एक प्रामाणिक मर्यादा
 
 Block केल्यावर त्या व्यक्तीचे मेसेज **तुमच्या स्क्रीनवर दिसणं बंद होतं आणि नवीन मेसेज पाठवता येत नाहीत** (app-level तपासणी). पण हे database-level हार्ड सुरक्षा-भिंत नाही — technically हुशार वापरकर्ता browser मधून थेट काहीतरी छेडछाड करून पाठवू शकतो, कारण दोन विशिष्ट व्यक्तींमधलं "कोणी कोणाला block केलं" हे नातं conversations tableवर उपलब्ध नसल्यामुळे RLS मध्ये पूर्णपणे अडवणं शक्य नव्हतं. रोजच्या वापरासाठी हे पुरेसं आहे, पण गंभीर गैरवापर रोखण्यासाठी अजून मजबूत करता येईल.
+
+## 🔐 Security Hardening (या राऊंडमध्ये सापडलेल्या आणि बंद केलेल्या त्रुटी)
+
+`fix-all.sql` मध्ये या 4 गोष्टी नव्याने आहेत — जुन्या version मध्ये या त्रुटी होत्या:
+
+1. **सभासद जोडणं आता निर्बंधित** — आधी कोणीही, कोणालाही, कोणत्याही group/chat मध्ये जोडू शकत होता. आता फक्त group/channel चा owner किंवा admin दुसऱ्याला जोडू शकतो; स्वतःला फक्त public channel मध्येच किंवा स्वतः निर्माता असेल तरच जोडता येतं.
+2. **Profiles फक्त लॉगिन केलेल्यांना दिसतील** — आधी अनोळखी व्यक्ती (लॉगिन न करताही, फक्त anon key वापरून) सगळ्यांची profiles वाचू शकत होती.
+3. **Message rate-limiting** — 10 सेकंदात 15 पेक्षा जास्त मेसेज पाठवता येणार नाहीत, database-level वर (बायपास करता येत नाही, आधीचा rate-limiter फक्त पहिल्या Node.js version मध्ये होता, Supabase version मध्ये तो हरवला होता).
+4. **मेसेज लांबीची मर्यादा** — एका मेसेजमध्ये जास्तीत जास्त 5000 अक्षरं.
+
+**हे लगेच लागू कर:** `fix-all.sql` परत Supabase SQL Editor मध्ये run कर + नवीन `index.html` upload कर (group-info panel मध्ये "add member" आता फक्त owner/admin ला दिसेल).
+
+## 🔔 Push Notifications Setup (ऐच्छिक — इतर fixes पेक्षा जास्त तांत्रिक)
+
+हे फीचर वापरायचं नसेल तर काहीही करायची गरज नाही — बाकी सगळं app न बदलता तसंच चालेल. वापरायचं असेल तर या पायऱ्या:
+
+### 1. VAPID keys तयार करा
+```bash
+npx web-push generate-vapid-keys
+```
+यातून दोन keys मिळतील — Public Key आणि Private Key.
+
+### 2. Supabase CLI इंस्टॉल करून प्रोजेक्ट जोडा
+```bash
+npm install -g supabase
+supabase login
+supabase link --project-ref <तुमचा-project-ref>   # URL मधून मिळेल: xxxx.supabase.co चा xxxx भाग
+```
+
+### 3. Secrets सेट करा (Private key कधीही frontend मध्ये टाकायची नाही)
+```bash
+supabase secrets set VAPID_PUBLIC_KEY=<तुमची public key>
+supabase secrets set VAPID_PRIVATE_KEY=<तुमची private key>
+```
+(`SUPABASE_URL` आणि `SUPABASE_SERVICE_ROLE_KEY` Supabase आपोआप उपलब्ध करून देतं, वेगळं सेट करायची गरज नाही.)
+
+### 4. Edge Function डिप्लॉय करा
+```bash
+supabase functions deploy send-push --no-verify-jwt
+```
+
+### 5. Database Webhook तयार करा
+Supabase Dashboard → **Database → Webhooks → Create a new webhook**:
+- Table: `messages`
+- Events: `Insert`
+- Type: `Supabase Edge Function`
+- Function: `send-push`
+
+### 6. Public key frontend मध्ये टाका
+`config.js` मध्ये:
+```js
+const VAPID_PUBLIC_KEY = "तुमची-public-key-इथे";
+```
+आणि झिप परत GitHub वर upload कर.
+
+### 7. वापरकर्त्यांनी काय करायचं
+प्रत्येकाने Settings (⚙) उघडून **"🔔 Push Notifications चालू करा"** दाबून browser permission द्यायची. मग app बंद असतानाही नवीन मेसेजचं notification येईल.
+
+**मर्यादा:** iPhone/iPad वर हे फक्त तेव्हाच चालतं जेव्हा site "Add to Home Screen" केलेली असते (iOS 16.4+); नुसत्या Safari टॅबमध्ये चालत नाही — हे Apple ची मर्यादा आहे, आपल्या कोडची नाही.
 
 ## GitHub वर टाकायचं कसं
 

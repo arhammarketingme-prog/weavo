@@ -300,3 +300,86 @@ create policy "स्वतःचा block काढू शकतो (unblock)"
 alter table conversation_members add column if not exists pinned boolean default false;
 alter table conversation_members add column if not exists archived boolean default false;
 
+
+-- 17) SECURITY HARDENING
+
+-- (अ) फक्त group/channel owner किंवा admin दुसऱ्या कोणाला सभासद म्हणून जोडू शकतो;
+--     स्वतःला फक्त public channel मध्ये किंवा स्वतः निर्माता असेल तरच जोडता येतं
+create or replace function is_conversation_admin(conv_id uuid, uid uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from conversation_members
+    where conversation_id = conv_id and user_id = uid and role in ('owner', 'admin')
+  );
+$$;
+
+drop policy if exists "स्वतःला/इतरांना सभासद म्हणून जोडता येतं (create flow साठी)" on conversation_members;
+create policy "फक्त निर्माता/admin इतरांना जोडू शकतो; स्वतःला फक्त public channel मध्ये"
+  on conversation_members for insert with check (
+    auth.uid() is not null
+    and (
+      (user_id = auth.uid() and (
+        exists (select 1 from conversations c where c.id = conversation_id and c.created_by = auth.uid())
+        or exists (select 1 from conversations c where c.id = conversation_id and c.type = 'channel' and c.is_public = true)
+      ))
+      or exists (select 1 from conversations c where c.id = conversation_id and c.created_by = auth.uid())
+      or is_conversation_admin(conversation_id, auth.uid())
+    )
+  );
+
+-- (ब) Profiles फक्त लॉगिन केलेल्यांनाच दिसतील (अनोळखी/anon साठी नाही)
+drop policy if exists "Profiles सगळ्यांना दिसतील (username शोधण्यासाठी आवश्यक)" on profiles;
+create policy "Profiles फक्त लॉगिन केलेल्यांना दिसतील"
+  on profiles for select using (auth.uid() is not null);
+
+-- (क) Spam/rate-limit: 10 सेकंदात 15 पेक्षा जास्त मेसेज नाही (database-level, बायपास करता येत नाही)
+create or replace function enforce_message_rate_limit()
+returns trigger language plpgsql as $$
+declare
+  recent_count integer;
+begin
+  select count(*) into recent_count
+  from messages
+  where sender_id = new.sender_id and created_at > now() - interval '10 seconds';
+  if recent_count >= 15 then
+    raise exception 'खूप वेगाने मेसेज पाठवत आहात, थोडं थांबा';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_rate_limit on messages;
+create trigger messages_rate_limit
+  before insert on messages
+  for each row execute function enforce_message_rate_limit();
+
+-- (ड) खूप मोठा मेसेज (DoS/abuse टाळण्यासाठी) — 5000 अक्षरांची मर्यादा
+alter table messages drop constraint if exists messages_content_length;
+alter table messages add constraint messages_content_length check (char_length(content) <= 5000) not valid;
+
+
+-- 18) PUSH NOTIFICATIONS — subscription साठवायला table
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth_key text not null,
+  created_at timestamptz default now(),
+  unique (user_id, endpoint)
+);
+
+alter table push_subscriptions enable row level security;
+
+drop policy if exists "स्वतःचं subscription टाकू शकतो" on push_subscriptions;
+create policy "स्वतःचं subscription टाकू शकतो"
+  on push_subscriptions for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचं subscription बघू शकतो" on push_subscriptions;
+create policy "स्वतःचं subscription बघू शकतो"
+  on push_subscriptions for select using (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचं subscription काढू शकतो" on push_subscriptions;
+create policy "स्वतःचं subscription काढू शकतो"
+  on push_subscriptions for delete using (auth.uid() = user_id);
+
