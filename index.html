@@ -116,6 +116,8 @@
   .conv-item .who { font-weight: 600; font-size: 14px; }
   .conv-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .unread-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .archived-toggle { padding: 10px 16px; font-size: 12px; color: var(--muted); cursor: pointer; border-top: 1px solid #1c1f28; }
+  .archived-toggle:hover { background: var(--accent-soft); }
   #chat-area { flex: 1; display: flex; flex-direction: column; }
   #chat-header { padding: 14px 16px; border-bottom: 1px solid #22252e; font-weight: 600; display: flex; align-items: center; gap: 8px; }
   .header-title-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -125,6 +127,9 @@
   .disappear-opt { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); padding: 8px 4px; font-weight: 400; margin: 0; }
   .disappear-opt:hover { background: var(--accent-soft); }
   .icon-btn { width: auto; background: transparent; padding: 6px 10px; font-size: 16px; margin: 0; }
+  .icon-btn.active-toggle { background: var(--accent-soft); border-radius: 8px; }
+  #search-box { padding: 8px 16px; border-bottom: 1px solid #22252e; }
+  #search-box input { margin: 0; width: 100%; }
   #group-info-panel { background: #14161c; border-bottom: 1px solid #22252e; padding: 14px 20px; max-height: 240px; overflow-y: auto; }
   .gi-title { font-weight: 600; margin-bottom: 8px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
   .gi-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; }
@@ -490,15 +495,16 @@ let blockedUserIds = new Set(); // मी block केलेले users (त्
 let activeMembers = {}; // user_id -> username, सध्याच्या conversation पुरतं (group मध्ये नाव दाखवण्यासाठी)
 const convTitleCache = {}; // conversation_id -> title (sidebar क्लिकसाठी)
 
+let showArchived = false;
+
 async function loadConversations() {
-  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id, last_read_at, muted').eq('user_id', me.id);
+  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id, last_read_at, muted, pinned, archived').eq('user_id', me.id);
   const ids = (memberRows || []).map(r => r.conversation_id);
-  const myLastRead = {};
-  const myMuted = {};
-  (memberRows || []).forEach(r => { myLastRead[r.conversation_id] = r.last_read_at; myMuted[r.conversation_id] = r.muted; });
+  const myMeta = {};
+  (memberRows || []).forEach(r => { myMeta[r.conversation_id] = r; });
   const list = $('conv-list');
   list.innerHTML = '';
-  if (!ids.length) return;
+  if (!ids.length) { renderArchivedToggle(0); return; }
 
   const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
 
@@ -515,41 +521,71 @@ async function loadConversations() {
     }
   }
 
+  const rows = [];
   for (const c of convs || []) {
     const { data: lastMsgs } = await sb.from('messages')
       .select('content, created_at, sender_id, media_type').eq('conversation_id', c.id)
       .order('created_at', { ascending: false }).limit(1);
     const last = lastMsgs && lastMsgs[0];
+    const meta = myMeta[c.id] || {};
 
     const title = c.type === 'group' ? (c.name || 'Group')
       : c.type === 'channel' ? ('# ' + (c.name || 'Channel'))
       : ('@' + (otherInfo[c.id]?.username || '...'));
     convTitleCache[c.id] = title;
 
-    const isUnread = !!(last && last.sender_id !== me.id && (!myLastRead[c.id] || new Date(last.created_at) > new Date(myLastRead[c.id])));
-    const isMuted = !!myMuted[c.id];
-    let previewText = 'अजून मेसेज नाही';
-    if (last) previewText = last.media_type ? (last.media_type === 'image' ? '📷 फोटो' : last.media_type === 'audio' ? '🎤 Voice message' : '📎 फाईल') : (last.content || '');
-
-    const avatarUrl = c.type === 'direct' ? otherInfo[c.id]?.avatar_url : null;
-    const avatarLetter = (c.type === 'channel' ? '#' : title.replace('@', '')[0] || '?').toUpperCase();
-    const avatarHtml = avatarUrl
-      ? `<img src="${avatarUrl}" />`
-      : `<span>${escapeHtml(avatarLetter)}</span>`;
-
-    const div = document.createElement('div');
-    div.className = 'conv-item' + (c.id === activeConv ? ' active' : '');
-    div.innerHTML = `
-      <div class="conv-avatar">${avatarHtml}</div>
-      <div class="conv-text">
-        <div class="who">${title}${isMuted ? ' 🔕' : ''}</div>
-        <div class="preview">${escapeHtml(previewText)}</div>
-      </div>
-      ${isUnread && !isMuted ? '<span class="unread-dot"></span>' : ''}
-    `;
-    div.onclick = () => openConversation(c.id, title, c.type);
-    list.appendChild(div);
+    rows.push({
+      id: c.id, type: c.type, title, last,
+      isUnread: !!(last && last.sender_id !== me.id && (!meta.last_read_at || new Date(last.created_at) > new Date(meta.last_read_at))),
+      isMuted: !!meta.muted, isPinned: !!meta.pinned, isArchived: !!meta.archived,
+      avatarUrl: c.type === 'direct' ? otherInfo[c.id]?.avatar_url : null,
+      lastTime: last ? new Date(last.created_at).getTime() : 0,
+    });
   }
+
+  const visible = rows.filter(r => !r.isArchived);
+  const archived = rows.filter(r => r.isArchived);
+  visible.sort((a, b) => (b.isPinned - a.isPinned) || (b.lastTime - a.lastTime));
+
+  for (const r of visible) list.appendChild(buildConvItemEl(r));
+  renderArchivedToggle(archived.length, archived);
+}
+
+function buildConvItemEl(r) {
+  let previewText = 'अजून मेसेज नाही';
+  if (r.last) previewText = r.last.media_type ? (r.last.media_type === 'image' ? '📷 फोटो' : r.last.media_type === 'audio' ? '🎤 Voice message' : '📎 फाईल') : (r.last.content || '');
+  const avatarLetter = (r.type === 'channel' ? '#' : r.title.replace('@', '')[0] || '?').toUpperCase();
+  const avatarHtml = r.avatarUrl ? `<img src="${r.avatarUrl}" />` : `<span>${escapeHtml(avatarLetter)}</span>`;
+
+  const div = document.createElement('div');
+  div.className = 'conv-item' + (r.id === activeConv ? ' active' : '');
+  div.innerHTML = `
+    <div class="conv-avatar">${avatarHtml}</div>
+    <div class="conv-text">
+      <div class="who">${r.isPinned ? '📌 ' : ''}${r.title}${r.isMuted ? ' 🔕' : ''}</div>
+      <div class="preview">${escapeHtml(previewText)}</div>
+    </div>
+    ${r.isUnread && !r.isMuted ? '<span class="unread-dot"></span>' : ''}
+  `;
+  div.onclick = () => openConversation(r.id, r.title, r.type);
+  return div;
+}
+
+function renderArchivedToggle(count, archivedRows) {
+  let el = document.getElementById('archived-toggle-wrap');
+  if (el) el.remove();
+  if (!count) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'archived-toggle-wrap';
+  const toggle = document.createElement('div');
+  toggle.className = 'archived-toggle';
+  toggle.textContent = (showArchived ? '▾' : '▸') + ' 🗄 Archived (' + count + ')';
+  toggle.onclick = () => { showArchived = !showArchived; loadConversations(); };
+  wrap.appendChild(toggle);
+  if (showArchived) {
+    archivedRows.forEach(r => wrap.appendChild(buildConvItemEl(r)));
+  }
+  $('conv-list').appendChild(wrap);
 }
 
 $('new-chat-btn').onclick = async () => {
@@ -774,6 +810,9 @@ async function openConversation(id, title, type) {
       <span class="header-actions">
         ${(type === 'direct' || type === 'group') ? '<button id="voice-call-btn" class="icon-btn" title="Voice Call">📞</button><button id="video-call-btn" class="icon-btn" title="Video Call">🎥</button>' : ''}
         <button id="mute-toggle-btn" class="icon-btn" title="Mute">🔔</button>
+        <button id="pin-toggle-btn" class="icon-btn" title="Pin">📌</button>
+        <button id="archive-toggle-btn" class="icon-btn" title="Archive">🗄</button>
+        <button id="search-toggle-btn" class="icon-btn" title="Search in chat">🔍</button>
         <button id="disappear-btn" class="icon-btn" title="Disappearing messages">⏱</button>
         ${(activeConvType === 'group' || activeConvType === 'channel') ? '<button id="group-info-btn" class="icon-btn" title="Members/Info">⋮</button>' : ''}
         ${type === 'direct' ? '<button id="direct-info-btn" class="icon-btn" title="Options">⋮</button>' : ''}
@@ -782,6 +821,7 @@ async function openConversation(id, title, type) {
     <div id="disappear-panel" style="display:none"></div>
     <div id="group-info-panel" style="display:none"></div>
     <div id="direct-info-panel" style="display:none"></div>
+    <div id="search-box" style="display:none"><input id="search-input" placeholder="या चॅटमध्ये शोधा (अलीकडचे 200 मेसेज)..." /></div>
     <div id="messages"></div>
     <div id="blocked-notice" style="display:none" class="readonly-note">तुम्ही या व्यक्तीला block केलं आहे — यांचे नवीन मेसेज दिसणार नाहीत.</div>
     <div class="typing-indicator" id="typing-indicator" style="display:none">टाइप करत आहे...</div>
@@ -882,9 +922,10 @@ async function openConversation(id, title, type) {
     $('video-call-btn').onclick = () => startCall(id, title, 'video');
   }
 
-  // Mute toggle — सध्याच्या conversation साठी माझी mute स्थिती आणतो
-  const { data: myMemberRow } = await sb.from('conversation_members').select('muted').eq('conversation_id', id).eq('user_id', me.id).maybeSingle();
+  // Mute/Pin/Archive toggles — सध्याच्या conversation साठी माझी स्थिती आणतो
+  const { data: myMemberRow } = await sb.from('conversation_members').select('muted, pinned, archived').eq('conversation_id', id).eq('user_id', me.id).maybeSingle();
   let isMuted = !!myMemberRow?.muted;
+  let isPinned = !!myMemberRow?.pinned;
   $('mute-toggle-btn').textContent = isMuted ? '🔕' : '🔔';
   $('mute-toggle-btn').onclick = async () => {
     isMuted = !isMuted;
@@ -892,6 +933,21 @@ async function openConversation(id, title, type) {
     $('mute-toggle-btn').textContent = isMuted ? '🔕' : '🔔';
     loadConversations();
   };
+  $('pin-toggle-btn').classList.toggle('active-toggle', isPinned);
+  $('pin-toggle-btn').onclick = async () => {
+    isPinned = !isPinned;
+    await sb.from('conversation_members').update({ pinned: isPinned }).eq('conversation_id', id).eq('user_id', me.id);
+    $('pin-toggle-btn').classList.toggle('active-toggle', isPinned);
+    loadConversations();
+  };
+  $('archive-toggle-btn').onclick = async () => {
+    if (!confirm('हा चॅट Archive करायचा? (परत Archived विभागातून बघता येईल)')) return;
+    await sb.from('conversation_members').update({ archived: true }).eq('conversation_id', id).eq('user_id', me.id);
+    $('app').classList.remove('chat-open');
+    $('chat-area').innerHTML = '<div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div>';
+    loadConversations();
+  };
+  $('search-toggle-btn').onclick = () => toggleInChatSearch();
 
   // Direct chat: Block/Report मेनू
   if (type === 'direct' && otherDirectUserId) {
@@ -1188,6 +1244,68 @@ function groupReadCount(msgCreatedAt) {
 }
 
 // ---------- DISAPPEARING MESSAGES ----------
+// ---------- IN-CHAT SEARCH ----------
+function toggleInChatSearch() {
+  const box = $('search-box');
+  const willOpen = box.style.display === 'none';
+  box.style.display = willOpen ? 'block' : 'none';
+  if (!willOpen) {
+    $('search-input').value = '';
+    filterMessagesBySearch('');
+    return;
+  }
+  $('search-input').focus();
+  $('search-input').oninput = (e) => filterMessagesBySearch(e.target.value.trim().toLowerCase());
+}
+
+function filterMessagesBySearch(query) {
+  const bubbles = document.querySelectorAll('#messages .bubble');
+  let firstMatch = null;
+  bubbles.forEach(b => {
+    const textEl = b.querySelector('.msg-content, .caption, .msg-file');
+    const text = (textEl ? textEl.textContent : '').toLowerCase();
+    const matches = !query || text.includes(query);
+    b.style.display = matches ? 'block' : 'none';
+    if (matches && query && !firstMatch) firstMatch = b;
+  });
+  if (firstMatch) firstMatch.scrollIntoView({ block: 'center' });
+}
+
+// ---------- FORWARD ----------
+async function openForwardPicker(msg) {
+  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const ids = (memberRows || []).map(r => r.conversation_id).filter(id => id !== activeConv);
+  if (!ids.length) { alert('Forward करण्यासाठी दुसरा चॅट नाही'); return; }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'forward-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = '<div class="call-name">कुठे Forward करायचं?</div><div id="forward-list" style="max-height:260px; overflow-y:auto; margin-top:10px;"></div><button id="forward-cancel" class="call-btn decline" style="margin-top:12px;">रद्द करा</button>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const listEl = box.querySelector('#forward-list');
+  for (const id of ids) {
+    const t = convTitleCache[id] || 'Chat';
+    const btn = document.createElement('button');
+    btn.className = 'disc-join';
+    btn.style.cssText = 'width:100%; margin-top:6px; text-align:left;';
+    btn.textContent = t;
+    btn.onclick = async () => {
+      await sb.from('messages').insert({
+        conversation_id: id, sender_id: me.id,
+        content: msg.content || '', media_url: msg.media_url || null, media_type: msg.media_type || null,
+      });
+      overlay.remove();
+      alert(t + ' ला forward केलं');
+    };
+    listEl.appendChild(btn);
+  }
+  box.querySelector('#forward-cancel').onclick = () => overlay.remove();
+}
+
 function toggleDisappearPanel(convId) {
   const panel = $('disappear-panel');
   if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
@@ -1559,6 +1677,7 @@ function renderIncoming(msg) {
   }
   const actionsHtml = `<div class="bubble-actions">
     <span class="act-reply" title="Reply">↩</span>
+    <span class="act-forward" title="Forward">↪</span>
     <span class="act-react" title="React">😊</span>
     ${mine && !msg.media_url ? '<span class="act-edit" title="Edit">✏️</span>' : ''}
     ${mine ? '<span class="act-delete" title="Delete">🗑</span>' : ''}
@@ -1566,6 +1685,7 @@ function renderIncoming(msg) {
 
   div.innerHTML = `${senderLabel}${replyHtml}${bodyHtml}<div class="reaction-pills"></div><span class="time">${time}${tickHtml}</span>${actionsHtml}`;
   div.querySelector('.act-reply').onclick = () => setReplyTarget(msg);
+  div.querySelector('.act-forward').onclick = () => openForwardPicker(msg);
   div.querySelector('.act-react').onclick = (e) => toggleReactionPicker(msg.id, div);
   const delBtn = div.querySelector('.act-delete');
   if (delBtn) delBtn.onclick = () => deleteMessage(msg.id);

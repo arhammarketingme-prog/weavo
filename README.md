@@ -49,6 +49,9 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Sidebar polish** — प्रत्येक चॅटसाठी avatar (फोटो किंवा रंगीत आद्याक्षर), unread indicator dot
 - **Mute** — प्रत्येक चॅटमध्ये 🔔/🔕 बटणाने mute/unmute (मेसेज येत राहतील, फक्त unread dot दिसणार नाही)
 - **Block + Report** — Direct चॅटमध्ये ⋮ मेनूतून व्यक्तीला block करता येतो (त्यांचे मेसेज दिसेनासे होतात, नवीन मेसेज पाठवता येत नाही) किंवा report करता येतो
+- **Pin / Archive** — 📌 ने चॅट वर पिन करता येतो (यादीत सगळ्यात वर दिसतो), 🗄 ने archive (यादीतून लपतो, खालच्या "Archived" विभागातून परत मिळतो)
+- **In-chat Search** — 🔍 ने सध्याच्या चॅटमध्ये (अलीकडचे २०० मेसेज) मजकूर शोधता येतो
+- **Forward** — कोणत्याही मेसेजवर ↪ दाबून दुसऱ्या कोणत्याही चॅटमध्ये तोच मेसेज (टेक्स्ट/फोटो/फाईल) पाठवता येतो
 - Row Level Security (RLS) — database-level सुरक्षा
 
 ## महत्त्वाची मर्यादा — Advertising/Monetization
@@ -88,7 +91,7 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 2. मोठ्या group calls साठी SFU/media server (सध्याचा mesh ८-१० लोकांपर्यंत ठीक आहे, त्यापेक्षा मोठ्यासाठी जड होईल)
 3. Comments ला स्वतःचं threaded view (सध्या comments messages listमध्येच "↩ उत्तर" टॅगसह दिसतात, वेगळा thread view नाही)
 4. Business profiles साठी फोटो अपलोड (सध्या फक्त मजकूर फील्ड्स)
-5. Message search, forward message, pin/archive chat (अजून बांधलेले नाहीत)
+5. Global search (सगळ्या चॅट्समध्ये/लोकांमध्ये शोधणं — सध्या फक्त एका चॅटमध्ये शोध आहे)
 6. Push notifications (सध्या फक्त app उघडं असताना live अपडेट होतं; बंद असताना notification येत नाही — त्यासाठी अजून एक थर लागतो)
 7. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
 

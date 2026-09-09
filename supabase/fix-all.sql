@@ -295,3 +295,8 @@ create policy "स्वतःचा block काढू शकतो (unblock)"
 -- टीप: नवीन conversation सुरू करताना block तपासणी frontend मध्ये केली जाते
 -- (त्या दोन विशिष्ट व्यक्तींमधलं नातं conversations table वर उपलब्ध नसल्यामुळे DB-level इथे शक्य नाही)
 
+
+-- 16) PIN + ARCHIVE
+alter table conversation_members add column if not exists pinned boolean default false;
+alter table conversation_members add column if not exists archived boolean default false;
+
