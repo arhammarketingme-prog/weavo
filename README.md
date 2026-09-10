@@ -53,6 +53,12 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **In-chat Search** — 🔍 ने सध्याच्या चॅटमध्ये (अलीकडचे २०० मेसेज) मजकूर शोधता येतो
 - **Forward** — कोणत्याही मेसेजवर ↪ दाबून दुसऱ्या कोणत्याही चॅटमध्ये तोच मेसेज (टेक्स्ट/फोटो/फाईल) पाठवता येतो
 - **Push Notifications** (ऐच्छिक सेटअप — खाली सूचना) — app बंद असतानाही नवीन मेसेजचं notification
+- **Light/Dark Theme** — ⚙ मधून बदलता येतं, प्रत्येक डिव्हाइसवर स्वतंत्र लक्षात राहतं
+- **Read Receipts privacy** — last-seen पेक्षा वेगळी सेटिंग, ✓✓ स्वतंत्रपणे लपवता येतं (mutual, WhatsApp सारखं)
+- **खरा Reply-quote preview** — Reply केलेला मेसेज आता प्रत्यक्ष कोणत्या मजकुरावर/फोटोवर उत्तर आहे ते दाखवतो
+- **Starred Messages** — कोणत्याही मेसेजवर ⭐, सगळे starred मेसेज एका ठिकाणी ("⭐ Starred Messages")
+- **Delete for me / Delete for everyone** — दोन्ही पर्याय; "for me" फक्त तुमच्या डिव्हाइसवर लपतो (sync होत नाही), "for everyone" सगळ्यांसाठी कायमचं जातं
+- **Group/Channel Avatar** — owner group-info मधून फोटो अपलोड करू शकतो
 - Row Level Security (RLS) — database-level सुरक्षा, या राऊंडमध्ये आणखी घट्ट केलेली (खाली बघा)
 
 ## महत्त्वाची मर्यादा — Advertising/Monetization
@@ -94,7 +100,10 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 4. Business profiles साठी फोटो अपलोड (सध्या फक्त मजकूर फील्ड्स)
 5. Global search (सगळ्या चॅट्समध्ये/लोकांमध्ये शोधणं — सध्या फक्त एका चॅटमध्ये शोध आहे)
 6. Column-level privacy (last_seen_at/hide_last_seen सध्या row-level RLS ने संरक्षित आहे — म्हणजे लॉगिन केलेला कोणीही profiles वाचू शकतो, पण त्यातला exact last-seen timestamp थेट query करून बघता येऊ शकतो; app स्वतः तो दाखवताना privacy पाळते, पण database-level column-lock अजून नाही — अजून घट्ट करता येईल)
-7. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
+7. Location sharing, Polls, Contact sharing (मूळ spec मध्ये होते, अजून बांधलेले नाहीत)
+8. Composer मध्ये emoji picker (सध्या फक्त reactions मध्ये emoji आहेत, टाइप करतानाचा picker नाही)
+9. Custom "Add to Home Screen" prompt (सध्या browser च्या डिफॉल्ट prompt वर अवलंबून)
+10. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
 
 ## Block बद्दल एक प्रामाणिक मर्यादा
 

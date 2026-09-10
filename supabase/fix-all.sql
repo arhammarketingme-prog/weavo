@@ -383,3 +383,32 @@ drop policy if exists "स्वतःचं subscription काढू शकत
 create policy "स्वतःचं subscription काढू शकतो"
   on push_subscriptions for delete using (auth.uid() = user_id);
 
+
+-- 19) STARRED MESSAGES + READ-RECEIPTS PRIVACY TOGGLE
+create table if not exists starred_messages (
+  user_id uuid references profiles(id) on delete cascade,
+  message_id uuid references messages(id) on delete cascade,
+  created_at timestamptz default now(),
+  primary key (user_id, message_id)
+);
+
+alter table starred_messages enable row level security;
+
+drop policy if exists "स्वतःचे starred messages बघू शकतो" on starred_messages;
+create policy "स्वतःचे starred messages बघू शकतो"
+  on starred_messages for select using (auth.uid() = user_id);
+
+drop policy if exists "स्वतः star करू शकतो" on starred_messages;
+create policy "स्वतः star करू शकतो"
+  on starred_messages for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचा star काढू शकतो" on starred_messages;
+create policy "स्वतःचा star काढू शकतो"
+  on starred_messages for delete using (auth.uid() = user_id);
+
+-- Read receipts स्वतंत्रपणे लपवण्याची सोय (last-seen पेक्षा वेगळी सेटिंग, WhatsApp सारखी)
+alter table profiles add column if not exists hide_read_receipts boolean default false;
+
+-- Group साठी custom avatar
+alter table conversations add column if not exists avatar_url text;
+
