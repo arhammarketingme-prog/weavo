@@ -59,6 +59,12 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Starred Messages** — कोणत्याही मेसेजवर ⭐, सगळे starred मेसेज एका ठिकाणी ("⭐ Starred Messages")
 - **Delete for me / Delete for everyone** — दोन्ही पर्याय; "for me" फक्त तुमच्या डिव्हाइसवर लपतो (sync होत नाही), "for everyone" सगळ्यांसाठी कायमचं जातं
 - **Group/Channel Avatar** — owner group-info मधून फोटो अपलोड करू शकतो
+- **Global Search** — सगळ्या चॅट्समध्ये आणि लोकांमध्ये एकाच वेळी शोध (sidebar वरती)
+- **Emoji Picker** — मेसेज टाइप करतानाच emoji निवडता येतात (😊 बटण)
+- **Location Sharing** — 📍 ने सध्याचं location पाठवता येतं (नकाशाची लिंक — OpenStreetMap, कोणताही API key लागत नाही)
+- **Contact Sharing** — 👤 ने दुसऱ्या Weavo user चं contact card पाठवता येतं
+- **Polls** — 📊 ने प्रश्न + पर्याय टाकून poll तयार करता येतो, सगळ्यांना live results दिसतात
+- **"App Install करा" बटण** — sidebar मध्ये आपोआप दिसतं (browser support असेल तर), custom install prompt
 - Row Level Security (RLS) — database-level सुरक्षा, या राऊंडमध्ये आणखी घट्ट केलेली (खाली बघा)
 
 ## महत्त्वाची मर्यादा — Advertising/Monetization
@@ -98,12 +104,10 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 2. मोठ्या group calls साठी SFU/media server (सध्याचा mesh ८-१० लोकांपर्यंत ठीक आहे, त्यापेक्षा मोठ्यासाठी जड होईल)
 3. Comments ला स्वतःचं threaded view (सध्या comments messages listमध्येच "↩ उत्तर" टॅगसह दिसतात, वेगळा thread view नाही)
 4. Business profiles साठी फोटो अपलोड (सध्या फक्त मजकूर फील्ड्स)
-5. Global search (सगळ्या चॅट्समध्ये/लोकांमध्ये शोधणं — सध्या फक्त एका चॅटमध्ये शोध आहे)
-6. Column-level privacy (last_seen_at/hide_last_seen सध्या row-level RLS ने संरक्षित आहे — म्हणजे लॉगिन केलेला कोणीही profiles वाचू शकतो, पण त्यातला exact last-seen timestamp थेट query करून बघता येऊ शकतो; app स्वतः तो दाखवताना privacy पाळते, पण database-level column-lock अजून नाही — अजून घट्ट करता येईल)
-7. Location sharing, Polls, Contact sharing (मूळ spec मध्ये होते, अजून बांधलेले नाहीत)
-8. Composer मध्ये emoji picker (सध्या फक्त reactions मध्ये emoji आहेत, टाइप करतानाचा picker नाही)
-9. Custom "Add to Home Screen" prompt (सध्या browser च्या डिफॉल्ट prompt वर अवलंबून)
-10. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
+5. Column-level privacy (last_seen_at/hide_last_seen सध्या row-level RLS ने संरक्षित आहे — म्हणजे लॉगिन केलेला कोणीही profiles वाचू शकतो, पण त्यातला exact last-seen timestamp थेट query करून बघता येऊ शकतो; app स्वतः तो दाखवताना privacy पाळते, पण database-level column-lock अजून नाही — अजून घट्ट करता येईल)
+6. Location वर actual नकाशाचं छोटं चित्र (सध्या फक्त लिंक, इनलाइन map-preview नाही)
+7. Poll: "एकापेक्षा जास्त पर्याय निवडता येणं" (multi-select poll) आणि "results लपवून ठेवणं" यासारखे advanced पर्याय
+8. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
 
 ## Block बद्दल एक प्रामाणिक मर्यादा
 

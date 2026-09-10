@@ -65,6 +65,12 @@
   #business-fields { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 12px; }
   .typing-indicator { padding: 4px 20px; font-size: 12px; color: var(--muted); font-style: italic; }
   .last-seen { font-size: 11px; color: var(--muted); font-weight: 400; }
+  #global-search-wrap { padding: 10px 16px; border-bottom: 1px solid var(--border); position: relative; }
+  #global-search-input { width: 100%; margin: 0; }
+  #global-search-results { position: absolute; left: 16px; right: 16px; top: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-top: 4px; max-height: 300px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 30px #0006; }
+  .gs-section { padding: 6px 12px; font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .gs-item { padding: 8px 12px; cursor: pointer; font-size: 13px; }
+  .gs-item:hover { background: var(--accent-soft); }
   #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
   #new-chat input { margin: 0; }
   #new-chat button { width: auto; padding: 10px 14px; }
@@ -156,6 +162,14 @@
   .reply-quote { font-size: 11px; opacity: 0.7; border-left: 2px solid var(--accent); padding-left: 6px; margin-bottom: 4px; }
   .msg-image { max-width: 220px; border-radius: 10px; display: block; cursor: pointer; margin-bottom: 4px; }
   .msg-audio { max-width: 220px; height: 36px; }
+  .contact-card { background: #ffffff14; border-radius: 8px; padding: 10px; min-width: 160px; }
+  .poll-box { min-width: 200px; }
+  .poll-question { font-weight: 600; margin-bottom: 8px; }
+  .poll-option { position: relative; background: #ffffff14; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; overflow: hidden; }
+  .poll-option.voted { outline: 2px solid var(--accent); }
+  .poll-bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-soft); z-index: 0; transition: width 0.3s; }
+  .poll-label, .poll-count { position: relative; z-index: 1; }
+  .poll-count { float: right; font-size: 11px; opacity: 0.7; }
   #mic-btn.recording { background: #ef4444; color: white; }
   #recording-indicator { color: #ef4444; font-size: 13px; display: flex; align-items: center; padding: 0 6px; white-space: nowrap; }
   .msg-file { color: inherit; text-decoration: underline; font-size: 13px; }
@@ -173,7 +187,13 @@
   .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
   .bubble .time { display: block; font-size: 10px; opacity: 0.6; margin-top: 4px; }
   .bubble .sender { display: block; font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 3px; }
-  #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+  #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; position: relative; }
+  #emoji-picker-box { position: absolute; bottom: 100%; left: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 8px; margin-bottom: 6px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; width: 260px; box-shadow: 0 10px 30px #0006; z-index: 10; }
+  #emoji-picker-box span { cursor: pointer; font-size: 18px; text-align: center; padding: 2px; border-radius: 4px; }
+  #emoji-picker-box span:hover { background: var(--accent-soft); }
+  #plus-menu { position: absolute; bottom: 100%; left: 60px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 6px; box-shadow: 0 10px 30px #0006; z-index: 10; display: flex; flex-direction: column; }
+  #plus-menu button { width: auto; background: transparent; color: var(--text); padding: 10px 16px; text-align: left; font-weight: 400; margin: 0; }
+  #plus-menu button:hover { background: var(--accent-soft); }
   #composer input { margin: 0; flex: 1; }
   #composer button { width: auto; padding: 12px 20px; }
   #empty-state { margin: auto; color: var(--muted); text-align: center; }
@@ -239,12 +259,17 @@
         <button id="save-business-btn">Business Profile Save करा</button>
       </div>
     </div>
+    <div id="global-search-wrap">
+      <input id="global-search-input" placeholder="🔍 सगळीकडे शोधा (चॅट्स/लोक)..." />
+      <div id="global-search-results" style="display:none"></div>
+    </div>
     <div id="new-chat"><input id="new-chat-username" placeholder="username टाका (@ शिवाय)..." /><button id="new-chat-btn">Chat</button></div>
     <div id="tab-row">
       <button id="tab-toggle-group" class="link-btn">+ नवीन Group</button>
       <button id="tab-toggle-channel" class="link-btn">+ नवीन Channel</button>
       <button id="tab-toggle-business" class="link-btn">🏢 Discover Businesses</button>
       <button id="tab-toggle-starred" class="link-btn">⭐ Starred Messages</button>
+      <button id="install-app-btn" class="link-btn" style="display:none">📲 App Install करा</button>
       <button id="tab-toggle-discover" class="link-btn">🔍 Discover Channels</button>
     </div>
     <div id="new-group" style="display:none">
@@ -417,6 +442,89 @@ async function enterApp() {
   $('save-business-btn').onclick = saveBusinessProfile;
 
   setupPushNotifications();
+  setupGlobalSearch();
+  setupInstallPrompt();
+}
+
+// ---------- GLOBAL SEARCH ----------
+let globalSearchDebounce = null;
+function setupGlobalSearch() {
+  $('global-search-input').oninput = (e) => {
+    clearTimeout(globalSearchDebounce);
+    const q = e.target.value.trim();
+    if (!q) { $('global-search-results').style.display = 'none'; return; }
+    globalSearchDebounce = setTimeout(() => runGlobalSearch(q), 250);
+  };
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#global-search-wrap')) $('global-search-results').style.display = 'none';
+  });
+}
+
+async function runGlobalSearch(q) {
+  const qLower = q.toLowerCase();
+
+  // सध्याच्या चॅट्समध्ये नावाने शोध (client-side, आधीच cache आहे)
+  const chatMatches = Object.entries(convTitleCache).filter(([id, title]) => title.toLowerCase().includes(qLower)).slice(0, 5);
+
+  // Username नुसार लोक शोध (server query)
+  const { data: people } = await sb.from('profiles').select('id, username').ilike('username', `%${q}%`).neq('id', me.id).limit(5);
+
+  const box = $('global-search-results');
+  let html = '';
+  if (chatMatches.length) {
+    html += '<div class="gs-section">चॅट्स</div>';
+    for (const [id, title] of chatMatches) {
+      html += `<div class="gs-item" data-conv="${id}" data-title="${escapeHtml(title)}">${escapeHtml(title)}</div>`;
+    }
+  }
+  if (people && people.length) {
+    html += '<div class="gs-section">लोक</div>';
+    for (const p of people) {
+      html += `<div class="gs-item" data-username="${escapeHtml(p.username)}">@${escapeHtml(p.username)}</div>`;
+    }
+  }
+  if (!html) html = '<div class="gs-item" style="color:var(--muted)">काहीही सापडलं नाही</div>';
+  box.innerHTML = html;
+  box.style.display = 'block';
+
+  box.querySelectorAll('.gs-item[data-conv]').forEach(el => {
+    el.onclick = () => {
+      box.style.display = 'none';
+      $('global-search-input').value = '';
+      // conv-list मधल्या त्याच चॅटचा प्रकार शोधण्यासाठी वापरतो — title वरून प्रकार अंदाजतो
+      const title = el.dataset.title;
+      const type = title.startsWith('# ') ? 'channel' : title.startsWith('@') ? 'direct' : 'group';
+      openConversation(el.dataset.conv, title, type);
+    };
+  });
+  box.querySelectorAll('.gs-item[data-username]').forEach(el => {
+    el.onclick = () => {
+      box.style.display = 'none';
+      $('global-search-input').value = '';
+      $('new-chat-username').value = el.dataset.username;
+      $('new-chat-btn').click();
+    };
+  });
+}
+
+// ---------- CUSTOM "ADD TO HOME SCREEN" PROMPT ----------
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('install-app-btn');
+  if (btn) btn.style.display = 'block';
+});
+function setupInstallPrompt() {
+  const btn = $('install-app-btn');
+  if (!btn) return;
+  btn.onclick = async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    btn.style.display = 'none';
+  };
 }
 
 // ---------- PUSH NOTIFICATIONS ----------
@@ -570,6 +678,10 @@ function subscribeRealtime() {
       const msgId = (payload.new && payload.new.message_id) || (payload.old && payload.old.message_id);
       if (msgId && document.querySelector(`[data-msg-id="${msgId}"]`)) loadReactionsFor(msgId);
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, (payload) => {
+      const msgId = (payload.new && payload.new.message_id) || (payload.old && payload.old.message_id);
+      if (msgId && document.querySelector(`[data-msg-id="${msgId}"] .poll-box`)) refreshPollUI(msgId);
+    })
     .subscribe();
 }
 
@@ -637,7 +749,14 @@ async function loadConversations() {
 
 function buildConvItemEl(r) {
   let previewText = 'अजून मेसेज नाही';
-  if (r.last) previewText = r.last.media_type ? (r.last.media_type === 'image' ? '📷 फोटो' : r.last.media_type === 'audio' ? '🎤 Voice message' : '📎 फाईल') : (r.last.content || '');
+  if (r.last) previewText = r.last.media_type
+    ? (r.last.media_type === 'image' ? '📷 फोटो'
+      : r.last.media_type === 'audio' ? '🎤 Voice message'
+      : r.last.media_type === 'location' ? '📍 Location'
+      : r.last.media_type === 'contact' ? '👤 Contact'
+      : r.last.media_type === 'poll' ? '📊 Poll'
+      : '📎 फाईल')
+    : (r.last.content || '');
   const avatarLetter = (r.type === 'channel' ? '#' : r.title.replace('@', '')[0] || '?').toUpperCase();
   const avatarHtml = r.avatarUrl ? `<img src="${r.avatarUrl}" />` : `<span>${escapeHtml(avatarLetter)}</span>`;
 
@@ -915,8 +1034,16 @@ async function openConversation(id, title, type) {
     <div class="typing-indicator" id="typing-indicator" style="display:none">टाइप करत आहे...</div>
     <div id="reply-preview" style="display:none"></div>
     <div id="composer">
+      <button id="emoji-btn" class="icon-btn" title="Emoji">😊</button>
+      <div id="emoji-picker-box" style="display:none"></div>
       <button id="attach-btn" class="icon-btn" title="फोटो/फाईल पाठवा">📎</button>
       <input type="file" id="file-input" style="display:none" accept="image/*,.pdf,.doc,.docx,.zip,.txt" />
+      <button id="plus-btn" class="icon-btn" title="अजून पर्याय">➕</button>
+      <div id="plus-menu" style="display:none">
+        <button id="plus-location">📍 Location पाठवा</button>
+        <button id="plus-contact">👤 Contact पाठवा</button>
+        <button id="plus-poll">📊 Poll तयार करा</button>
+      </div>
       <input id="msg-input" placeholder="मेसेज लिहा..." />
       <button id="mic-btn" class="icon-btn" title="Voice message">🎤</button>
       <span id="recording-indicator" style="display:none">● <span id="rec-timer">0:00</span></span>
@@ -1070,6 +1197,11 @@ async function openConversation(id, title, type) {
   $('back-btn').onclick = () => { $('app').classList.remove('chat-open'); };
   $('mic-btn').onclick = toggleVoiceRecording;
   $('file-input').onchange = handleFileUpload;
+  $('emoji-btn').onclick = toggleEmojiPicker;
+  $('plus-btn').onclick = () => { $('plus-menu').style.display = $('plus-menu').style.display === 'none' ? 'flex' : 'none'; };
+  $('plus-location').onclick = sendLocation;
+  $('plus-contact').onclick = openContactSharePicker;
+  $('plus-poll').onclick = openPollCreator;
 }
 
 function otherInfoUsername(title) {
@@ -1560,6 +1692,110 @@ function setReplyTarget(msg) {
   $('msg-input').focus();
 }
 
+// ---------- EMOJI PICKER (composer साठी) ----------
+const COMMON_EMOJIS = ['😀','😂','😍','😊','😉','😢','😭','😡','👍','👎','🙏','👏','🔥','🎉','❤️','💯','😎','🤔','😴','🥳','😱','🙌','✅','❌','⭐','💡','📌','🎂','☕','🌹'];
+function toggleEmojiPicker() {
+  const box = $('emoji-picker-box');
+  const willOpen = box.style.display === 'none';
+  box.style.display = willOpen ? 'grid' : 'none';
+  if (willOpen && !box.dataset.filled) {
+    box.innerHTML = COMMON_EMOJIS.map(e => `<span>${e}</span>`).join('');
+    box.dataset.filled = '1';
+    box.querySelectorAll('span').forEach(el => {
+      el.onclick = () => { $('msg-input').value += el.textContent; $('msg-input').focus(); };
+    });
+  }
+}
+
+// ---------- LOCATION SHARING ----------
+function sendLocation() {
+  $('plus-menu').style.display = 'none';
+  if (!activeConv) return;
+  if (!navigator.geolocation) { alert('या browser मध्ये location support नाही'); return; }
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const { latitude, longitude } = pos.coords;
+    const { error } = await sb.from('messages').insert({
+      conversation_id: activeConv, sender_id: me.id,
+      content: `${latitude},${longitude}`, media_type: 'location',
+      expires_at: computeExpiresAt(),
+    });
+    if (error) alert(error.message);
+  }, (err) => alert('Location मिळालं नाही: ' + err.message));
+}
+
+// ---------- CONTACT SHARING ----------
+function openContactSharePicker() {
+  $('plus-menu').style.display = 'none';
+  const uname = prompt('कोणाचा contact share करायचा? username टाका:');
+  if (!uname) return;
+  (async () => {
+    const { data: user } = await sb.from('profiles').select('id, username').ilike('username', uname.trim().replace(/^@/, '')).maybeSingle();
+    if (!user) { alert('वापरकर्ता सापडला नाही'); return; }
+    const { error } = await sb.from('messages').insert({
+      conversation_id: activeConv, sender_id: me.id,
+      content: user.username, media_type: 'contact',
+      expires_at: computeExpiresAt(),
+    });
+    if (error) alert(error.message);
+  })();
+}
+
+// ---------- POLLS ----------
+function openPollCreator() {
+  $('plus-menu').style.display = 'none';
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">Poll तयार करा</div>
+    <input id="poll-question" placeholder="प्रश्न" style="width:100%; margin-top:10px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <input id="poll-opt-1" placeholder="पर्याय 1" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <input id="poll-opt-2" placeholder="पर्याय 2" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <input id="poll-opt-3" placeholder="पर्याय 3 (optional)" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <input id="poll-opt-4" placeholder="पर्याय 4 (optional)" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <button class="disc-join" id="poll-submit" style="width:100%; margin-top:10px;">Poll पाठवा</button>
+    <button class="call-btn decline" id="poll-cancel" style="margin-top:8px;">रद्द करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#poll-cancel').onclick = () => overlay.remove();
+  box.querySelector('#poll-submit').onclick = async () => {
+    const question = box.querySelector('#poll-question').value.trim();
+    const options = [1, 2, 3, 4].map(i => box.querySelector('#poll-opt-' + i).value.trim()).filter(Boolean);
+    if (!question || options.length < 2) { alert('प्रश्न आणि किमान 2 पर्याय आवश्यक'); return; }
+    const { error } = await sb.from('messages').insert({
+      conversation_id: activeConv, sender_id: me.id,
+      content: JSON.stringify({ question, options }), media_type: 'poll',
+      expires_at: computeExpiresAt(),
+    });
+    if (error) { alert(error.message); return; }
+    overlay.remove();
+  };
+}
+
+async function castPollVote(msgId, optionIndex) {
+  await sb.from('poll_votes').upsert({ message_id: msgId, user_id: me.id, option_index: optionIndex }, { onConflict: 'message_id,user_id' });
+  refreshPollUI(msgId);
+}
+
+async function refreshPollUI(msgId) {
+  const el = document.querySelector(`[data-msg-id="${msgId}"] .poll-box`);
+  if (!el) return;
+  const { data: votes } = await sb.from('poll_votes').select('user_id, option_index').eq('message_id', msgId);
+  const options = JSON.parse(el.dataset.options);
+  const counts = options.map((_, i) => (votes || []).filter(v => v.option_index === i).length);
+  const total = counts.reduce((a, b) => a + b, 0) || 1;
+  const myVote = (votes || []).find(v => v.user_id === me.id);
+
+  el.querySelectorAll('.poll-option').forEach((optEl, i) => {
+    const pct = Math.round((counts[i] / total) * 100);
+    optEl.querySelector('.poll-bar').style.width = pct + '%';
+    optEl.querySelector('.poll-count').textContent = counts[i] + ' (' + pct + '%)';
+    optEl.classList.toggle('voted', myVote?.option_index === i);
+  });
+}
+
 // ---------- SEND (टेक्स्ट) ----------
 function computeExpiresAt() {
   return activeDisappearingSeconds ? new Date(Date.now() + activeDisappearingSeconds * 1000).toISOString() : null;
@@ -1854,6 +2090,14 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.reaction-picker') && !e.target.closest('.act-react')) {
     document.querySelectorAll('.reaction-picker').forEach(p => p.remove());
   }
+  if (!e.target.closest('#emoji-picker-box') && !e.target.closest('#emoji-btn')) {
+    const box = document.getElementById('emoji-picker-box');
+    if (box) box.style.display = 'none';
+  }
+  if (!e.target.closest('#plus-menu') && !e.target.closest('#plus-btn')) {
+    const menu = document.getElementById('plus-menu');
+    if (menu) menu.style.display = 'none';
+  }
 });
 
 // ---------- RENDER ----------
@@ -1884,6 +2128,24 @@ function renderIncoming(msg) {
     if (msg.content) bodyHtml += `<div class="caption">${escapeHtml(msg.content)}</div>`;
   } else if (msg.media_url && msg.media_type === 'audio') {
     bodyHtml += `<audio controls src="${msg.media_url}" class="msg-audio"></audio>`;
+  } else if (msg.media_type === 'location') {
+    const [lat, lng] = msg.content.split(',');
+    bodyHtml += `<a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}" target="_blank" class="msg-file">📍 Location बघा</a>`;
+  } else if (msg.media_type === 'contact') {
+    bodyHtml += `<div class="contact-card">👤 <b>@${escapeHtml(msg.content)}</b></div>`;
+  } else if (msg.media_type === 'poll') {
+    let poll = { question: '', options: [] };
+    try { poll = JSON.parse(msg.content); } catch (e) {}
+    bodyHtml += `<div class="poll-box" data-options='${escapeHtml(JSON.stringify(poll.options))}'>
+      <div class="poll-question">📊 ${escapeHtml(poll.question)}</div>
+      ${poll.options.map((opt, i) => `
+        <div class="poll-option" data-idx="${i}">
+          <div class="poll-bar" style="width:0%"></div>
+          <span class="poll-label">${escapeHtml(opt)}</span>
+          <span class="poll-count">0 (0%)</span>
+        </div>
+      `).join('')}
+    </div>`;
   } else if (msg.media_url) {
     bodyHtml += `<a href="${msg.media_url}" target="_blank" class="msg-file">📎 ${escapeHtml(msg.content || 'फाईल')}</a>`;
   } else {
@@ -1927,6 +2189,13 @@ function renderIncoming(msg) {
   loadReactionsFor(msg.id);
   refreshReadTicks();
   refreshGroupReadTicks();
+
+  if (msg.media_type === 'poll') {
+    div.querySelectorAll('.poll-option').forEach(optEl => {
+      optEl.onclick = () => castPollVote(msg.id, parseInt(optEl.dataset.idx));
+    });
+    refreshPollUI(msg.id);
+  }
 }
 
 function escapeHtml(s) {

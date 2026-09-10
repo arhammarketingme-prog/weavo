@@ -529,3 +529,45 @@ alter table profiles add column if not exists hide_read_receipts boolean default
 -- Group साठी custom avatar
 alter table conversations add column if not exists avatar_url text;
 
+
+-- 20) POLLS
+create table if not exists poll_votes (
+  message_id uuid references messages(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  option_index integer not null,
+  created_at timestamptz default now(),
+  primary key (message_id, user_id)
+);
+
+alter table poll_votes enable row level security;
+
+drop policy if exists "सभासद poll votes बघू शकतात" on poll_votes;
+create policy "सभासद poll votes बघू शकतात"
+  on poll_votes for select using (
+    is_conversation_member(message_conversation_id(message_id), auth.uid())
+  );
+
+drop policy if exists "सभासद vote करू शकतात" on poll_votes;
+create policy "सभासद vote करू शकतात"
+  on poll_votes for insert with check (
+    auth.uid() = user_id and is_conversation_member(message_conversation_id(message_id), auth.uid())
+  );
+
+drop policy if exists "स्वतःचं vote बदलू शकतो" on poll_votes;
+create policy "स्वतःचं vote बदलू शकतो"
+  on poll_votes for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचं vote काढू शकतो" on poll_votes;
+create policy "स्वतःचं vote काढू शकतो"
+  on poll_votes for delete using (auth.uid() = user_id);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'poll_votes'
+  ) then
+    alter publication supabase_realtime add table poll_votes;
+  end if;
+end $$;
+
