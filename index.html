@@ -335,7 +335,7 @@ $('theme-toggle-btn').onclick = () => {
 // ---------- AUTH ----------
 $('register-btn').onclick = async () => {
   $('error').textContent = '';
-  const username = $('reg-username').value.trim();
+  const username = normalizeUsername($('reg-username').value);
   const email = $('reg-email').value.trim();
   const password = $('reg-password').value;
   if (!username || !email || !password) { $('error').textContent = 'सगळे field भरा'; return; }
@@ -817,8 +817,7 @@ function renderArchivedToggle(count, archivedRows) {
 }
 
 $('new-chat-btn').onclick = async () => {
-  let username = $('new-chat-username').value.trim();
-  username = username.replace(/^@/, '').trim(); // "@" टाकलं असेल तर काढून टाकतो
+  let username = normalizeUsername($('new-chat-username').value);
   if (!username) return;
 
   const { data: other, error: findErr } = await sb.from('profiles').select('id, username').ilike('username', username).maybeSingle();
@@ -869,7 +868,7 @@ $('new-group-btn').onclick = async () => {
   if (!groupName) { alert('Group ला नाव द्या'); return; }
   if (!usernamesRaw) { alert('किमान एक username टाका'); return; }
 
-  const usernames = usernamesRaw.split(',').map(u => u.trim().replace(/^@/, '')).filter(Boolean);
+  const usernames = usernamesRaw.split(',').map(u => normalizeUsername(u)).filter(Boolean);
   const memberIds = [me.id];
   const notFound = [];
 
@@ -1673,7 +1672,7 @@ function toggleGroupInfo(convId) {
 
   if (!isOwnerOrAdmin) return; // add-member handlers फक्त owner/admin साठी लागतात
   $('gi-add-btn').onclick = async () => {
-    let uname = $('gi-add-input').value.trim().replace(/^@/, '');
+    let uname = normalizeUsername($('gi-add-input').value);
     if (!uname) return;
     const { data: user } = await sb.from('profiles').select('id').ilike('username', uname).maybeSingle();
     if (!user) { alert('वापरकर्ता सापडला नाही'); return; }
@@ -1754,7 +1753,7 @@ function openContactSharePicker() {
   const uname = prompt('कोणाचा contact share करायचा? username टाका:');
   if (!uname) return;
   (async () => {
-    const { data: user } = await sb.from('profiles').select('id, username').ilike('username', uname.trim().replace(/^@/, '')).maybeSingle();
+    const { data: user } = await sb.from('profiles').select('id, username').ilike('username', normalizeUsername(uname)).maybeSingle();
     if (!user) { alert('वापरकर्ता सापडला नाही'); return; }
     const { error } = await sb.from('messages').insert({
       conversation_id: activeConv, sender_id: me.id,
@@ -2227,6 +2226,12 @@ function escapeHtml(s) {
   const d = document.createElement('div');
   d.textContent = s || '';
   return d.innerHTML;
+}
+
+// "@" काढतो, आणि जास्तीच्या/चुकीच्या स्पेसेस (उदा. डबल-स्पेस) एका स्पेसमध्ये एकत्र करतो —
+// यामुळे username मध्ये स्पेस असेल (उदा. "arham gandhi") तरी टायपिंग-चूक माफ केली जाते
+function normalizeUsername(s) {
+  return (s || '').trim().replace(/^@/, '').replace(/\s+/g, ' ').trim();
 }
 
 // ---------- PWA: service worker register करणे ----------
