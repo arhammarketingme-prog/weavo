@@ -469,6 +469,15 @@ async function runGlobalSearch(q) {
   // Username नुसार लोक शोध (server query)
   const { data: people } = await sb.from('profiles').select('id, username').ilike('username', `%${q}%`).neq('id', me.id).limit(5);
 
+  // मेसेज मजकुरात शोध (माझ्या चॅट्समध्ये, server query)
+  const myConvIds = Object.keys(convTitleCache);
+  let msgMatches = [];
+  if (myConvIds.length && q.length >= 2) {
+    const { data } = await sb.from('messages').select('id, content, conversation_id, sender_id')
+      .in('conversation_id', myConvIds).ilike('content', `%${q}%`).eq('deleted', false).limit(5);
+    msgMatches = data || [];
+  }
+
   const box = $('global-search-results');
   let html = '';
   if (chatMatches.length) {
@@ -483,6 +492,13 @@ async function runGlobalSearch(q) {
       html += `<div class="gs-item" data-username="${escapeHtml(p.username)}">@${escapeHtml(p.username)}</div>`;
     }
   }
+  if (msgMatches.length) {
+    html += '<div class="gs-section">मेसेजेस</div>';
+    for (const m of msgMatches) {
+      const convTitle = convTitleCache[m.conversation_id] || 'Chat';
+      html += `<div class="gs-item" data-msg-conv="${m.conversation_id}" data-msg-title="${escapeHtml(convTitle)}"><b>${escapeHtml(convTitle)}</b>: ${escapeHtml((m.content || '').slice(0, 50))}</div>`;
+    }
+  }
   if (!html) html = '<div class="gs-item" style="color:var(--muted)">काहीही सापडलं नाही</div>';
   box.innerHTML = html;
   box.style.display = 'block';
@@ -495,6 +511,15 @@ async function runGlobalSearch(q) {
       const title = el.dataset.title;
       const type = title.startsWith('# ') ? 'channel' : title.startsWith('@') ? 'direct' : 'group';
       openConversation(el.dataset.conv, title, type);
+    };
+  });
+  box.querySelectorAll('.gs-item[data-msg-conv]').forEach(el => {
+    el.onclick = () => {
+      box.style.display = 'none';
+      $('global-search-input').value = '';
+      const title = el.dataset.msgTitle;
+      const type = title.startsWith('# ') ? 'channel' : title.startsWith('@') ? 'direct' : 'group';
+      openConversation(el.dataset.msgConv, title, type);
     };
   });
   box.querySelectorAll('.gs-item[data-username]').forEach(el => {

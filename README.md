@@ -4,6 +4,12 @@ Stack: **Supabase** (Postgres + Auth + Realtime, backend server लागत न
 
 `index.html` आता याच फोल्डरच्या root मध्ये आहे (आधीच्या version मध्ये `frontend/` सबफोल्डर मध्ये होता — त्यामुळे काही static hosts वर index.html ऐवजी हा README दिसत होता. आता ठीक आहे).
 
+## 🧹 SQL Files स्वच्छ केले (नवीन)
+
+आधी `schema.sql` मध्ये २० टप्प्यांचा (rounds) इतिहास साठत गेला होता (मोठा, वाचायला अवघड). आता तो **पूर्णपणे नीटनेटका आणि फक्त अंतिम स्थिती दाखवणारा** केला आहे — प्रत्येक table/policy एकाच ठिकाणी, वरून खाली सुसंगत क्रमाने. `fix-all.sql` आता `schema.sql` सारखाच आहे (वेगळा ठेवलाय फक्त सवयीसाठी — दोन्हीपैकी कुठलाही चालेल). जुनी `fix-recursion.sql` काढून टाकली — तिच्यातलं सगळं आता schema.sql मध्येच आहे.
+
+**प्रामाणिक टीप:** मी हा file प्रत्यक्ष Postgres वर चालवून टेस्ट करू शकत नाही (माझ्याकडे प्रवेश नाही) — प्रत्येक तुकडा आधीच वेगळा, तुझ्याकडून टेस्ट होऊन काम करणारा होता, मी फक्त एकत्र नीट रचला आहे. तरीही: **हा file run केल्यावर एकदा पूर्ण app टेस्ट कर** (login, chat, group, channel सगळं) याची खात्री करायला.
+
 ## Setup (3 स्टेप)
 
 ### 1. Supabase प्रोजेक्ट तयार करा
@@ -59,7 +65,7 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Starred Messages** — कोणत्याही मेसेजवर ⭐, सगळे starred मेसेज एका ठिकाणी ("⭐ Starred Messages")
 - **Delete for me / Delete for everyone** — दोन्ही पर्याय; "for me" फक्त तुमच्या डिव्हाइसवर लपतो (sync होत नाही), "for everyone" सगळ्यांसाठी कायमचं जातं
 - **Group/Channel Avatar** — owner group-info मधून फोटो अपलोड करू शकतो
-- **Global Search** — सगळ्या चॅट्समध्ये आणि लोकांमध्ये एकाच वेळी शोध (sidebar वरती)
+- **Global Search** — सगळ्या चॅट्स, लोक, आणि मेसेज मजकूर — एकाच वेळी शोध (sidebar वरती)
 - **Emoji Picker** — मेसेज टाइप करतानाच emoji निवडता येतात (😊 बटण)
 - **Location Sharing** — 📍 ने सध्याचं location पाठवता येतं (नकाशाची लिंक — OpenStreetMap, कोणताही API key लागत नाही)
 - **Contact Sharing** — 👤 ने दुसऱ्या Weavo user चं contact card पाठवता येतं
