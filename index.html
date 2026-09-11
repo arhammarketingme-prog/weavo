@@ -1519,9 +1519,16 @@ function filterMessagesBySearch(query) {
 
 // ---------- FORWARD ----------
 async function openForwardPicker(msg) {
-  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-  const ids = (memberRows || []).map(r => r.conversation_id).filter(id => id !== activeConv);
-  if (!ids.length) { alert('Forward करण्यासाठी दुसरा चॅट नाही'); return; }
+  const { data: memberRows } = await sb.from('conversation_members')
+    .select('conversation_id, role, conversations(type)').eq('user_id', me.id);
+  // Channel असेल आणि मी owner/admin नसेन, तर तिथे forward करता येणार नाही (post करण्याचा अधिकार नाही) — त्यामुळे यादीतूनच वगळतो
+  const candidates = (memberRows || []).filter(r => {
+    if (r.conversation_id === activeConv) return false;
+    if (r.conversations?.type === 'channel') return r.role === 'owner' || r.role === 'admin';
+    return true;
+  }).map(r => r.conversation_id);
+
+  if (!candidates.length) { alert('Forward करण्यासाठी दुसरा (पोस्ट करता येईल असा) चॅट नाही'); return; }
 
   const overlay = document.createElement('div');
   overlay.className = 'call-overlay';
@@ -1533,17 +1540,18 @@ async function openForwardPicker(msg) {
   document.body.appendChild(overlay);
 
   const listEl = box.querySelector('#forward-list');
-  for (const id of ids) {
+  for (const id of candidates) {
     const t = convTitleCache[id] || 'Chat';
     const btn = document.createElement('button');
     btn.className = 'disc-join';
     btn.style.cssText = 'width:100%; margin-top:6px; text-align:left;';
     btn.textContent = t;
     btn.onclick = async () => {
-      await sb.from('messages').insert({
+      const { error } = await sb.from('messages').insert({
         conversation_id: id, sender_id: me.id,
         content: msg.content || '', media_url: msg.media_url || null, media_type: msg.media_type || null,
       });
+      if (error) { alert('Forward करता आलं नाही: ' + error.message); return; }
       overlay.remove();
       alert(t + ' ला forward केलं');
     };
