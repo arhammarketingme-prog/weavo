@@ -65,6 +65,8 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Starred Messages** — कोणत्याही मेसेजवर ⭐, सगळे starred मेसेज एका ठिकाणी ("⭐ Starred Messages")
 - **Delete for me / Delete for everyone** — दोन्ही पर्याय; "for me" फक्त तुमच्या डिव्हाइसवर लपतो (sync होत नाही), "for everyone" सगळ्यांसाठी कायमचं जातं
 - **Group/Channel Avatar** — owner group-info मधून फोटो अपलोड करू शकतो
+- **Business Profile Photo** — Settings मधून फोटो अपलोड, Discover Businesses मध्ये दिसतो
+- **Location Inline Preview** — आता फक्त लिंक नाही, चॅटमध्येच छोटा नकाशा दिसतो (OpenStreetMap embed, मोफत)
 - **Global Search** — सगळ्या चॅट्स, लोक, आणि मेसेज मजकूर — एकाच वेळी शोध (sidebar वरती)
 - **Emoji Picker** — मेसेज टाइप करतानाच emoji निवडता येतात (😊 बटण)
 - **Location Sharing** — 📍 ने सध्याचं location पाठवता येतं (नकाशाची लिंक — OpenStreetMap, कोणताही API key लागत नाही)
@@ -109,11 +111,9 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 1. Channel calls (सध्या फक्त direct + group)
 2. मोठ्या group calls साठी SFU/media server (सध्याचा mesh ८-१० लोकांपर्यंत ठीक आहे, त्यापेक्षा मोठ्यासाठी जड होईल)
 3. Comments ला स्वतःचं threaded view (सध्या comments messages listमध्येच "↩ उत्तर" टॅगसह दिसतात, वेगळा thread view नाही)
-4. Business profiles साठी फोटो अपलोड (सध्या फक्त मजकूर फील्ड्स)
-5. Column-level privacy (last_seen_at/hide_last_seen सध्या row-level RLS ने संरक्षित आहे — म्हणजे लॉगिन केलेला कोणीही profiles वाचू शकतो, पण त्यातला exact last-seen timestamp थेट query करून बघता येऊ शकतो; app स्वतः तो दाखवताना privacy पाळते, पण database-level column-lock अजून नाही — अजून घट्ट करता येईल)
-6. Location वर actual नकाशाचं छोटं चित्र (सध्या फक्त लिंक, इनलाइन map-preview नाही)
-7. Poll: "एकापेक्षा जास्त पर्याय निवडता येणं" (multi-select poll) आणि "results लपवून ठेवणं" यासारखे advanced पर्याय
-8. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
+4. Column-level privacy (last_seen_at/hide_last_seen सध्या row-level RLS ने संरक्षित आहे — म्हणजे लॉगिन केलेला कोणीही profiles वाचू शकतो, पण त्यातला exact last-seen timestamp थेट query करून बघता येऊ शकतो; app स्वतः तो दाखवताना privacy पाळते, पण database-level column-lock अजून नाही — अजून घट्ट करता येईल)
+5. Poll: "एकापेक्षा जास्त पर्याय निवडता येणं" (multi-select poll) आणि "results लपवून ठेवणं" यासारखे advanced पर्याय
+6. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
 
 ## Block बद्दल एक प्रामाणिक मर्यादा
 

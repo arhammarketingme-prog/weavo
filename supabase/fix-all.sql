@@ -447,3 +447,7 @@ begin
     alter publication supabase_realtime add table poll_votes;
   end if;
 end $$;
+
+-- 21) BUSINESS PROFILE PHOTO
+alter table business_profiles add column if not exists photo_url text;
+

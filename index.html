@@ -89,6 +89,7 @@
   .biz-line { color: var(--muted); font-size: 12px; margin-top: 2px; }
   .biz-desc { margin-top: 4px; font-size: 12px; }
   .biz-chat { width: auto; padding: 6px 12px; font-size: 12px; margin-top: 8px; }
+  .biz-photo { width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 6px; }
   .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 
   /* ---------- CALLING ---------- */
@@ -162,6 +163,7 @@
   .reply-quote { font-size: 11px; opacity: 0.7; border-left: 2px solid var(--accent); padding-left: 6px; margin-bottom: 4px; }
   .msg-image { max-width: 220px; border-radius: 10px; display: block; cursor: pointer; margin-bottom: 4px; }
   .msg-audio { max-width: 220px; height: 36px; }
+  .location-preview { width: 220px; height: 140px; border: none; border-radius: 10px; display: block; margin-bottom: 4px; }
   .contact-card { background: #ffffff14; border-radius: 8px; padding: 10px; min-width: 160px; }
   .poll-box { min-width: 200px; }
   .poll-question { font-weight: 600; margin-bottom: 8px; }
@@ -249,6 +251,8 @@
         <button id="save-bio-btn">Save Bio</button>
       </div>
       <div id="business-fields" style="display:none">
+        <div class="conv-avatar" id="biz-photo-preview" style="width:56px;height:56px;cursor:pointer;"><span>🏢</span></div>
+        <input type="file" id="biz-photo-input" accept="image/*" style="display:none" />
         <input id="biz-name" placeholder="Business चं नाव" />
         <input id="biz-category" placeholder="Category (उदा: Restaurant, Salon)" />
         <input id="biz-location" placeholder="Location" />
@@ -440,6 +444,8 @@ async function enterApp() {
     alert('Bio save झाली');
   };
   $('save-business-btn').onclick = saveBusinessProfile;
+  $('biz-photo-preview').onclick = () => $('biz-photo-input').click();
+  $('biz-photo-input').onchange = handleBusinessPhotoUpload;
 
   setupPushNotifications();
   setupGlobalSearch();
@@ -615,7 +621,22 @@ async function loadMyBusinessProfile() {
     $('biz-website').value = data.website || '';
     $('biz-hours').value = data.hours || '';
     $('biz-desc').value = data.description || '';
+    if (data.photo_url) $('biz-photo-preview').innerHTML = `<img src="${data.photo_url}" />`;
   }
+}
+
+async function handleBusinessPhotoUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { alert('फोटो 3MB पेक्षा लहान असावा'); return; }
+  const ext = file.name.split('.').pop();
+  const path = `business-photos/${me.id}-${Date.now()}.${ext}`;
+  const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+  if (upErr) { alert(upErr.message); return; }
+  const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+  await sb.from('business_profiles').upsert({ owner_id: me.id, name: $('biz-name').value.trim() || 'माझा Business', photo_url: pub.publicUrl }, { onConflict: 'owner_id' });
+  $('biz-photo-preview').innerHTML = `<img src="${pub.publicUrl}" />`;
+  e.target.value = '';
 }
 
 async function saveBusinessProfile() {
@@ -965,12 +986,13 @@ $('tab-toggle-business').onclick = async () => {
   box.style.display = 'block';
   box.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
 
-  const { data: businesses } = await sb.from('business_profiles').select('id, name, category, location, phone, website, hours, description, owner_id, profiles(username)');
+  const { data: businesses } = await sb.from('business_profiles').select('id, name, category, location, phone, website, hours, description, photo_url, owner_id, profiles(username)');
 
   if (!businesses || !businesses.length) { box.innerHTML = '<div class="disc-empty">अजून कोणतेही business profiles नाहीत</div>'; return; }
 
   box.innerHTML = businesses.map(b => `
     <div class="biz-card">
+      ${b.photo_url ? `<img src="${b.photo_url}" class="biz-photo" />` : ''}
       <div class="biz-name">${escapeHtml(b.name)}${b.category ? ' <span class="biz-cat">(' + escapeHtml(b.category) + ')</span>' : ''}</div>
       ${b.location ? `<div class="biz-line">📍 ${escapeHtml(b.location)}</div>` : ''}
       ${b.phone ? `<div class="biz-line">📞 ${escapeHtml(b.phone)}</div>` : ''}
@@ -2162,7 +2184,10 @@ function renderIncoming(msg) {
     bodyHtml += `<audio controls src="${msg.media_url}" class="msg-audio"></audio>`;
   } else if (msg.media_type === 'location') {
     const [lat, lng] = msg.content.split(',');
-    bodyHtml += `<a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}" target="_blank" class="msg-file">📍 Location बघा</a>`;
+    const delta = 0.01;
+    const bbox = `${parseFloat(lng) - delta},${parseFloat(lat) - delta},${parseFloat(lng) + delta},${parseFloat(lat) + delta}`;
+    bodyHtml += `<iframe class="location-preview" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${lat},${lng}" loading="lazy"></iframe>
+    <a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}" target="_blank" class="msg-file">📍 पूर्ण नकाशा उघडा</a>`;
   } else if (msg.media_type === 'contact') {
     bodyHtml += `<div class="contact-card">👤 <b>@${escapeHtml(msg.content)}</b></div>`;
   } else if (msg.media_type === 'poll') {
