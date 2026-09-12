@@ -38,7 +38,7 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - Photo/File sharing (Supabase Storage, 10MB पर्यंत)
 - Reply to message, Delete own message
 - Group admin: owner सभासद जोडू/काढू शकतो
-- PWA installable (manifest + service worker + icons)
+- PWA installable (manifest + service worker + icons) — **network-first caching**, म्हणजे नेट असेल तेव्हा नेहमी नवीनतम कोड आणतो (आधी "cache-first" होतं, ज्यामुळे मोबाईलवर जुना कोड अडकून राहत होता — तो bug ठीक केला)
 - **Profile photo/avatar अपलोड** (टॉप-लेफ्ट avatar वर क्लिक करून बदलता येतो)
 - **Typing indicator** ("टाइप करत आहे..." दुसऱ्याला दिसतं)
 - Online/Last-seen (direct चॅटमध्ये हेडरखाली दिसतं — दोघांनीही privacy मध्ये लपवलं नसेल तरच, ⚙ सेटिंग्जमधून लपवता येतं)
