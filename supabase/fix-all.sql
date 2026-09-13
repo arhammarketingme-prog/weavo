@@ -451,3 +451,41 @@ end $$;
 -- 21) BUSINESS PROFILE PHOTO
 alter table business_profiles add column if not exists photo_url text;
 
+
+-- 22) PAYMENT INFO (UPI/Account — फक्त माहिती दाखवण्यासाठी, कुठलंही payment processing नाही)
+alter table business_profiles add column if not exists payment_info text; -- उदा. UPI ID किंवा bank account details
+
+-- 23) POLL: multi-select पर्याय
+alter table messages add column if not exists poll_multi boolean default false;
+-- (poll_votes आधीच primary key (message_id, user_id) आहे — multi-select साठी ती काढून
+--  (message_id, user_id, option_index) करतो, जेणेकरून एकाच व्यक्तीने अनेक पर्याय निवडता येतील)
+alter table poll_votes drop constraint if exists poll_votes_pkey;
+alter table poll_votes add primary key (message_id, user_id, option_index);
+
+-- 24) BLOCK — आता खरंच database-level (हार्ड) अडवलं जातं, फक्त app-level नाही
+create or replace function enforce_block_on_message()
+returns trigger language plpgsql security definer as $$
+declare
+  conv_type text;
+  other_member uuid;
+begin
+  select type into conv_type from conversations where id = new.conversation_id;
+  if conv_type = 'direct' then
+    select user_id into other_member from conversation_members
+      where conversation_id = new.conversation_id and user_id != new.sender_id limit 1;
+    if other_member is not null then
+      if exists (select 1 from blocked_users where blocker_id = other_member and blocked_id = new.sender_id)
+        or exists (select 1 from blocked_users where blocker_id = new.sender_id and blocked_id = other_member) then
+        raise exception 'हा मेसेज पाठवता येणार नाही — block केलेलं आहे';
+      end if;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_block_check on messages;
+create trigger messages_block_check
+  before insert on messages
+  for each row execute function enforce_block_on_message();
+

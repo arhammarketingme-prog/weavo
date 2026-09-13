@@ -67,6 +67,9 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Group/Channel Avatar** — owner group-info मधून फोटो अपलोड करू शकतो
 - **Business Profile Photo** — Settings मधून फोटो अपलोड, Discover Businesses मध्ये दिसतो
 - **Location Inline Preview** — आता फक्त लिंक नाही, चॅटमध्येच छोटा नकाशा दिसतो (OpenStreetMap embed, मोफत)
+- **Channel Calls** — आता Direct/Group प्रमाणेच Channel मध्येही 📞/🎥 करता येतं
+- **Poll Multi-select** — Poll तयार करताना "एकापेक्षा जास्त पर्याय निवडता येतील" असा पर्याय
+- **Direct Payment Info (Business)** — Business profile मध्ये UPI/account details टाकता येतात; customer थेट तिथे पैसे पाठवतो, कंपनी स्वतः verify करते — app मधून कुठलेही पैसे जात नाहीत, फक्त माहिती दाखवली जाते
 - **Global Search** — सगळ्या चॅट्स, लोक, आणि मेसेज मजकूर — एकाच वेळी शोध (sidebar वरती)
 - **Emoji Picker** — मेसेज टाइप करतानाच emoji निवडता येतात (😊 बटण)
 - **Location Sharing** — 📍 ने सध्याचं location पाठवता येतं (नकाशाची लिंक — OpenStreetMap, कोणताही API key लागत नाही)
@@ -108,16 +111,27 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 
 ## पुढचे टप्पे
 
-1. Channel calls (सध्या फक्त direct + group)
-2. मोठ्या group calls साठी SFU/media server (सध्याचा mesh ८-१० लोकांपर्यंत ठीक आहे, त्यापेक्षा मोठ्यासाठी जड होईल)
-3. Comments ला स्वतःचं threaded view (सध्या comments messages listमध्येच "↩ उत्तर" टॅगसह दिसतात, वेगळा thread view नाही)
-4. Column-level privacy (last_seen_at/hide_last_seen सध्या row-level RLS ने संरक्षित आहे — म्हणजे लॉगिन केलेला कोणीही profiles वाचू शकतो, पण त्यातला exact last-seen timestamp थेट query करून बघता येऊ शकतो; app स्वतः तो दाखवताना privacy पाळते, पण database-level column-lock अजून नाही — अजून घट्ट करता येईल)
-5. Poll: "एकापेक्षा जास्त पर्याय निवडता येणं" (multi-select poll) आणि "results लपवून ठेवणं" यासारखे advanced पर्याय
-6. Advertising/Payments (वर स्पष्ट केल्याप्रमाणे — व्यवसाय मॉडेल + payment provider ठरल्याशिवाय सुरू करणार नाही)
+### छोटे उरलेले
+1. मोठ्या group calls साठी SFU/media server (सध्याचा mesh ८-१० लोकांपर्यंत ठीक आहे, त्यापेक्षा मोठ्यासाठी जड होईल — यासाठी वेगळा media server लागतो, सध्या तो नाही)
+2. Comments ला स्वतःचं threaded view (सध्या comments मुख्य यादीतच "↩ उत्तर" टॅगसह दिसतात, वेगळी thread screen नाही)
+3. Column-level privacy (last_seen_at/hide_last_seen — row-level RLS आहे, database column-lock अजून नाही; धोका कमी पण पूर्ण नाही)
+4. Poll मध्ये "results लपवून ठेवणं" (मतदान होईपर्यंत निकाल न दाखवणं)
 
-## Block बद्दल एक प्रामाणिक मर्यादा
+### मोठे, स्वतंत्र भाग (मूळ spec मध्ये होते, अजून सुरू केलेले नाहीत)
+हे प्रत्येक स्वतंत्र प्रोजेक्टसारखे मोठे आहेत. सुचवलेला क्रम (सोपं/कमी-जोखमीचं आधी):
+1. **Admin Panel** — Users/Reports/Moderation एकाच dashboard मधून (सध्या सगळं manually Supabase Dashboard मधून करावं लागतं)
+2. **Stories** — 24 तासांनी आपोआप गायब होणाऱ्या पोस्ट्स (disappearing-messages चा पाया आधीच आहे, त्यावर बांधता येईल)
+3. **Short-video विभाग** — Reels-स्टाईल स्क्रोल (existing media/storage पॅटर्नवर बांधता येईल)
+4. **Discover / Algorithmic feed** — "तुला हे का दिसतंय" स्पष्टीकरणासकट (वरच्या तिघांवर अवलंबून)
+5. **Mini-Apps framework** — sandbox मध्ये third-party apps (security-दृष्ट्या सगळ्यात नाजूक, सगळ्यात शेवटी)
+6. **Developer Platform** — बाहेरच्या developers साठी API keys/OAuth (सगळ्यात मोठा, वेगळ्या infra ची गरज)
 
-Block केल्यावर त्या व्यक्तीचे मेसेज **तुमच्या स्क्रीनवर दिसणं बंद होतं आणि नवीन मेसेज पाठवता येत नाहीत** (app-level तपासणी). पण हे database-level हार्ड सुरक्षा-भिंत नाही — technically हुशार वापरकर्ता browser मधून थेट काहीतरी छेडछाड करून पाठवू शकतो, कारण दोन विशिष्ट व्यक्तींमधलं "कोणी कोणाला block केलं" हे नातं conversations tableवर उपलब्ध नसल्यामुळे RLS मध्ये पूर्णपणे अडवणं शक्य नव्हतं. रोजच्या वापरासाठी हे पुरेसं आहे, पण गंभीर गैरवापर रोखण्यासाठी अजून मजबूत करता येईल.
+### जाणीवपूर्वक मर्यादित ठेवलेलं
+- **Advertising/Payments** — direct company-to-customer UPI/payment-info आता उपलब्ध आहे (business profile मध्ये). खरं online payment-processing (Stripe/Razorpay सारखं) मुद्दाम अजून जोडलेलं नाही — ठरवल्याप्रमाणे भविष्यात.
+
+## Block — आता खरंच Database-level (हार्ड) झालं ✅
+
+आधी block फक्त app-level (UI) तपासणी होती — technically कोणीतरी browser मधून थेट request पाठवून bypass करू शकत होतं. **आता direct चॅटमध्ये database-level trigger आहे** — दोघांपैकी कोणीही (पाठवणारा किंवा प्राप्तकर्ता) एकमेकांना block केलेलं असेल, तर मेसेज database मध्ये insert होण्याआधीच नाकारला जातो — UI बायपास करूनही शक्य नाही. (Group/Channel मध्ये अजूनही app-level आहे, कारण तिथे "कोणाला block केलंय" हे थेट लागू करणं गुंतागुंतीचं आहे — group मधून काढून टाकणे किंवा त्या व्यक्तीचे मेसेज न दाखवणे हाच सध्याचा मार्ग.)
 
 ## 🔐 Security Hardening (या राऊंडमध्ये सापडलेल्या आणि बंद केलेल्या त्रुटी)
 

@@ -90,6 +90,7 @@
   .biz-desc { margin-top: 4px; font-size: 12px; }
   .biz-chat { width: auto; padding: 6px 12px; font-size: 12px; margin-top: 8px; }
   .biz-photo { width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 6px; }
+  .biz-payment { color: #22c55e; font-weight: 600; }
   .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 
   /* ---------- CALLING ---------- */
@@ -167,6 +168,7 @@
   .contact-card { background: #ffffff14; border-radius: 8px; padding: 10px; min-width: 160px; }
   .poll-box { min-width: 200px; }
   .poll-question { font-weight: 600; margin-bottom: 8px; }
+  .poll-multi-tag { font-weight: 400; font-size: 11px; opacity: 0.7; }
   .poll-option { position: relative; background: #ffffff14; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; overflow: hidden; }
   .poll-option.voted { outline: 2px solid var(--accent); }
   .poll-bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-soft); z-index: 0; transition: width 0.3s; }
@@ -259,6 +261,7 @@
         <input id="biz-phone" placeholder="Phone" />
         <input id="biz-website" placeholder="Website (optional)" />
         <input id="biz-hours" placeholder="वेळ (उदा: 9am-9pm)" />
+        <input id="biz-payment" placeholder="UPI ID / Payment details (customer थेट पाठवतील)" />
         <textarea id="biz-desc" placeholder="वर्णन" rows="2"></textarea>
         <button id="save-business-btn">Business Profile Save करा</button>
       </div>
@@ -621,6 +624,7 @@ async function loadMyBusinessProfile() {
     $('biz-website').value = data.website || '';
     $('biz-hours').value = data.hours || '';
     $('biz-desc').value = data.description || '';
+    $('biz-payment').value = data.payment_info || '';
     if (data.photo_url) $('biz-photo-preview').innerHTML = `<img src="${data.photo_url}" />`;
   }
 }
@@ -650,6 +654,7 @@ async function saveBusinessProfile() {
     website: $('biz-website').value.trim(),
     hours: $('biz-hours').value.trim(),
     description: $('biz-desc').value.trim(),
+    payment_info: $('biz-payment').value.trim(),
   };
   const { error } = await sb.from('business_profiles').upsert(payload, { onConflict: 'owner_id' });
   if (error) { alert(error.message); return; }
@@ -986,7 +991,7 @@ $('tab-toggle-business').onclick = async () => {
   box.style.display = 'block';
   box.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
 
-  const { data: businesses } = await sb.from('business_profiles').select('id, name, category, location, phone, website, hours, description, photo_url, owner_id, profiles(username)');
+  const { data: businesses } = await sb.from('business_profiles').select('id, name, category, location, phone, website, hours, description, photo_url, payment_info, owner_id, profiles(username)');
 
   if (!businesses || !businesses.length) { box.innerHTML = '<div class="disc-empty">अजून कोणतेही business profiles नाहीत</div>'; return; }
 
@@ -999,6 +1004,7 @@ $('tab-toggle-business').onclick = async () => {
       ${b.hours ? `<div class="biz-line">🕒 ${escapeHtml(b.hours)}</div>` : ''}
       ${b.website ? `<div class="biz-line">🔗 ${escapeHtml(b.website)}</div>` : ''}
       ${b.description ? `<div class="biz-desc">${escapeHtml(b.description)}</div>` : ''}
+      ${b.payment_info ? `<div class="biz-line biz-payment">💳 Pay: ${escapeHtml(b.payment_info)}</div>` : ''}
       <button class="biz-chat" data-username="${escapeHtml(b.profiles?.username || '')}">@${escapeHtml(b.profiles?.username || '')} शी Chat करा</button>
     </div>
   `).join('');
@@ -1061,7 +1067,7 @@ async function openConversation(id, title, type) {
       <button id="back-btn" class="icon-btn" title="Back">←</button>
       <span class="header-title-wrap"><span class="header-title">${title}</span><span class="last-seen" id="header-last-seen"></span></span>
       <span class="header-actions">
-        ${(type === 'direct' || type === 'group') ? '<button id="voice-call-btn" class="icon-btn" title="Voice Call">📞</button><button id="video-call-btn" class="icon-btn" title="Video Call">🎥</button>' : ''}
+        ${(type === 'direct' || type === 'group' || type === 'channel') ? '<button id="voice-call-btn" class="icon-btn" title="Voice Call">📞</button><button id="video-call-btn" class="icon-btn" title="Video Call">🎥</button>' : ''}
         <button id="mute-toggle-btn" class="icon-btn" title="Mute">🔔</button>
         <button id="pin-toggle-btn" class="icon-btn" title="Pin">📌</button>
         <button id="archive-toggle-btn" class="icon-btn" title="Archive">🗄</button>
@@ -1179,7 +1185,7 @@ async function openConversation(id, title, type) {
     })
     .subscribe();
 
-  if (type === 'direct' || type === 'group') {
+  if (type === 'direct' || type === 'group' || type === 'channel') {
     $('voice-call-btn').onclick = () => startCall(id, title, 'audio');
     $('video-call-btn').onclick = () => startCall(id, title, 'video');
   }
@@ -1808,6 +1814,7 @@ function openPollCreator() {
     <input id="poll-opt-2" placeholder="पर्याय 2" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
     <input id="poll-opt-3" placeholder="पर्याय 3 (optional)" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
     <input id="poll-opt-4" placeholder="पर्याय 4 (optional)" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px;"><input type="checkbox" id="poll-multi-check" /> एकापेक्षा जास्त पर्याय निवडता येतील (multi-select)</label>
     <button class="disc-join" id="poll-submit" style="width:100%; margin-top:10px;">Poll पाठवा</button>
     <button class="call-btn decline" id="poll-cancel" style="margin-top:8px;">रद्द करा</button>
   `;
@@ -1817,10 +1824,11 @@ function openPollCreator() {
   box.querySelector('#poll-submit').onclick = async () => {
     const question = box.querySelector('#poll-question').value.trim();
     const options = [1, 2, 3, 4].map(i => box.querySelector('#poll-opt-' + i).value.trim()).filter(Boolean);
+    const multi = box.querySelector('#poll-multi-check').checked;
     if (!question || options.length < 2) { alert('प्रश्न आणि किमान 2 पर्याय आवश्यक'); return; }
     const { error } = await sb.from('messages').insert({
       conversation_id: activeConv, sender_id: me.id,
-      content: JSON.stringify({ question, options }), media_type: 'poll',
+      content: JSON.stringify({ question, options }), media_type: 'poll', poll_multi: multi,
       expires_at: computeExpiresAt(),
     });
     if (error) { alert(error.message); return; }
@@ -1828,8 +1836,20 @@ function openPollCreator() {
   };
 }
 
-async function castPollVote(msgId, optionIndex) {
-  await sb.from('poll_votes').upsert({ message_id: msgId, user_id: me.id, option_index: optionIndex }, { onConflict: 'message_id,user_id' });
+async function castPollVote(msgId, optionIndex, isMulti) {
+  if (isMulti) {
+    // Multi-select: याच पर्यायावर toggle (आधीच निवडलेला असेल तर काढतो, नसेल तर जोडतो)
+    const { data: existing } = await sb.from('poll_votes').select('option_index').eq('message_id', msgId).eq('user_id', me.id).eq('option_index', optionIndex).maybeSingle();
+    if (existing) {
+      await sb.from('poll_votes').delete().eq('message_id', msgId).eq('user_id', me.id).eq('option_index', optionIndex);
+    } else {
+      await sb.from('poll_votes').insert({ message_id: msgId, user_id: me.id, option_index: optionIndex });
+    }
+  } else {
+    // Single-select: आधीचं (कुठलंही) माझं vote काढून नवीन टाकतो
+    await sb.from('poll_votes').delete().eq('message_id', msgId).eq('user_id', me.id);
+    await sb.from('poll_votes').insert({ message_id: msgId, user_id: me.id, option_index: optionIndex });
+  }
   refreshPollUI(msgId);
 }
 
@@ -1840,13 +1860,13 @@ async function refreshPollUI(msgId) {
   const options = JSON.parse(el.dataset.options);
   const counts = options.map((_, i) => (votes || []).filter(v => v.option_index === i).length);
   const total = counts.reduce((a, b) => a + b, 0) || 1;
-  const myVote = (votes || []).find(v => v.user_id === me.id);
+  const myVotes = new Set((votes || []).filter(v => v.user_id === me.id).map(v => v.option_index));
 
   el.querySelectorAll('.poll-option').forEach((optEl, i) => {
     const pct = Math.round((counts[i] / total) * 100);
     optEl.querySelector('.poll-bar').style.width = pct + '%';
     optEl.querySelector('.poll-count').textContent = counts[i] + ' (' + pct + '%)';
-    optEl.classList.toggle('voted', myVote?.option_index === i);
+    optEl.classList.toggle('voted', myVotes.has(i));
   });
 }
 
@@ -2194,7 +2214,7 @@ function renderIncoming(msg) {
     let poll = { question: '', options: [] };
     try { poll = JSON.parse(msg.content); } catch (e) {}
     bodyHtml += `<div class="poll-box" data-options='${escapeHtml(JSON.stringify(poll.options))}'>
-      <div class="poll-question">📊 ${escapeHtml(poll.question)}</div>
+      <div class="poll-question">📊 ${escapeHtml(poll.question)}${msg.poll_multi ? ' <span class="poll-multi-tag">(अनेक निवडा)</span>' : ''}</div>
       ${poll.options.map((opt, i) => `
         <div class="poll-option" data-idx="${i}">
           <div class="poll-bar" style="width:0%"></div>
@@ -2249,7 +2269,7 @@ function renderIncoming(msg) {
 
   if (msg.media_type === 'poll') {
     div.querySelectorAll('.poll-option').forEach(optEl => {
-      optEl.onclick = () => castPollVote(msg.id, parseInt(optEl.dataset.idx));
+      optEl.onclick = () => castPollVote(msg.id, parseInt(optEl.dataset.idx), msg.poll_multi);
     });
     refreshPollUI(msg.id);
   }
