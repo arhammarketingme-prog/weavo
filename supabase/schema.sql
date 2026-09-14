@@ -489,3 +489,89 @@ create trigger messages_block_check
   before insert on messages
   for each row execute function enforce_block_on_message();
 
+
+-- 25) ADMIN PANEL — platform_admins वेगळ्या table मध्ये (profiles च्या column मध्ये नाही,
+-- जेणेकरून कोणीही स्वतःच्या profile update द्वारे स्वतःला admin बनवू शकणार नाही)
+create table if not exists platform_admins (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  granted_at timestamptz default now()
+);
+alter table platform_admins enable row level security;
+
+create or replace function is_platform_admin(uid uuid)
+returns boolean language sql security definer stable as $$
+  select exists (select 1 from platform_admins where user_id = uid);
+$$;
+
+drop policy if exists "admin यादी सगळ्यांना दिसते" on platform_admins;
+create policy "admin यादी सगळ्यांना दिसते"
+  on platform_admins for select using (true);
+
+drop policy if exists "फक्त admin नवीन admin बनवू शकतो" on platform_admins;
+create policy "फक्त admin नवीन admin बनवू शकतो"
+  on platform_admins for insert with check (is_platform_admin(auth.uid()));
+
+drop policy if exists "फक्त admin admin काढू शकतो" on platform_admins;
+create policy "फक्त admin admin काढू शकतो"
+  on platform_admins for delete using (is_platform_admin(auth.uid()));
+
+-- BANNED USERS
+create table if not exists banned_users (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  banned_by uuid references profiles(id),
+  reason text,
+  created_at timestamptz default now()
+);
+alter table banned_users enable row level security;
+
+drop policy if exists "स्वतःचा ban-status आणि admin सगळे बघू शकतो" on banned_users;
+create policy "स्वतःचा ban-status आणि admin सगळे बघू शकतो"
+  on banned_users for select using (auth.uid() = user_id or is_platform_admin(auth.uid()));
+
+drop policy if exists "फक्त admin ban करू शकतो" on banned_users;
+create policy "फक्त admin ban करू शकतो"
+  on banned_users for insert with check (is_platform_admin(auth.uid()));
+
+drop policy if exists "फक्त admin unban करू शकतो" on banned_users;
+create policy "फक्त admin unban करू शकतो"
+  on banned_users for delete using (is_platform_admin(auth.uid()));
+
+create or replace function enforce_ban_check()
+returns trigger language plpgsql security definer as $$
+begin
+  if exists (select 1 from banned_users where user_id = new.sender_id) then
+    raise exception 'तुमचं खातं banned आहे, मेसेज पाठवता येणार नाही';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_ban_check on messages;
+create trigger messages_ban_check
+  before insert on messages
+  for each row execute function enforce_ban_check();
+
+-- REPORTS: admin बघू शकतो आणि resolve करू शकतो (आधी फक्त insert शक्य होतं, वाचता येत नव्हतं)
+drop policy if exists "admin सगळे reports बघू शकतो" on reports;
+create policy "admin सगळे reports बघू शकतो"
+  on reports for select using (is_platform_admin(auth.uid()));
+
+drop policy if exists "admin report resolve करू शकतो" on reports;
+create policy "admin report resolve करू शकतो"
+  on reports for update using (is_platform_admin(auth.uid()));
+
+-- ADMIN STATS — फक्त मोजणी (counts) देणारं function, संपूर्ण private मेसेज कंटेंट उघड करत नाही
+create or replace function admin_get_stats()
+returns table(total_users bigint, total_messages bigint, total_conversations bigint, total_reports_open bigint)
+language plpgsql security definer stable as $$
+begin
+  if not is_platform_admin(auth.uid()) then
+    raise exception 'Admin access आवश्यक';
+  end if;
+  return query select
+    (select count(*) from profiles)::bigint,
+    (select count(*) from messages where deleted = false)::bigint,
+    (select count(*) from conversations)::bigint,
+    (select count(*) from reports where status = 'open')::bigint;
+end;
+$$;

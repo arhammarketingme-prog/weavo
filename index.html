@@ -91,6 +91,16 @@
   .biz-chat { width: auto; padding: 6px 12px; font-size: 12px; margin-top: 8px; }
   .biz-photo { width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 6px; }
   .biz-payment { color: #22c55e; font-weight: 600; }
+  .admin-tabs { display: flex; gap: 6px; margin-top: 10px; border-bottom: 1px solid var(--border); }
+  .admin-tab { width: auto; background: transparent; color: var(--muted); padding: 8px 14px; margin: 0; border-radius: 0; font-weight: 600; }
+  .admin-tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+  .admin-stat { display: flex; justify-content: space-between; padding: 10px 4px; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .admin-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--border); font-size: 13px; gap: 8px; }
+  .admin-action-btn { width: auto; padding: 5px 10px; font-size: 12px; margin: 0; background: #ef4444; }
+  .admin-tag { font-size: 10px; background: #ffffff14; padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
+  .admin-tag.banned { background: #ef4444; color: white; }
+  .admin-tag.resolved { background: #22c55e; color: white; }
+  .banned-banner { position: fixed; top: 0; left: 0; right: 0; background: #ef4444; color: white; text-align: center; padding: 8px; font-size: 13px; z-index: 2000; }
   .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 
   /* ---------- CALLING ---------- */
@@ -277,6 +287,7 @@
       <button id="tab-toggle-business" class="link-btn">🏢 Discover Businesses</button>
       <button id="tab-toggle-starred" class="link-btn">⭐ Starred Messages</button>
       <button id="install-app-btn" class="link-btn" style="display:none">📲 App Install करा</button>
+      <button id="admin-panel-btn" class="link-btn" style="display:none">🛡 Admin Panel</button>
       <button id="tab-toggle-discover" class="link-btn">🔍 Discover Channels</button>
     </div>
     <div id="new-group" style="display:none">
@@ -453,6 +464,22 @@ async function enterApp() {
   setupPushNotifications();
   setupGlobalSearch();
   setupInstallPrompt();
+
+  // मी admin आहे का तपासतो — असेल तरच Admin Panel बटण दाखवतो
+  const { data: adminRow } = await sb.from('platform_admins').select('user_id').eq('user_id', me.id).maybeSingle();
+  if (adminRow) {
+    $('admin-panel-btn').style.display = 'block';
+    $('admin-panel-btn').onclick = openAdminPanel;
+  }
+
+  // मी स्वतः banned आहे का तपासतो — असेल तर वरती स्पष्ट सूचना दाखवतो
+  const { data: myBan } = await sb.from('banned_users').select('reason').eq('user_id', me.id).maybeSingle();
+  if (myBan) {
+    const banner = document.createElement('div');
+    banner.className = 'banned-banner';
+    banner.textContent = '⚠️ तुमचं खातं banned केलं आहे — मेसेज पाठवता येणार नाहीत.' + (myBan.reason ? ' कारण: ' + myBan.reason : '');
+    document.body.prepend(banner);
+  }
 }
 
 // ---------- GLOBAL SEARCH ----------
@@ -2061,6 +2088,105 @@ async function openStarredPanel() {
     const convTitle = convTitleCache[m.conversation_id] || 'Chat';
     return `<div class="biz-card"><div class="biz-name">${escapeHtml(convTitle)}</div><div class="biz-desc">${escapeHtml(preview)}</div></div>`;
   }).join('');
+}
+
+// ---------- ADMIN PANEL ----------
+async function openAdminPanel() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'admin-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box wide';
+  box.innerHTML = `
+    <div class="call-name">🛡 Admin Panel</div>
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="stats">Stats</button>
+      <button class="admin-tab" data-tab="users">Users</button>
+      <button class="admin-tab" data-tab="reports">Reports</button>
+    </div>
+    <div id="admin-content" style="max-height:340px; overflow-y:auto; margin-top:10px; text-align:left;"></div>
+    <button class="call-btn decline" id="admin-close" style="margin-top:12px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#admin-close').onclick = () => overlay.remove();
+
+  box.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.onclick = () => {
+      box.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      loadAdminTab(tab.dataset.tab, box.querySelector('#admin-content'));
+    };
+  });
+  loadAdminTab('stats', box.querySelector('#admin-content'));
+}
+
+async function loadAdminTab(tab, container) {
+  container.innerHTML = '<div class="disc-empty">लोड होतंय...</div>';
+
+  if (tab === 'stats') {
+    const { data, error } = await sb.rpc('admin_get_stats');
+    if (error) { container.innerHTML = `<div class="disc-empty">${escapeHtml(error.message)}</div>`; return; }
+    const s = data[0] || {};
+    container.innerHTML = `
+      <div class="admin-stat"><span>एकूण Users</span><b>${s.total_users}</b></div>
+      <div class="admin-stat"><span>एकूण Messages</span><b>${s.total_messages}</b></div>
+      <div class="admin-stat"><span>एकूण Conversations</span><b>${s.total_conversations}</b></div>
+      <div class="admin-stat"><span>Open Reports</span><b>${s.total_reports_open}</b></div>
+    `;
+  }
+
+  if (tab === 'users') {
+    container.innerHTML = `<input id="admin-user-search" placeholder="username शोधा..." style="width:100%; margin-bottom:10px;" /><div id="admin-user-list"></div>`;
+    const renderUsers = async (q) => {
+      let query = sb.from('profiles').select('id, username, account_type, created_at').order('created_at', { ascending: false }).limit(20);
+      if (q) query = sb.from('profiles').select('id, username, account_type, created_at').ilike('username', `%${q}%`).limit(20);
+      const { data: users } = await query;
+      const { data: banned } = await sb.from('banned_users').select('user_id');
+      const bannedSet = new Set((banned || []).map(b => b.user_id));
+      const listEl = document.getElementById('admin-user-list');
+      if (!users || !users.length) { listEl.innerHTML = '<div class="disc-empty">कोणी सापडलं नाही</div>'; return; }
+      listEl.innerHTML = users.map(u => `
+        <div class="admin-row">
+          <span>@${escapeHtml(u.username)} <span class="admin-tag">${u.account_type}</span>${bannedSet.has(u.id) ? ' <span class="admin-tag banned">BANNED</span>' : ''}</span>
+          <button class="admin-action-btn" data-uid="${u.id}" data-banned="${bannedSet.has(u.id)}">${bannedSet.has(u.id) ? 'Unban' : 'Ban'}</button>
+        </div>
+      `).join('');
+      listEl.querySelectorAll('.admin-action-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const uid = btn.dataset.uid;
+          const isBanned = btn.dataset.banned === 'true';
+          if (isBanned) {
+            await sb.from('banned_users').delete().eq('user_id', uid);
+          } else {
+            const reason = prompt('Ban करण्याचं कारण (optional):') || '';
+            await sb.from('banned_users').insert({ user_id: uid, banned_by: me.id, reason });
+          }
+          renderUsers(document.getElementById('admin-user-search').value.trim());
+        };
+      });
+    };
+    document.getElementById('admin-user-search').oninput = (e) => renderUsers(e.target.value.trim());
+    renderUsers('');
+  }
+
+  if (tab === 'reports') {
+    const { data: reports, error } = await sb.from('reports').select('*').order('created_at', { ascending: false }).limit(30);
+    if (error) { container.innerHTML = `<div class="disc-empty">${escapeHtml(error.message)}</div>`; return; }
+    if (!reports || !reports.length) { container.innerHTML = '<div class="disc-empty">कोणतेही reports नाहीत</div>'; return; }
+    container.innerHTML = reports.map(r => `
+      <div class="admin-row">
+        <span>${escapeHtml(r.target_type)} — ${escapeHtml(r.category)} <span class="admin-tag ${r.status === 'open' ? '' : 'resolved'}">${r.status}</span></span>
+        ${r.status === 'open' ? `<button class="admin-action-btn" data-report="${r.id}">Resolve</button>` : ''}
+      </div>
+    `).join('');
+    container.querySelectorAll('.admin-action-btn').forEach(btn => {
+      btn.onclick = async () => {
+        await sb.from('reports').update({ status: 'resolved' }).eq('id', btn.dataset.report);
+        loadAdminTab('reports', container);
+      };
+    });
+  }
 }
 
 // ---------- EDIT ----------

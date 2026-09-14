@@ -70,6 +70,7 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Channel Calls** — आता Direct/Group प्रमाणेच Channel मध्येही 📞/🎥 करता येतं
 - **Poll Multi-select** — Poll तयार करताना "एकापेक्षा जास्त पर्याय निवडता येतील" असा पर्याय
 - **Direct Payment Info (Business)** — Business profile मध्ये UPI/account details टाकता येतात; customer थेट तिथे पैसे पाठवतो, कंपनी स्वतः verify करते — app मधून कुठलेही पैसे जात नाहीत, फक्त माहिती दाखवली जाते
+- **🛡 Admin Panel** — Stats, User search + Ban/Unban (database-level लागू होतं), Reports बघून Resolve करणं — sidebar मधून (फक्त designated admins ना दिसतं)
 - **Global Search** — सगळ्या चॅट्स, लोक, आणि मेसेज मजकूर — एकाच वेळी शोध (sidebar वरती)
 - **Emoji Picker** — मेसेज टाइप करतानाच emoji निवडता येतात (😊 बटण)
 - **Location Sharing** — 📍 ने सध्याचं location पाठवता येतं (नकाशाची लिंक — OpenStreetMap, कोणताही API key लागत नाही)
@@ -117,14 +118,13 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 3. Column-level privacy (last_seen_at/hide_last_seen — row-level RLS आहे, database column-lock अजून नाही; धोका कमी पण पूर्ण नाही)
 4. Poll मध्ये "results लपवून ठेवणं" (मतदान होईपर्यंत निकाल न दाखवणं)
 
-### मोठे, स्वतंत्र भाग (मूळ spec मध्ये होते, अजून सुरू केलेले नाहीत)
-हे प्रत्येक स्वतंत्र प्रोजेक्टसारखे मोठे आहेत. सुचवलेला क्रम (सोपं/कमी-जोखमीचं आधी):
-1. **Admin Panel** — Users/Reports/Moderation एकाच dashboard मधून (सध्या सगळं manually Supabase Dashboard मधून करावं लागतं)
-2. **Stories** — 24 तासांनी आपोआप गायब होणाऱ्या पोस्ट्स (disappearing-messages चा पाया आधीच आहे, त्यावर बांधता येईल)
+### मोठे, स्वतंत्र भाग (मूळ spec मध्ये होते) — प्रगती
+1. ~~Admin Panel~~ ✅ **झालं** — Users/Reports/Ban सगळं sidebar मधून (वर बघा)
+2. **Stories** — 24 तासांनी आपोआप गायब होणाऱ्या पोस्ट्स (disappearing-messages चा पाया आधीच आहे, त्यावर बांधता येईल) — पुढचा नंबर
 3. **Short-video विभाग** — Reels-स्टाईल स्क्रोल (existing media/storage पॅटर्नवर बांधता येईल)
 4. **Discover / Algorithmic feed** — "तुला हे का दिसतंय" स्पष्टीकरणासकट (वरच्या तिघांवर अवलंबून)
 5. **Mini-Apps framework** — sandbox मध्ये third-party apps (security-दृष्ट्या सगळ्यात नाजूक, सगळ्यात शेवटी)
-6. **Developer Platform** — बाहेरच्या developers साठी API keys/OAuth (सगळ्यात मोठा, वेगळ्या infra ची गरज)
+6. **Developer Platform** — बाहेरच्या developers साठी API keys/OAuth (फक्त बाहेरचे developers Weavo साठी bots/integrations बनवायचे असतील तरच लागतं — सध्या गरज नाही)
 
 ### जाणीवपूर्वक मर्यादित ठेवलेलं
 - **Advertising/Payments** — direct company-to-customer UPI/payment-info आता उपलब्ध आहे (business profile मध्ये). खरं online payment-processing (Stripe/Razorpay सारखं) मुद्दाम अजून जोडलेलं नाही — ठरवल्याप्रमाणे भविष्यात.
@@ -191,6 +191,22 @@ const VAPID_PUBLIC_KEY = "तुमची-public-key-इथे";
 प्रत्येकाने Settings (⚙) उघडून **"🔔 Push Notifications चालू करा"** दाबून browser permission द्यायची. मग app बंद असतानाही नवीन मेसेजचं notification येईल.
 
 **मर्यादा:** iPhone/iPad वर हे फक्त तेव्हाच चालतं जेव्हा site "Add to Home Screen" केलेली असते (iOS 16.4+); नुसत्या Safari टॅबमध्ये चालत नाही — हे Apple ची मर्यादा आहे, आपल्या कोडची नाही.
+
+## 🛡 Admin Panel — पहिला Admin कसा बनवायचा
+
+सुरक्षेसाठी कोणीही स्वतःला Admin बनवू शकत नाही (app मधून तो पर्यायच नाही) — पहिला admin तुला Supabase SQL Editor मधून manually बनवावा लागेल:
+
+```sql
+insert into platform_admins (user_id)
+select id from profiles where username = 'तुमचं-username';
+```
+
+हे केल्यावर त्या account ने login केल्यावर sidebar मध्ये **"🛡 Admin Panel"** दिसेल — तिथून:
+- **Stats** — एकूण users, messages, conversations, open reports
+- **Users** — शोधून कोणालाही Ban/Unban करता येतं (banned व्यक्ती मेसेज पाठवू शकणार नाही — हे database-level लागू होतं)
+- **Reports** — सगळे reports बघून "Resolve" करता येतात
+
+एकदा admin झाल्यावर, तोच admin दुसऱ्यांनाही admin बनवू शकतो (त्यासाठी वरचीच SQL कमांड वापरून, किंवा भविष्यात UI मधून).
 
 ## GitHub वर टाकायचं कसं
 
