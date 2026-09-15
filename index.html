@@ -109,6 +109,18 @@
   .story-text { color: white; font-size: 24px; font-weight: 600; text-align: center; padding: 40px; margin: auto; }
   .story-nav { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between; padding: 10px; background: linear-gradient(transparent, #0008); }
   .story-nav button { width: auto; background: #ffffff22; color: white; padding: 8px 12px; margin: 0; border-radius: 8px; }
+
+  /* ---------- SHORT VIDEOS (Reels) ---------- */
+  .reels-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: #000; }
+  .reels-topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; color: white; font-weight: 600; z-index: 5; }
+  .reels-feed { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; }
+  .reel-item { position: relative; width: 100%; height: 100%; scroll-snap-align: start; display: flex; align-items: center; justify-content: center; }
+  .reel-video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .reel-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; background: linear-gradient(transparent, #000a); color: white; }
+  .reel-caption { font-size: 14px; margin-bottom: 10px; }
+  .reel-actions { display: flex; gap: 12px; }
+  .reel-like-btn, .reel-comment-btn { width: auto; background: #ffffff22; color: white; padding: 8px 14px; margin: 0; border-radius: 20px; font-size: 13px; }
+  .reel-like-btn.liked { background: #ef4444; }
   .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 
   /* ---------- CALLING ---------- */
@@ -294,6 +306,7 @@
       <button id="tab-toggle-channel" class="link-btn">+ नवीन Channel</button>
       <button id="tab-toggle-business" class="link-btn">🏢 Discover Businesses</button>
       <button id="tab-toggle-stories" class="link-btn">📸 Stories</button>
+      <button id="tab-toggle-reels" class="link-btn">🎬 Short Videos</button>
       <button id="tab-toggle-starred" class="link-btn">⭐ Starred Messages</button>
       <button id="install-app-btn" class="link-btn" style="display:none">📲 App Install करा</button>
       <button id="admin-panel-btn" class="link-btn" style="display:none">🛡 Admin Panel</button>
@@ -2233,6 +2246,149 @@ async function openStoryViewer(storyIds) {
     }, 5000);
   }
   showStory();
+}
+
+// ---------- SHORT VIDEOS (Reels) ----------
+$('tab-toggle-reels').onclick = () => openReelsFeed();
+
+async function openReelsFeed() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'reels-overlay';
+  overlay.innerHTML = `
+    <div class="reels-container" id="reels-container">
+      <div class="reels-topbar">
+        <span>🎬 Short Videos</span>
+        <button id="add-reel-btn" class="icon-btn" title="नवीन Video टाका">➕</button>
+        <button id="reels-close" class="icon-btn" title="बंद करा">✕</button>
+      </div>
+      <div id="reels-feed" class="reels-feed"><div class="disc-empty" style="color:white; padding:20px;">लोड होतंय...</div></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#reels-close').onclick = () => overlay.remove();
+  overlay.querySelector('#add-reel-btn').onclick = openAddReel;
+
+  const { data: videos } = await sb.from('short_videos').select('id, video_url, caption, created_at, user_id, profiles(username)').order('created_at', { ascending: false }).limit(30);
+  const feedEl = overlay.querySelector('#reels-feed');
+  if (!videos || !videos.length) { feedEl.innerHTML = '<div class="disc-empty" style="color:white; padding:20px;">अजून कोणतेही videos नाहीत — पहिला तूच टाक!</div>'; return; }
+
+  feedEl.innerHTML = videos.map(v => `
+    <div class="reel-item" data-id="${v.id}">
+      <video src="${v.video_url}" class="reel-video" loop muted playsinline></video>
+      <div class="reel-overlay">
+        <div class="reel-caption">@${escapeHtml(v.profiles?.username || '')}${v.caption ? ' — ' + escapeHtml(v.caption) : ''}</div>
+        <div class="reel-actions">
+          <button class="reel-like-btn" data-id="${v.id}">❤️ <span class="like-count">0</span></button>
+          <button class="reel-comment-btn" data-id="${v.id}">💬 Comments</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  // Video वर क्लिक केल्यावर mute/unmute toggle, आणि सध्या दिसणारा व्हिडिओ आपोआप play/बाकीचे pause (IntersectionObserver)
+  feedEl.querySelectorAll('.reel-video').forEach(video => {
+    video.onclick = () => { video.muted = !video.muted; };
+  });
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const video = entry.target;
+      if (entry.isIntersecting) video.play().catch(() => {}); else video.pause();
+    });
+  }, { threshold: 0.6, root: feedEl });
+  feedEl.querySelectorAll('.reel-video').forEach(v => observer.observe(v));
+
+  feedEl.querySelectorAll('.reel-like-btn').forEach(btn => {
+    refreshLikeUI(btn.dataset.id, btn);
+    btn.onclick = async () => {
+      const vid = btn.dataset.id;
+      const { data: existing } = await sb.from('video_likes').select('video_id').eq('video_id', vid).eq('user_id', me.id).maybeSingle();
+      if (existing) await sb.from('video_likes').delete().eq('video_id', vid).eq('user_id', me.id);
+      else await sb.from('video_likes').insert({ video_id: vid, user_id: me.id });
+      refreshLikeUI(vid, btn);
+    };
+  });
+  feedEl.querySelectorAll('.reel-comment-btn').forEach(btn => {
+    btn.onclick = () => openReelComments(btn.dataset.id);
+  });
+}
+
+async function refreshLikeUI(videoId, btn) {
+  const { data: likes } = await sb.from('video_likes').select('user_id').eq('video_id', videoId);
+  const mine = (likes || []).some(l => l.user_id === me.id);
+  btn.querySelector('.like-count').textContent = (likes || []).length;
+  btn.classList.toggle('liked', mine);
+}
+
+function openAddReel() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">नवीन Short Video</div>
+    <button class="disc-join" id="reel-video-btn" style="width:100%; margin-top:10px;">🎥 Video निवडा (जास्तीत जास्त 20MB)</button>
+    <input type="file" id="reel-video-input" accept="video/*" style="display:none" />
+    <input id="reel-caption-input" placeholder="Caption (optional)" style="width:100%; margin-top:10px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <button class="call-btn decline" id="reel-cancel" style="margin-top:12px;">रद्द करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#reel-cancel').onclick = () => overlay.remove();
+  box.querySelector('#reel-video-btn').onclick = () => box.querySelector('#reel-video-input').click();
+  box.querySelector('#reel-video-input').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { alert('Video 20MB पेक्षा लहान असावा'); return; }
+    box.querySelector('#reel-video-btn').textContent = 'अपलोड होतंय...';
+    const ext = file.name.split('.').pop();
+    const path = `reels/${me.id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+    if (upErr) { alert(upErr.message); return; }
+    const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+    const caption = box.querySelector('#reel-caption-input').value.trim();
+    const { error } = await sb.from('short_videos').insert({ user_id: me.id, video_url: pub.publicUrl, caption });
+    if (error) { alert(error.message); return; }
+    overlay.remove();
+    document.getElementById('reels-overlay')?.remove();
+    openReelsFeed();
+  };
+}
+
+async function openReelComments(videoId) {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">Comments</div>
+    <div id="reel-comments-list" style="max-height:240px; overflow-y:auto; margin-top:10px; text-align:left;"></div>
+    <div style="display:flex; gap:6px; margin-top:10px;">
+      <input id="reel-comment-input" placeholder="Comment लिहा..." style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+      <button id="reel-comment-send">पाठवा</button>
+    </div>
+    <button class="call-btn decline" id="reel-comments-close" style="margin-top:10px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#reel-comments-close').onclick = () => overlay.remove();
+
+  const loadComments = async () => {
+    const { data: comments } = await sb.from('video_comments').select('content, created_at, profiles(username)').eq('video_id', videoId).order('created_at', { ascending: true });
+    box.querySelector('#reel-comments-list').innerHTML = (comments || []).map(c =>
+      `<div class="admin-row"><span><b>@${escapeHtml(c.profiles?.username || '')}</b>: ${escapeHtml(c.content)}</span></div>`
+    ).join('') || '<div class="disc-empty">अजून कोणी comment केलेलं नाही</div>';
+  };
+  await loadComments();
+
+  box.querySelector('#reel-comment-send').onclick = async () => {
+    const content = box.querySelector('#reel-comment-input').value.trim();
+    if (!content) return;
+    const { error } = await sb.from('video_comments').insert({ video_id: videoId, user_id: me.id, content });
+    if (error) { alert(error.message); return; }
+    box.querySelector('#reel-comment-input').value = '';
+    loadComments();
+  };
 }
 
 // ---------- ADMIN PANEL ----------

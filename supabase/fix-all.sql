@@ -660,3 +660,76 @@ begin
     alter publication supabase_realtime add table stories;
   end if;
 end $$;
+
+-- 27) SHORT VIDEOS (Reels-स्टाईल — सार्वजनिक feed, सगळ्या लॉगिन केलेल्यांना दिसतं)
+create table if not exists short_videos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade,
+  video_url text not null,
+  caption text,
+  created_at timestamptz default now()
+);
+alter table short_videos enable row level security;
+
+drop policy if exists "लॉगिन केलेले सगळे short videos बघू शकतात" on short_videos;
+create policy "लॉगिन केलेले सगळे short videos बघू शकतात"
+  on short_videos for select using (auth.uid() is not null);
+
+drop policy if exists "स्वतःचा video टाकू शकतो" on short_videos;
+create policy "स्वतःचा video टाकू शकतो"
+  on short_videos for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचा video काढू शकतो" on short_videos;
+create policy "स्वतःचा video काढू शकतो"
+  on short_videos for delete using (auth.uid() = user_id or is_platform_admin(auth.uid()));
+
+create table if not exists video_likes (
+  video_id uuid references short_videos(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  created_at timestamptz default now(),
+  primary key (video_id, user_id)
+);
+alter table video_likes enable row level security;
+
+drop policy if exists "सगळे likes बघू शकतात" on video_likes;
+create policy "सगळे likes बघू शकतात"
+  on video_likes for select using (auth.uid() is not null);
+
+drop policy if exists "स्वतः like करू शकतो" on video_likes;
+create policy "स्वतः like करू शकतो"
+  on video_likes for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचा like काढू शकतो" on video_likes;
+create policy "स्वतःचा like काढू शकतो"
+  on video_likes for delete using (auth.uid() = user_id);
+
+create table if not exists video_comments (
+  id uuid primary key default gen_random_uuid(),
+  video_id uuid references short_videos(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  content text not null,
+  created_at timestamptz default now()
+);
+alter table video_comments enable row level security;
+
+drop policy if exists "सगळे comments बघू शकतात" on video_comments;
+create policy "सगळे comments बघू शकतात"
+  on video_comments for select using (auth.uid() is not null);
+
+drop policy if exists "स्वतः comment करू शकतो" on video_comments;
+create policy "स्वतः comment करू शकतो"
+  on video_comments for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचा comment काढू शकतो" on video_comments;
+create policy "स्वतःचा comment काढू शकतो"
+  on video_comments for delete using (auth.uid() = user_id);
+
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'video_likes') then
+    alter publication supabase_realtime add table video_likes;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'video_comments') then
+    alter publication supabase_realtime add table video_comments;
+  end if;
+end $$;

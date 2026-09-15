@@ -72,6 +72,7 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Direct Payment Info (Business)** — Business profile मध्ये UPI/account details टाकता येतात; customer थेट तिथे पैसे पाठवतो, कंपनी स्वतः verify करते — app मधून कुठलेही पैसे जात नाहीत, फक्त माहिती दाखवली जाते
 - **🛡 Admin Panel** — Stats, User search + Ban/Unban (database-level लागू होतं), Reports बघून Resolve करणं — sidebar मधून (फक्त designated admins ना दिसतं)
 - **📸 Stories** — फोटो किंवा रंगीत मजकूर स्टोरी टाकता येते, 24 तासांनी आपोआप गायब होते; फक्त direct-chat "contacts" ना दिसते (जसं WhatsApp मध्ये)
+- **🎬 Short Videos (Reels)** — उभा (vertical) स्क्रोल करता येणारा video feed, सगळ्या लॉगिन केलेल्यांना दिसतो (सार्वजनिक); Like, Comment, आपोआप play/pause (जो दिसतोय तोच चालतो)
 - **Global Search** — सगळ्या चॅट्स, लोक, आणि मेसेज मजकूर — एकाच वेळी शोध (sidebar वरती)
 - **Emoji Picker** — मेसेज टाइप करतानाच emoji निवडता येतात (😊 बटण)
 - **Location Sharing** — 📍 ने सध्याचं location पाठवता येतं (नकाशाची लिंक — OpenStreetMap, कोणताही API key लागत नाही)
@@ -88,6 +89,10 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - Business Directory इथे बांधलाय तो **मोफत listing** आहे — पैसे भरून जाहिरात करण्याची सोय नाही
 
 हे टप्प्याटप्प्याने पुढे बांधता येईल, पण त्याआधी व्यवसाय मॉडेल, payment provider, आणि कायदेशीर सल्ला निश्चित करणं आवश्यक आहे.
+
+## Short Videos बद्दल टीप
+
+Video upload 20MB पर्यंत मर्यादित आहे (कोड मध्ये). जर अपलोड "file size exceeded" असं म्हणून अयशस्वी झालं, तर Supabase Dashboard → Storage → Settings मध्ये bucket चं upload size limit वाढवावं लागेल (मोफत plan वर डिफॉल्ट मर्यादा असते).
 
 ## Calling बद्दल महत्त्वाची टीप
 
@@ -121,9 +126,9 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 
 ### मोठे, स्वतंत्र भाग (मूळ spec मध्ये होते) — प्रगती
 1. ~~Admin Panel~~ ✅ **झालं**
-2. ~~Stories~~ ✅ **झालं** — वर बघा
-3. **Short-video विभाग** — Reels-स्टाईल स्क्रोल (existing media/storage पॅटर्नवर बांधता येईल) — पुढचा नंबर
-4. **Discover / Algorithmic feed** — "तुला हे का दिसतंय" स्पष्टीकरणासकट (वरच्या तिघांवर अवलंबून)
+2. ~~Stories~~ ✅ **झालं**
+3. ~~Short-video विभाग (Reels)~~ ✅ **झालं** — वर बघा
+4. **Discover / Algorithmic feed** — "तुला हे का दिसतंय" स्पष्टीकरणासकट — पुढचा नंबर
 5. **Mini-Apps framework** — sandbox मध्ये third-party apps (security-दृष्ट्या सगळ्यात नाजूक, सगळ्यात शेवटी)
 6. **Developer Platform** — बाहेरच्या developers साठी API keys/OAuth (फक्त बाहेरचे developers Weavo साठी bots/integrations बनवायचे असतील तरच लागतं — सध्या गरज नाही)
 
