@@ -71,6 +71,7 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **Poll Multi-select** — Poll तयार करताना "एकापेक्षा जास्त पर्याय निवडता येतील" असा पर्याय
 - **Direct Payment Info (Business)** — Business profile मध्ये UPI/account details टाकता येतात; customer थेट तिथे पैसे पाठवतो, कंपनी स्वतः verify करते — app मधून कुठलेही पैसे जात नाहीत, फक्त माहिती दाखवली जाते
 - **🛡 Admin Panel** — Stats, User search + Ban/Unban (database-level लागू होतं), Reports बघून Resolve करणं — sidebar मधून (फक्त designated admins ना दिसतं)
+- **📸 Stories** — फोटो किंवा रंगीत मजकूर स्टोरी टाकता येते, 24 तासांनी आपोआप गायब होते; फक्त direct-chat "contacts" ना दिसते (जसं WhatsApp मध्ये)
 - **Global Search** — सगळ्या चॅट्स, लोक, आणि मेसेज मजकूर — एकाच वेळी शोध (sidebar वरती)
 - **Emoji Picker** — मेसेज टाइप करतानाच emoji निवडता येतात (😊 बटण)
 - **Location Sharing** — 📍 ने सध्याचं location पाठवता येतं (नकाशाची लिंक — OpenStreetMap, कोणताही API key लागत नाही)
@@ -119,9 +120,9 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 4. Poll मध्ये "results लपवून ठेवणं" (मतदान होईपर्यंत निकाल न दाखवणं)
 
 ### मोठे, स्वतंत्र भाग (मूळ spec मध्ये होते) — प्रगती
-1. ~~Admin Panel~~ ✅ **झालं** — Users/Reports/Ban सगळं sidebar मधून (वर बघा)
-2. **Stories** — 24 तासांनी आपोआप गायब होणाऱ्या पोस्ट्स (disappearing-messages चा पाया आधीच आहे, त्यावर बांधता येईल) — पुढचा नंबर
-3. **Short-video विभाग** — Reels-स्टाईल स्क्रोल (existing media/storage पॅटर्नवर बांधता येईल)
+1. ~~Admin Panel~~ ✅ **झालं**
+2. ~~Stories~~ ✅ **झालं** — वर बघा
+3. **Short-video विभाग** — Reels-स्टाईल स्क्रोल (existing media/storage पॅटर्नवर बांधता येईल) — पुढचा नंबर
 4. **Discover / Algorithmic feed** — "तुला हे का दिसतंय" स्पष्टीकरणासकट (वरच्या तिघांवर अवलंबून)
 5. **Mini-Apps framework** — sandbox मध्ये third-party apps (security-दृष्ट्या सगळ्यात नाजूक, सगळ्यात शेवटी)
 6. **Developer Platform** — बाहेरच्या developers साठी API keys/OAuth (फक्त बाहेरचे developers Weavo साठी bots/integrations बनवायचे असतील तरच लागतं — सध्या गरज नाही)

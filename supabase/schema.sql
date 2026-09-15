@@ -575,3 +575,88 @@ begin
     (select count(*) from reports where status = 'open')::bigint;
 end;
 $$;
+
+-- 26) STORIES (24 तासांनी आपोआप गायब होणाऱ्या पोस्ट्स)
+create table if not exists stories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade,
+  media_url text,
+  media_type text, -- image | text
+  text_content text,
+  bg_color text default '#6366f1',
+  created_at timestamptz default now(),
+  expires_at timestamptz default (now() + interval '24 hours')
+);
+alter table stories enable row level security;
+
+-- दोन व्यक्तींमध्ये direct conversation असेल तरच ते "contacts" — त्यांनाच एकमेकांच्या stories दिसतात
+create or replace function are_contacts(a uuid, b uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from conversation_members m1
+    join conversation_members m2 on m1.conversation_id = m2.conversation_id
+    join conversations c on c.id = m1.conversation_id
+    where c.type = 'direct' and m1.user_id = a and m2.user_id = b
+  );
+$$;
+
+drop policy if exists "स्वतःची आणि contacts ची stories बघू शकतो" on stories;
+create policy "स्वतःची आणि contacts ची stories बघू शकतो"
+  on stories for select using (
+    user_id = auth.uid() or are_contacts(auth.uid(), user_id)
+  );
+
+drop policy if exists "स्वतःची story टाकू शकतो" on stories;
+create policy "स्वतःची story टाकू शकतो"
+  on stories for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःची story काढू शकतो" on stories;
+create policy "स्वतःची story काढू शकतो"
+  on stories for delete using (auth.uid() = user_id);
+
+-- कोणी बघितलं (Seen by) — फक्त owner ला दिसतं
+create table if not exists story_views (
+  story_id uuid references stories(id) on delete cascade,
+  viewer_id uuid references profiles(id) on delete cascade,
+  viewed_at timestamptz default now(),
+  primary key (story_id, viewer_id)
+);
+alter table story_views enable row level security;
+
+drop policy if exists "story च्या मालकाला/स्वतःला view दिसतं" on story_views;
+create policy "story च्या मालकाला/स्वतःला view दिसतं"
+  on story_views for select using (
+    viewer_id = auth.uid() or exists (select 1 from stories s where s.id = story_id and s.user_id = auth.uid())
+  );
+
+drop policy if exists "स्वतःचा view टाकू शकतो" on story_views;
+create policy "स्वतःचा view टाकू शकतो"
+  on story_views for insert with check (auth.uid() = viewer_id);
+
+-- 24 तासांनी आपोआप साफसफाई (आधीच्या cleanup_expired_messages सोबतच होईल असं जोडतो)
+create or replace function cleanup_expired_stories()
+returns void language plpgsql security definer as $$
+begin
+  delete from storage.objects
+  where bucket_id = 'chat-media'
+    and name in (
+      select substring(media_url from '/chat-media/(.*)$')
+      from stories where expires_at < now() and media_url is not null
+    );
+  delete from stories where expires_at < now();
+end;
+$$;
+
+do $$
+begin
+  perform cron.schedule('cleanup-expired-stories', '0 * * * *', 'select cleanup_expired_stories();');
+exception when others then
+  raise notice 'pg_cron आधीच सेटअप नसेल तर हे स्किप झालं — messages cleanup साठीच्या सूचना बघा';
+end $$;
+
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'stories') then
+    alter publication supabase_realtime add table stories;
+  end if;
+end $$;

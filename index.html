@@ -101,6 +101,14 @@
   .admin-tag.banned { background: #ef4444; color: white; }
   .admin-tag.resolved { background: #22c55e; color: white; }
   .banned-banner { position: fixed; top: 0; left: 0; right: 0; background: #ef4444; color: white; text-align: center; padding: 8px; font-size: 13px; z-index: 2000; }
+  .story-swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: inline-block; border: 2px solid transparent; }
+  .story-swatch.picked { border-color: white; }
+  .story-view-box { width: min(92vw, 380px); height: min(80vh, 640px); background: #000; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .story-header { color: white; padding: 12px; font-size: 13px; background: linear-gradient(#0008, transparent); position: absolute; top: 0; left: 0; right: 0; z-index: 2; }
+  .story-media { width: 100%; height: 100%; object-fit: contain; margin: auto; }
+  .story-text { color: white; font-size: 24px; font-weight: 600; text-align: center; padding: 40px; margin: auto; }
+  .story-nav { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between; padding: 10px; background: linear-gradient(transparent, #0008); }
+  .story-nav button { width: auto; background: #ffffff22; color: white; padding: 8px 12px; margin: 0; border-radius: 8px; }
   .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 
   /* ---------- CALLING ---------- */
@@ -285,6 +293,7 @@
       <button id="tab-toggle-group" class="link-btn">+ नवीन Group</button>
       <button id="tab-toggle-channel" class="link-btn">+ नवीन Channel</button>
       <button id="tab-toggle-business" class="link-btn">🏢 Discover Businesses</button>
+      <button id="tab-toggle-stories" class="link-btn">📸 Stories</button>
       <button id="tab-toggle-starred" class="link-btn">⭐ Starred Messages</button>
       <button id="install-app-btn" class="link-btn" style="display:none">📲 App Install करा</button>
       <button id="admin-panel-btn" class="link-btn" style="display:none">🛡 Admin Panel</button>
@@ -2088,6 +2097,142 @@ async function openStarredPanel() {
     const convTitle = convTitleCache[m.conversation_id] || 'Chat';
     return `<div class="biz-card"><div class="biz-name">${escapeHtml(convTitle)}</div><div class="biz-desc">${escapeHtml(preview)}</div></div>`;
   }).join('');
+}
+
+// ---------- STORIES ----------
+$('tab-toggle-stories').onclick = () => openStoriesPanel();
+
+async function openStoriesPanel() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'stories-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box wide';
+  box.innerHTML = `
+    <div class="call-name">📸 Stories</div>
+    <button class="disc-join" id="add-story-btn" style="width:100%; margin-top:10px;">+ नवीन Story टाका</button>
+    <div id="stories-list" style="max-height:280px; overflow-y:auto; margin-top:12px; text-align:left;"></div>
+    <button class="call-btn decline" id="stories-close" style="margin-top:12px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#stories-close').onclick = () => overlay.remove();
+  box.querySelector('#add-story-btn').onclick = openAddStory;
+
+  const listEl = box.querySelector('#stories-list');
+  listEl.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+
+  const { data: stories } = await sb.from('stories').select('id, user_id, created_at, profiles(username)').gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false });
+  if (!stories || !stories.length) { listEl.innerHTML = '<div class="disc-empty">सध्या कोणाच्याही active stories नाहीत</div>'; return; }
+
+  // प्रत्येक व्यक्तीच्या stories एकत्र गटात करतो
+  const groups = {};
+  for (const s of stories) {
+    if (!groups[s.user_id]) groups[s.user_id] = { username: s.profiles?.username || 'Unknown', items: [] };
+    groups[s.user_id].items.push(s);
+  }
+
+  listEl.innerHTML = Object.entries(groups).map(([uid, g]) => `
+    <div class="admin-row" style="cursor:pointer;" data-uid="${uid}">
+      <span>${uid === me.id ? '🟣 माझी Story' : '@' + escapeHtml(g.username)}</span>
+      <span class="admin-tag">${g.items.length} story</span>
+    </div>
+  `).join('');
+
+  listEl.querySelectorAll('.admin-row').forEach(row => {
+    row.onclick = () => {
+      overlay.remove();
+      openStoryViewer(groups[row.dataset.uid].items.map(s => s.id));
+    };
+  });
+}
+
+function openAddStory() {
+  document.getElementById('stories-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">नवीन Story</div>
+    <button class="disc-join" id="story-photo-btn" style="width:100%; margin-top:10px;">📷 फोटो टाका</button>
+    <input type="file" id="story-photo-input" accept="image/*" style="display:none" />
+    <textarea id="story-text-input" placeholder="किंवा इथे मजकूर लिहा..." rows="3" style="width:100%; margin-top:10px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);"></textarea>
+    <div id="story-color-row" style="display:flex; gap:6px; margin-top:8px;"></div>
+    <button class="disc-join" id="story-text-submit" style="width:100%; margin-top:10px;">मजकूर Story टाका</button>
+    <button class="call-btn decline" id="story-cancel" style="margin-top:8px;">रद्द करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#story-cancel').onclick = () => overlay.remove();
+
+  const colors = ['#6366f1', '#ef4444', '#22c55e', '#f59e0b', '#ec4899', '#0ea5e9'];
+  let chosenColor = colors[0];
+  const colorRow = box.querySelector('#story-color-row');
+  colorRow.innerHTML = colors.map(c => `<span class="story-swatch" data-c="${c}" style="background:${c}"></span>`).join('');
+  colorRow.querySelectorAll('.story-swatch').forEach(sw => {
+    sw.onclick = () => { chosenColor = sw.dataset.c; colorRow.querySelectorAll('.story-swatch').forEach(s => s.classList.remove('picked')); sw.classList.add('picked'); };
+  });
+
+  box.querySelector('#story-photo-btn').onclick = () => box.querySelector('#story-photo-input').click();
+  box.querySelector('#story-photo-input').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop();
+    const path = `stories/${me.id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+    if (upErr) { alert(upErr.message); return; }
+    const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+    const { error } = await sb.from('stories').insert({ user_id: me.id, media_url: pub.publicUrl, media_type: 'image' });
+    if (error) { alert(error.message); return; }
+    overlay.remove();
+    alert('Story टाकली — 24 तासांनी आपोआप गायब होईल');
+  };
+
+  box.querySelector('#story-text-submit').onclick = async () => {
+    const text = box.querySelector('#story-text-input').value.trim();
+    if (!text) { alert('मजकूर लिहा'); return; }
+    const { error } = await sb.from('stories').insert({ user_id: me.id, media_type: 'text', text_content: text, bg_color: chosenColor });
+    if (error) { alert(error.message); return; }
+    overlay.remove();
+    alert('Story टाकली — 24 तासांनी आपोआप गायब होईल');
+  };
+}
+
+async function openStoryViewer(storyIds) {
+  let idx = 0;
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'story-viewer-overlay';
+  document.body.appendChild(overlay);
+  let timer = null;
+
+  async function showStory() {
+    clearTimeout(timer);
+    const { data: s } = await sb.from('stories').select('*, profiles(username)').eq('id', storyIds[idx]).single();
+    if (!s) { overlay.remove(); return; }
+    await sb.from('story_views').upsert({ story_id: s.id, viewer_id: me.id }, { onConflict: 'story_id,viewer_id' });
+
+    overlay.innerHTML = `
+      <div class="story-view-box" style="${s.media_type === 'text' ? 'background:' + s.bg_color + ';' : ''}">
+        <div class="story-header">@${escapeHtml(s.profiles?.username || '')} · ${new Date(s.created_at).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+        ${s.media_type === 'image' ? `<img src="${s.media_url}" class="story-media" />` : `<div class="story-text">${escapeHtml(s.text_content)}</div>`}
+        <div class="story-nav">
+          <button id="story-prev">◀</button>
+          <button id="story-close">✕ बंद करा</button>
+          <button id="story-next">▶</button>
+        </div>
+      </div>
+    `;
+    overlay.querySelector('#story-close').onclick = () => overlay.remove();
+    overlay.querySelector('#story-prev').onclick = () => { if (idx > 0) { idx--; showStory(); } };
+    overlay.querySelector('#story-next').onclick = () => { if (idx < storyIds.length - 1) { idx++; showStory(); } else overlay.remove(); };
+
+    timer = setTimeout(() => {
+      if (idx < storyIds.length - 1) { idx++; showStory(); } else overlay.remove();
+    }, 5000);
+  }
+  showStory();
 }
 
 // ---------- ADMIN PANEL ----------
