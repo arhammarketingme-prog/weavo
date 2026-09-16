@@ -238,6 +238,61 @@
   #composer button { width: auto; padding: 12px 20px; }
   #empty-state { margin: auto; color: var(--muted); text-align: center; }
 </style>
+
+<style id="weavo-new-ui">
+/* WEAVO v30 — New Style UI Layer (functionality preserved) */
+:root{
+ --bg:#f6f7fb;--panel:#ffffff;--panel2:#f9fafc;--accent:#5b5ce2;--accent2:#7c3aed;
+ --accent-soft:#5b5ce214;--text:#171923;--muted:#737789;--bubble-me:#5b5ce2;
+ --bubble-them:#f0f1f6;--input-bg:#f7f8fb;--border:#e8e9f0;--radius:18px;
+ --shadow:0 12px 35px rgba(31,35,60,.08);
+}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:
+ radial-gradient(circle at 10% 0%,#e9eaff 0,transparent 30%),#f6f7fb;color:var(--text);}
+body:not(.light){--bg:#0b0d13;--panel:#12151e;--panel2:#171a24;--text:#f4f5f8;--muted:#9298aa;
+ --input-bg:#0d1017;--border:#252a37;--bubble-them:#1c202b;
+ background:radial-gradient(circle at 10% 0%,#202052 0,transparent 30%),#0b0d13;}
+#auth-screen{width:min(420px,calc(100% - 32px));padding:38px;background:rgba(255,255,255,.92);
+ border:1px solid #fff;backdrop-filter:blur(18px);border-radius:28px;box-shadow:0 30px 80px #1112;}
+body:not(.light) #auth-screen{background:rgba(18,21,30,.94);border-color:#ffffff12;}
+#auth-screen h1{font-size:30px;letter-spacing:-1px} #auth-screen p.tag{font-size:14px;margin-bottom:28px}
+input{border-radius:14px;padding:13px 15px;transition:.2s} input:focus{box-shadow:0 0 0 4px var(--accent-soft)}
+button{border-radius:14px;padding:13px;transition:transform .15s,box-shadow .15s}
+button:hover{transform:translateY(-1px);box-shadow:0 8px 20px #5b5ce233}
+#app{gap:12px;padding:12px;background:transparent}
+#sidebar{width:350px;border:1px solid var(--border);border-radius:24px;overflow:hidden;box-shadow:var(--shadow);background:var(--panel)}
+#chat-area{border:1px solid var(--border);border-radius:24px;overflow:hidden;box-shadow:var(--shadow);background:var(--panel);min-width:0}
+#me-bar{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+#me-avatar{width:42px;height:42px;box-shadow:0 5px 15px #5b5ce233}
+#me-bar .name{font-size:14px}
+#sidebar input,#search-input{margin:12px 14px;width:calc(100% - 28px);background:var(--input-bg)}
+#chat-list{padding:4px 8px;overflow:auto}
+#chat-list>*, .chat-item{border-radius:16px;margin:2px 0;transition:.15s}
+.chat-item:hover{background:var(--accent-soft)}
+.chat-item.active{background:var(--accent-soft)}
+#chat-header{padding:13px 18px;border-bottom:1px solid var(--border);background:var(--panel)}
+#chat-messages{background:linear-gradient(180deg,var(--panel2),var(--panel));padding:20px}
+.bubble{border-radius:18px!important;padding:10px 13px!important;box-shadow:0 2px 8px #0000000a}
+.bubble.me{border-bottom-right-radius:6px!important}
+.bubble.them{border-bottom-left-radius:6px!important}
+#message-input-area{padding:12px 14px;border-top:1px solid var(--border);background:var(--panel)}
+#message-input{border-radius:18px!important;margin:0!important}
+#send-btn{width:46px!important;height:46px;padding:0;border-radius:50%!important;flex:0 0 46px}
+#chat-header button,#message-input-area button{box-shadow:none}
+.archived-toggle,.call-box,#group-info-panel,#discover-panel,#discover-business-panel,#new-group,#new-channel,#settings-panel,#direct-info-panel,#disappear-panel,.reaction-picker{
+ border:1px solid var(--border);border-radius:22px;box-shadow:var(--shadow)}
+#settings-panel,#group-info-panel,#direct-info-panel{backdrop-filter:blur(12px)}
+/* top controls become compact icon-like pills */
+#sidebar button.secondary{margin-top:0}
+@media(max-width:768px){
+ #app{padding:0;gap:0}
+ #sidebar,#chat-area{border-radius:0;border:0;box-shadow:none}
+ #sidebar{width:100%} #chat-area{width:100%}
+ #me-bar{padding-top:calc(12px + env(safe-area-inset-top))}
+ #chat-messages{padding:14px 12px}
+}
+</style>
+
 </head>
 <body>
 
