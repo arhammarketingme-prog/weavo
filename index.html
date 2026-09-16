@@ -389,6 +389,12 @@
     .link-btn{padding:7px 9px!important}
   }
 
+
+  .auth-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;margin:0 0 10px;background:var(--input-bg);border-radius:14px}
+  .auth-mode-btn{height:40px;border:0;border-radius:11px;background:transparent;color:var(--muted);font-weight:700;cursor:pointer;box-shadow:none!important}
+  .auth-mode-btn.active{background:var(--panel);color:var(--text);box-shadow:0 4px 14px #0002!important}
+  #passkey-btn{margin-top:8px}
+
 </style>
 </head>
 <body>
@@ -397,9 +403,14 @@
   <h1>Weavo</h1>
   <p class="tag">One World. One Communication Layer.</p>
   <input id="reg-username" placeholder="Username" autocomplete="username" />
-  <input id="reg-email" placeholder="Email" autocomplete="email" />
+  <div class="auth-mode" aria-label="Login identifier">
+    <button type="button" class="auth-mode-btn active" id="mode-email" onclick="setAuthMode('email')">Email</button>
+    <button type="button" class="auth-mode-btn" id="mode-phone" onclick="setAuthMode('phone')">Mobile</button>
+  </div>
+  <input id="reg-identifier" placeholder="Email address" autocomplete="username" inputmode="email" />
   <input id="reg-password" type="password" placeholder="Password (किमान 6 अक्षरं)" autocomplete="current-password" />
-  <button id="login-btn">Login</button>
+  <button id="login-btn">Continue to Weavo</button>
+  <button id="passkey-btn" class="secondary" type="button">🔐 Continue with Passkey</button>
   <button id="register-btn" class="secondary">नवीन खातं तयार करा</button>
   <div id="error"></div>
 </div>
@@ -556,34 +567,68 @@ $('theme-toggle-btn').onclick = () => {
 };
 
 // ---------- AUTH ----------
+let authMode = 'email';
+
+function setAuthMode(mode){
+  authMode = mode;
+  const input = $('reg-identifier');
+  $('mode-email').classList.toggle('active', mode === 'email');
+  $('mode-phone').classList.toggle('active', mode === 'phone');
+  input.placeholder = mode === 'email' ? 'Email address' : 'Mobile number (e.g. +91 9876543210)';
+  input.inputMode = mode === 'email' ? 'email' : 'tel';
+  input.autocomplete = mode === 'email' ? 'username' : 'tel';
+  input.value = '';
+  $('error').textContent = '';
+}
+
+function getAuthIdentifier(){
+  const value = $('reg-identifier').value.trim();
+  if(authMode === 'phone') {
+    const digits = value.replace(/[^0-9+]/g,'');
+    if(/^0\d{10}$/.test(digits)) return '+91' + digits.slice(1);
+    if(/^\d{10}$/.test(digits)) return '+91' + digits;
+    if(/^\+\d{8,15}$/.test(digits)) return digits;
+    return null;
+  }
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : null;
+}
+
 $('register-btn').onclick = async () => {
   $('error').textContent = '';
   const username = normalizeUsername($('reg-username').value);
-  const email = $('reg-email').value.trim();
+  const identifier = getAuthIdentifier();
   const password = $('reg-password').value;
-  if (!username || !email || !password) { $('error').textContent = 'सगळे field भरा'; return; }
+  if (!username || !identifier || !password) { $('error').textContent = 'Username, login ID आणि password भरा'; return; }
+  if (password.length < 6) { $('error').textContent = 'Password किमान 6 अक्षरांचा असावा'; return; }
 
-  // username आधीच वापरात आहे का तपासा
   const { data: existing } = await sb.from('profiles').select('id').ilike('username', username).maybeSingle();
   if (existing) { $('error').textContent = 'हे username आधीच वापरात आहे'; return; }
 
+  const credentials = authMode === 'email' ? { email: identifier, password } : { phone: identifier, password };
   const { data, error } = await sb.auth.signUp({
-    email, password,
-    options: { data: { username } } // trigger द्वारे profiles table मध्ये जाईल
+    ...credentials,
+    options: { data: { username } }
   });
   if (error) { $('error').textContent = error.message; return; }
-  if (data.user) { me = { id: data.user.id, username }; enterApp(); }
+  if (data.user && data.session) { me = { id: data.user.id, username }; enterApp(); }
+  else { $('error').textContent = authMode === 'phone' ? 'Account तयार झाला. Supabase मध्ये phone confirmation बंद असेल तर लगेच login करा.' : 'Account तयार झाला. Email confirmation enabled असल्यास आधी email verify करा.'; }
 };
 
 $('login-btn').onclick = async () => {
   $('error').textContent = '';
-  const email = $('reg-email').value.trim();
+  const identifier = getAuthIdentifier();
   const password = $('reg-password').value;
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (!identifier || !password) { $('error').textContent = 'Login ID आणि password भरा'; return; }
+  const credentials = authMode === 'email' ? { email: identifier, password } : { phone: identifier, password };
+  const { data, error } = await sb.auth.signInWithPassword(credentials);
   if (error) { $('error').textContent = error.message; return; }
   const { data: profile } = await sb.from('profiles').select('username').eq('id', data.user.id).single();
-  me = { id: data.user.id, username: profile?.username || email };
+  me = { id: data.user.id, username: profile?.username || identifier };
   enterApp();
+};
+
+$('passkey-btn').onclick = async () => {
+  $('error').textContent = 'Passkey login साठी पुढच्या authentication layer मध्ये device passkey registration जोडता येईल. सध्या Email/Mobile + Password हा पूर्ण working login आहे.';
 };
 
 $('logout-btn').onclick = async () => {
