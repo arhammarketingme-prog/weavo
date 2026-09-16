@@ -74,6 +74,7 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **📸 Stories** — फोटो किंवा रंगीत मजकूर स्टोरी टाकता येते, 24 तासांनी आपोआप गायब होते; फक्त direct-chat "contacts" ना दिसते (जसं WhatsApp मध्ये)
 - **🎬 Short Videos (Reels)** — उभा (vertical) स्क्रोल करता येणारा video feed, सगळ्या लॉगिन केलेल्यांना दिसतो (सार्वजनिक); Like, Comment, आपोआप play/pause (जो दिसतोय तोच चालतो)
 - **🧭 Discover Hub** — Channels/Businesses/Videos एकाच ठिकाणी टॅबमधून; Videos साठी "अलीकडचे" किंवा "सगळ्यात लोकप्रिय" (❤️ नुसार) क्रम निवडता येतो, आणि प्रत्येक विभागात **"ⓘ तुला हे का दिसतंय"** असं स्पष्टीकरण दिसतं (algorithm लपवलेला नाही)
+- **📱 QR Profile** — Settings मध्ये स्वतःचा QR कोड बघता येतो; दुसरी व्यक्ती तो कॅमेऱ्याने स्कॅन करून लगेच chat सुरू करू शकते (मोफत, कुठलाही API key न वापरता)
 - **Global Search** — सगळ्या चॅट्स, लोक, आणि मेसेज मजकूर — एकाच वेळी शोध (sidebar वरती)
 - **Emoji Picker** — मेसेज टाइप करतानाच emoji निवडता येतात (😊 बटण)
 - **Location Sharing** — 📍 ने सध्याचं location पाठवता येतं (नकाशाची लिंक — OpenStreetMap, कोणताही API key लागत नाही)
@@ -129,11 +130,11 @@ Video upload 20MB पर्यंत मर्यादित आहे (को�
 1. ~~Admin Panel~~ ✅ **झालं**
 2. ~~Stories~~ ✅ **झालं**
 3. ~~Short-video विभाग (Reels)~~ ✅ **झालं**
-4. ~~Discover / Algorithmic feed~~ ✅ **झालं** — वर बघा
-5. **Mini-Apps framework** — sandbox मध्ये third-party apps (security-दृष्ट्या सगळ्यात नाजूक) — पुढचा नंबर
-6. **Developer Platform** — बाहेरच्या developers साठी API keys/OAuth (फक्त बाहेरचे developers Weavo साठी bots/integrations बनवायचे असतील तरच लागतं — सध्या गरज नाही)
+4. ~~Discover / Algorithmic feed~~ ✅ **झालं**
+5. ~~QR Profile (Identity System)~~ ✅ **झालं** — वर बघा
 
-### जाणीवपूर्वक मर्यादित ठेवलेलं
+### जाणीवपूर्वक न बांधलेलं (तांत्रिक कारणामुळे, गरजेमुळे नाही)
+- **Mini-Apps framework** (sandbox मध्ये तिसऱ्या पक्षाचे apps चालवणं) आणि **Developer Platform** (API keys/OAuth) — हे दोन्ही एकमेकांवर अवलंबून आहेत: बाहेरचे developers नसतील तर sandbox बांधून काही उपयोग नाही, आणि अर्धवट/घाईत सुरक्षा-sandbox बांधणं हा खरा धोका आहे. आत्ता याची प्रत्यक्ष गरज नाही — भविष्यात बाहेरच्या developers ना Weavo साठी bots/integrations बनवायचे असतील तरच याचा विचार करू.
 - **Advertising/Payments** — direct company-to-customer UPI/payment-info आता उपलब्ध आहे (business profile मध्ये). खरं online payment-processing (Stripe/Razorpay सारखं) मुद्दाम अजून जोडलेलं नाही — ठरवल्याप्रमाणे भविष्यात.
 
 ## Block — आता खरंच Database-level (हार्ड) झालं ✅

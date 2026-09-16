@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.json" />
 <meta name="theme-color" content="#6366f1" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="config.js"></script>
 <style>
   :root {
@@ -125,6 +126,7 @@
   .sort-btn { width: auto; background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; margin: 0; border-radius: 16px; font-size: 12px; }
   .sort-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
   .discover-why { font-size: 11px; color: var(--muted); font-style: italic; margin-bottom: 8px; }
+  .my-qr-img { display: block; margin: 14px auto; border-radius: 10px; background: white; padding: 8px; }
   .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 
   /* ---------- CALLING ---------- */
@@ -266,6 +268,10 @@
     <div id="settings-panel">
       <label><input type="checkbox" id="hide-last-seen-toggle" /> माझं last-seen लपवा (मग तुम्हालाही इतरांचं दिसणार नाही)</label>
       <label><input type="checkbox" id="hide-read-receipts-toggle" /> माझ्या Read Receipts (✓✓) लपवा (मग तुम्हालाही इतरांचं दिसणार नाही)</label>
+      <div class="settings-row">
+        <button id="my-qr-btn">📱 माझा QR कोड बघा</button>
+        <button id="scan-qr-btn">📷 QR स्कॅन करून Chat सुरू करा</button>
+      </div>
       <div class="settings-row">
         <button id="theme-toggle-btn">🌙 Dark / ☀️ Light बदला</button>
       </div>
@@ -491,6 +497,8 @@ async function enterApp() {
   setupPushNotifications();
   setupGlobalSearch();
   setupInstallPrompt();
+  $('my-qr-btn').onclick = showMyQrCode;
+  $('scan-qr-btn').onclick = openQrScanner;
 
   // मी admin आहे का तपासतो — असेल तरच Admin Panel बटण दाखवतो
   const { data: adminRow } = await sb.from('platform_admins').select('user_id').eq('user_id', me.id).maybeSingle();
@@ -2251,6 +2259,82 @@ async function openStoryViewer(storyIds) {
     }, 5000);
   }
   showStory();
+}
+
+// ---------- QR PROFILE (Identity System) ----------
+function showMyQrCode() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  const qrData = encodeURIComponent('WEAVO_USER:' + me.username);
+  box.innerHTML = `
+    <div class="call-name">📱 माझा QR कोड</div>
+    <div class="call-sub">@${escapeHtml(me.username)}</div>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${qrData}" class="my-qr-img" alt="QR code" />
+    <div class="call-sub">हा QR कोड दुसऱ्या व्यक्तीला दाखव — ते "📷 QR स्कॅन करून Chat सुरू करा" वापरून लगेच तुझ्याशी chat सुरू करू शकतील.</div>
+    <button class="call-btn decline" id="qr-close" style="margin-top:12px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#qr-close').onclick = () => overlay.remove();
+}
+
+async function openQrScanner() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">📷 QR स्कॅन करा</div>
+    <video id="qr-scan-video" autoplay playsinline muted style="width:100%; border-radius:10px; margin-top:10px;"></video>
+    <div class="call-sub" id="qr-scan-status">कॅमेरा सुरू होतोय...</div>
+    <button class="call-btn decline" id="qr-scan-close" style="margin-top:10px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  let stream = null;
+  let stopped = false;
+  const video = box.querySelector('#qr-scan-video');
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  function stop() {
+    stopped = true;
+    if (stream) stream.getTracks().forEach(t => t.stop());
+  }
+  box.querySelector('#qr-scan-close').onclick = () => { stop(); overlay.remove(); };
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = stream;
+    box.querySelector('#qr-scan-status').textContent = 'QR कोड कॅमेऱ्यासमोर धर...';
+  } catch (err) {
+    box.querySelector('#qr-scan-status').textContent = 'कॅमेरा access मिळालं नाही: ' + err.message;
+    return;
+  }
+
+  function tick() {
+    if (stopped) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code && code.data && code.data.startsWith('WEAVO_USER:')) {
+        const username = code.data.replace('WEAVO_USER:', '');
+        stop();
+        overlay.remove();
+        $('new-chat-username').value = username;
+        $('new-chat-btn').click();
+        return;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 }
 
 // ---------- DISCOVER HUB (Channels + Businesses + Videos एकत्र, sorting + transparency सकट) ----------
