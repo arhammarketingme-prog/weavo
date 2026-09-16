@@ -73,6 +73,7 @@ Supabase Auth ईमेल confirmation मागू शकतं — Dashboard 
 - **🛡 Admin Panel** — Stats, User search + Ban/Unban (database-level लागू होतं), Reports बघून Resolve करणं — sidebar मधून (फक्त designated admins ना दिसतं)
 - **📸 Stories** — फोटो किंवा रंगीत मजकूर स्टोरी टाकता येते, 24 तासांनी आपोआप गायब होते; फक्त direct-chat "contacts" ना दिसते (जसं WhatsApp मध्ये)
 - **🎬 Short Videos (Reels)** — उभा (vertical) स्क्रोल करता येणारा video feed, सगळ्या लॉगिन केलेल्यांना दिसतो (सार्वजनिक); Like, Comment, आपोआप play/pause (जो दिसतोय तोच चालतो)
+- **🧭 Discover Hub** — Channels/Businesses/Videos एकाच ठिकाणी टॅबमधून; Videos साठी "अलीकडचे" किंवा "सगळ्यात लोकप्रिय" (❤️ नुसार) क्रम निवडता येतो, आणि प्रत्येक विभागात **"ⓘ तुला हे का दिसतंय"** असं स्पष्टीकरण दिसतं (algorithm लपवलेला नाही)
 - **Global Search** — सगळ्या चॅट्स, लोक, आणि मेसेज मजकूर — एकाच वेळी शोध (sidebar वरती)
 - **Emoji Picker** — मेसेज टाइप करतानाच emoji निवडता येतात (😊 बटण)
 - **Location Sharing** — 📍 ने सध्याचं location पाठवता येतं (नकाशाची लिंक — OpenStreetMap, कोणताही API key लागत नाही)
@@ -127,9 +128,9 @@ Video upload 20MB पर्यंत मर्यादित आहे (को�
 ### मोठे, स्वतंत्र भाग (मूळ spec मध्ये होते) — प्रगती
 1. ~~Admin Panel~~ ✅ **झालं**
 2. ~~Stories~~ ✅ **झालं**
-3. ~~Short-video विभाग (Reels)~~ ✅ **झालं** — वर बघा
-4. **Discover / Algorithmic feed** — "तुला हे का दिसतंय" स्पष्टीकरणासकट — पुढचा नंबर
-5. **Mini-Apps framework** — sandbox मध्ये third-party apps (security-दृष्ट्या सगळ्यात नाजूक, सगळ्यात शेवटी)
+3. ~~Short-video विभाग (Reels)~~ ✅ **झालं**
+4. ~~Discover / Algorithmic feed~~ ✅ **झालं** — वर बघा
+5. **Mini-Apps framework** — sandbox मध्ये third-party apps (security-दृष्ट्या सगळ्यात नाजूक) — पुढचा नंबर
 6. **Developer Platform** — बाहेरच्या developers साठी API keys/OAuth (फक्त बाहेरचे developers Weavo साठी bots/integrations बनवायचे असतील तरच लागतं — सध्या गरज नाही)
 
 ### जाणीवपूर्वक मर्यादित ठेवलेलं

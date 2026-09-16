@@ -121,6 +121,10 @@
   .reel-actions { display: flex; gap: 12px; }
   .reel-like-btn, .reel-comment-btn { width: auto; background: #ffffff22; color: white; padding: 8px 14px; margin: 0; border-radius: 20px; font-size: 13px; }
   .reel-like-btn.liked { background: #ef4444; }
+  .discover-sort-row { display: flex; align-items: center; gap: 8px; }
+  .sort-btn { width: auto; background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; margin: 0; border-radius: 16px; font-size: 12px; }
+  .sort-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .discover-why { font-size: 11px; color: var(--muted); font-style: italic; margin-bottom: 8px; }
   .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 
   /* ---------- CALLING ---------- */
@@ -307,6 +311,7 @@
       <button id="tab-toggle-business" class="link-btn">🏢 Discover Businesses</button>
       <button id="tab-toggle-stories" class="link-btn">📸 Stories</button>
       <button id="tab-toggle-reels" class="link-btn">🎬 Short Videos</button>
+      <button id="tab-toggle-discover-hub" class="link-btn">🧭 Discover (सगळं एकत्र)</button>
       <button id="tab-toggle-starred" class="link-btn">⭐ Starred Messages</button>
       <button id="install-app-btn" class="link-btn" style="display:none">📲 App Install करा</button>
       <button id="admin-panel-btn" class="link-btn" style="display:none">🛡 Admin Panel</button>
@@ -2246,6 +2251,114 @@ async function openStoryViewer(storyIds) {
     }, 5000);
   }
   showStory();
+}
+
+// ---------- DISCOVER HUB (Channels + Businesses + Videos एकत्र, sorting + transparency सकट) ----------
+$('tab-toggle-discover-hub').onclick = () => openDiscoverHub();
+
+async function openDiscoverHub() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'discover-hub-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box wide';
+  box.innerHTML = `
+    <div class="call-name">🧭 Discover</div>
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="videos">Videos</button>
+      <button class="admin-tab" data-tab="channels">Channels</button>
+      <button class="admin-tab" data-tab="businesses">Businesses</button>
+    </div>
+    <div id="discover-hub-content" style="max-height:340px; overflow-y:auto; margin-top:10px; text-align:left;"></div>
+    <button class="call-btn decline" id="discover-hub-close" style="margin-top:12px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#discover-hub-close').onclick = () => overlay.remove();
+  box.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.onclick = () => {
+      box.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      loadDiscoverHubTab(tab.dataset.tab, box.querySelector('#discover-hub-content'), overlay);
+    };
+  });
+  loadDiscoverHubTab('videos', box.querySelector('#discover-hub-content'), overlay);
+}
+
+async function loadDiscoverHubTab(tab, container, overlay) {
+  container.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+
+  if (tab === 'videos') {
+    container.innerHTML = `
+      <div class="discover-sort-row">
+        <span class="settings-label">क्रम:</span>
+        <button class="sort-btn active" data-sort="recent">🕒 अलीकडचे</button>
+        <button class="sort-btn" data-sort="trending">🔥 सगळ्यात लोकप्रिय</button>
+      </div>
+      <div id="discover-video-list" style="margin-top:10px;"></div>
+    `;
+    const renderVideos = async (sort) => {
+      const listEl = document.getElementById('discover-video-list');
+      listEl.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+      const { data: videos } = await sb.from('short_videos').select('id, caption, created_at, profiles(username)').order('created_at', { ascending: false }).limit(30);
+      let items = videos || [];
+      let why = 'हे अलीकडे टाकलेले video आहेत, वेळेनुसार क्रमाने.';
+      if (sort === 'trending') {
+        const withLikes = await Promise.all(items.map(async v => {
+          const { count } = await sb.from('video_likes').select('*', { count: 'exact', head: true }).eq('video_id', v.id);
+          return { ...v, likeCount: count || 0 };
+        }));
+        items = withLikes.sort((a, b) => b.likeCount - a.likeCount);
+        why = 'हे सगळ्यात जास्त ❤️ मिळालेले video आहेत (लोकप्रियतेनुसार क्रम).';
+      }
+      listEl.innerHTML = `<div class="discover-why">ⓘ ${why}</div>` + items.map(v => `
+        <div class="admin-row">
+          <span>@${escapeHtml(v.profiles?.username || '')}${v.caption ? ' — ' + escapeHtml(v.caption) : ''}${v.likeCount !== undefined ? ' · ❤️ ' + v.likeCount : ''}</span>
+        </div>
+      `).join('') || '<div class="disc-empty">अजून कोणतेही videos नाहीत</div>';
+    };
+    container.querySelectorAll('.sort-btn').forEach(btn => {
+      btn.onclick = () => {
+        container.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderVideos(btn.dataset.sort);
+      };
+    });
+    renderVideos('recent');
+
+    container.querySelector('#discover-video-list').onclick = () => { overlay.remove(); openReelsFeed(); };
+  }
+
+  if (tab === 'channels') {
+    const { data: myMemberships } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+    const joinedIds = (myMemberships || []).map(r => r.conversation_id);
+    const { data: publicChannels } = await sb.from('conversations').select('id, name, description').eq('type', 'channel').eq('is_public', true);
+    const available = (publicChannels || []).filter(c => !joinedIds.includes(c.id));
+    container.innerHTML = `<div class="discover-why">ⓘ हे सगळे सार्वजनिक (public) channels आहेत, ज्यात तू अजून नाहीस.</div>` +
+      (available.length ? available.map(c => `
+        <div class="disc-item">
+          <span># ${escapeHtml(c.name)}${c.description ? ' — ' + escapeHtml(c.description) : ''}</span>
+          <button class="disc-join" data-id="${c.id}" data-name="${escapeHtml(c.name)}">Join</button>
+        </div>
+      `).join('') : '<div class="disc-empty">सध्या कोणतेही नवीन public channels नाहीत</div>');
+    container.querySelectorAll('.disc-join').forEach(btn => {
+      btn.onclick = async () => {
+        const { error } = await sb.from('conversation_members').insert({ conversation_id: btn.dataset.id, user_id: me.id, role: 'subscriber' });
+        if (error) { alert(error.message); return; }
+        overlay.remove();
+        await loadConversations();
+        openConversation(btn.dataset.id, '# ' + btn.dataset.name, 'channel');
+      };
+    });
+  }
+
+  if (tab === 'businesses') {
+    const { data: businesses } = await sb.from('business_profiles').select('name, category, location, photo_url').limit(20);
+    container.innerHTML = `<div class="discover-why">ⓘ नोंदणी केलेले सगळे local businesses.</div>` +
+      ((businesses && businesses.length) ? businesses.map(b => `
+        <div class="admin-row"><span>${escapeHtml(b.name)}${b.category ? ' (' + escapeHtml(b.category) + ')' : ''}${b.location ? ' — 📍 ' + escapeHtml(b.location) : ''}</span></div>
+      `).join('') : '<div class="disc-empty">अजून कोणतेही businesses नाहीत</div>');
+  }
 }
 
 // ---------- SHORT VIDEOS (Reels) ----------
