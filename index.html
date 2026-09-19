@@ -393,11 +393,106 @@
     .link-btn{padding:7px 9px!important}
   }
 
+
+  /* =========================================================
+     LANDING PAGE — पहिली, marketing/hero screen (login च्याही आधी)
+     ========================================================= */
+  #landing { width: 100%; height: 100vh; overflow-y: auto; background: var(--bg); }
+  .landing-nav { display: flex; align-items: center; justify-content: space-between; padding: 20px clamp(20px, 6vw, 64px); position: sticky; top: 0; background: var(--bg); z-index: 10; border-bottom: 1px solid var(--border); }
+  .landing-logo { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .landing-logo-mark { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; box-shadow: 0 8px 22px var(--accent-glow); }
+  .landing-nav-actions { display: flex; gap: 10px; }
+  .landing-btn-primary, .landing-btn-ghost { border-radius: 14px; padding: 11px 20px; font-weight: 700; font-size: 14px; cursor: pointer; border: none; transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease; }
+  .landing-btn-primary { background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: white; box-shadow: 0 10px 26px var(--accent-glow); }
+  .landing-btn-primary:hover { transform: translateY(-1px); }
+  .landing-btn-primary:active { transform: scale(.97); }
+  .landing-btn-ghost { background: var(--input-bg); color: var(--text); }
+  .landing-btn-ghost:hover { background: var(--accent-soft); color: var(--accent); }
+  .landing-btn-lg { padding: 15px 28px; font-size: 15px; border-radius: 16px; }
+
+  .landing-hero { max-width: 760px; margin: 0 auto; text-align: center; padding: clamp(50px, 10vh, 110px) 20px 60px; }
+  .landing-badge { display: inline-block; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--input-bg); border: 1px solid var(--border); padding: 7px 16px; border-radius: 999px; margin-bottom: 24px; }
+  .landing-h1 { font-size: clamp(32px, 6vw, 56px); font-weight: 800; letter-spacing: -0.04em; line-height: 1.08; margin: 0 0 18px; background: linear-gradient(120deg, var(--text), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .landing-sub { font-size: clamp(15px, 2vw, 18px); color: var(--muted); line-height: 1.55; max-width: 560px; margin: 0 auto 34px; }
+  .landing-cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  .landing-features { max-width: 1080px; margin: 0 auto; padding: 20px 20px 80px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  .landing-feature-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px 22px; box-shadow: var(--shadow); transition: transform .2s ease; }
+  .landing-feature-card:hover { transform: translateY(-3px); }
+  .landing-feature-icon { font-size: 30px; margin-bottom: 12px; }
+  .landing-feature-title { font-weight: 750; font-size: 16px; margin-bottom: 8px; color: var(--text); }
+  .landing-feature-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  .landing-footer-cta { text-align: center; padding: 60px 20px 90px; border-top: 1px solid var(--border); }
+  .landing-h2 { font-size: clamp(22px, 4vw, 32px); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 22px; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .landing-nav-actions .landing-btn-ghost { display: none; }
+    .landing-cta-row { flex-direction: column; align-items: stretch; }
+  }
 </style>
 </head>
 <body>
 
-<div id="auth-screen">
+<div id="landing">
+  <div class="landing-nav">
+    <div class="landing-logo"><span class="landing-logo-mark">W</span> Weavo</div>
+    <div class="landing-nav-actions">
+      <button id="landing-login-btn" class="landing-btn-ghost">Login</button>
+      <button id="landing-getstarted-btn" class="landing-btn-primary">Get Started</button>
+    </div>
+  </div>
+
+  <div class="landing-hero">
+    <div class="landing-badge">🔒 Privacy-first · 💸 Free forever · 🚫 No Ads</div>
+    <h1 class="landing-h1">One World.<br />One Communication Layer.</h1>
+    <p class="landing-sub">Chat. Call. Create Communities. Share Stories &amp; Reels. All in one fast, private platform — built for everyone, everywhere.</p>
+    <div class="landing-cta-row">
+      <button id="landing-hero-getstarted" class="landing-btn-primary landing-btn-lg">Get Started — It's Free</button>
+      <button id="landing-hero-login" class="landing-btn-ghost landing-btn-lg">I already have an account</button>
+    </div>
+  </div>
+
+  <div class="landing-features">
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">💬</div>
+      <div class="landing-feature-title">Real-time Messaging</div>
+      <div class="landing-feature-desc">1:1 chats, groups, and broadcast channels — with reactions, replies, voice notes, and disappearing messages.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">📞</div>
+      <div class="landing-feature-title">Voice &amp; Video Calls</div>
+      <div class="landing-feature-desc">Crystal-clear 1:1 and group calls, direct peer-to-peer — nothing is ever recorded or stored on our servers.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">📸</div>
+      <div class="landing-feature-title">Stories &amp; Reels</div>
+      <div class="landing-feature-desc">Share moments that disappear in 24 hours, or post short videos to a public feed.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">🔐</div>
+      <div class="landing-feature-title">Privacy You Control</div>
+      <div class="landing-feature-desc">Hide your last-seen, read receipts, block anyone — and log in with a Passkey instead of a password.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">🏢</div>
+      <div class="landing-feature-title">Business Directory</div>
+      <div class="landing-feature-desc">Discover local businesses and pay them directly — no middleman, no extra fees.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">🧭</div>
+      <div class="landing-feature-title">Discover Everything</div>
+      <div class="landing-feature-desc">Browse public channels, trending videos, and businesses — with full transparency on why you're seeing them.</div>
+    </div>
+  </div>
+
+  <div class="landing-footer-cta">
+    <h2 class="landing-h2">Ready to join?</h2>
+    <button id="landing-footer-getstarted" class="landing-btn-primary landing-btn-lg">Create your free account</button>
+  </div>
+</div>
+
+<div id="auth-screen" style="display:none">
   <div class="auth-logo">W</div>
   <h1>Welcome to Weavo</h1>
   <p class="tag">One World. One Communication Layer.</p>
@@ -412,6 +507,7 @@
   <div class="auth-or"><span>OR</span></div>
   <button id="passkey-login-btn" class="passkey-btn" type="button">🔐 Continue with Passkey</button>
   <button id="register-btn" class="secondary">नवीन खातं तयार करा</button>
+  <button id="back-to-landing-btn" class="landing-btn-ghost" type="button" style="margin-top:10px;">← Back</button>
   <div id="error" aria-live="polite"></div>
 </div>
 
@@ -552,6 +648,20 @@ $('theme-toggle-btn').onclick = () => {
   localStorage.setItem('weavo_theme', document.body.classList.contains('light') ? 'light' : 'dark');
 };
 
+// ---------- LANDING PAGE ----------
+function showAuthFromLanding() {
+  $('landing').style.display = 'none';
+  $('auth-screen').style.display = 'block';
+}
+['landing-login-btn', 'landing-getstarted-btn', 'landing-hero-getstarted', 'landing-hero-login', 'landing-footer-getstarted'].forEach(id => {
+  const el = $(id);
+  if (el) el.onclick = showAuthFromLanding;
+});
+$('back-to-landing-btn').onclick = () => {
+  $('auth-screen').style.display = 'none';
+  $('landing').style.display = 'block';
+};
+
 // ---------- AUTH / PASSKEY ----------
 let authMode = 'email';
 function setAuthMode(mode) {
@@ -662,6 +772,7 @@ let myProfile = { avatar_url: null, hide_last_seen: false, hide_read_receipts: f
 let heartbeatTimer = null;
 
 async function enterApp() {
+  $('landing').style.display = 'none';
   $('auth-screen').style.display = 'none';
   $('app').classList.add('active');
   $('me-name').textContent = '@' + me.username;
