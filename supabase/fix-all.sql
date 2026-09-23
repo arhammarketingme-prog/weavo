@@ -1,0 +1,735 @@
+-- ============================================================
+-- Weavo — Supabase Schema (संपूर्ण, नीटनेटकं — फक्त अंतिम स्थिती)
+-- Supabase SQL Editor मध्ये हे संपूर्ण पेस्ट करून Run करा.
+-- हे कितीही वेळा सुरक्षितपणे चालवता येतं (idempotent).
+--
+-- टीप: हा file पूर्वीच्या १-२० टप्प्यांतल्या इतिहासाऐवजी फक्त अंतिम,
+-- स्वच्छ स्थिती दाखवतो — वाचायला/समजायला सोपा. जुना इतिहास हवा असल्यास
+-- git history किंवा जुन्या zip files मध्ये आहे.
+-- ============================================================
+
+-- ---------- 1) PROFILES ----------
+create table if not exists profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  username text unique not null,
+  display_name text,
+  avatar_url text,
+  hide_last_seen boolean default false,
+  last_seen_at timestamptz default now(),
+  hide_read_receipts boolean default false,
+  account_type text default 'personal', -- personal | creator | business
+  bio text,
+  created_at timestamptz default now()
+);
+alter table profiles add column if not exists hide_last_seen boolean default false;
+alter table profiles add column if not exists last_seen_at timestamptz default now();
+alter table profiles add column if not exists hide_read_receipts boolean default false;
+alter table profiles add column if not exists account_type text default 'personal';
+alter table profiles add column if not exists bio text;
+
+alter table profiles enable row level security;
+
+drop policy if exists "Profiles सगळ्यांना दिसतील (username शोधण्यासाठी आवश्यक)" on profiles;
+drop policy if exists "Profiles फक्त लॉगिन केलेल्यांना दिसतील" on profiles;
+create policy "Profiles फक्त लॉगिन केलेल्यांना दिसतील"
+  on profiles for select using (auth.uid() is not null);
+
+drop policy if exists "प्रत्येकजण फक्त स्वतःचा profile बदलू शकतो" on profiles;
+create policy "प्रत्येकजण फक्त स्वतःचा profile बदलू शकतो"
+  on profiles for update using (auth.uid() = id);
+
+drop policy if exists "नवीन user स्वतःचा profile तयार करू शकतो" on profiles;
+create policy "नवीन user स्वतःचा profile तयार करू शकतो"
+  on profiles for insert with check (auth.uid() = id);
+
+create or replace function handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, username, display_name)
+  values (new.id, new.raw_user_meta_data->>'username', new.raw_user_meta_data->>'username');
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function handle_new_user();
+
+-- ---------- 2) HELPER FUNCTIONS (RLS recursion टाळण्यासाठी, SECURITY DEFINER) ----------
+create or replace function is_conversation_member(conv_id uuid, uid uuid)
+returns boolean language sql security definer stable as $$
+  select exists (select 1 from conversation_members where conversation_id = conv_id and user_id = uid);
+$$;
+
+create or replace function is_conversation_owner(conv_id uuid, uid uuid)
+returns boolean language sql security definer stable as $$
+  select exists (select 1 from conversation_members where conversation_id = conv_id and user_id = uid and role = 'owner');
+$$;
+
+create or replace function is_conversation_admin(conv_id uuid, uid uuid)
+returns boolean language sql security definer stable as $$
+  select exists (select 1 from conversation_members where conversation_id = conv_id and user_id = uid and role in ('owner', 'admin'));
+$$;
+
+create or replace function can_post_in_conversation(conv_id uuid, uid uuid)
+returns boolean language sql security definer stable as $$
+  select case
+    when (select type from conversations where id = conv_id) = 'channel'
+      then is_conversation_admin(conv_id, uid)
+    else is_conversation_member(conv_id, uid)
+  end;
+$$;
+
+create or replace function message_conversation_id(msg_id uuid)
+returns uuid language sql security definer stable as $$
+  select conversation_id from messages where id = msg_id;
+$$;
+
+-- ---------- 3) CONVERSATIONS ----------
+create table if not exists conversations (
+  id uuid primary key default gen_random_uuid(),
+  type text not null default 'direct', -- direct | group | channel
+  name text,
+  description text,
+  avatar_url text,
+  is_public boolean default false,
+  disappearing_seconds integer, -- null = बंद
+  created_by uuid references profiles(id),
+  created_at timestamptz default now()
+);
+alter table conversations add column if not exists description text;
+alter table conversations add column if not exists avatar_url text;
+alter table conversations add column if not exists is_public boolean default false;
+alter table conversations add column if not exists disappearing_seconds integer;
+alter table conversations add column if not exists created_by uuid references profiles(id);
+
+alter table conversations enable row level security;
+
+drop policy if exists "फक्त सभासद आपलं conversation बघू शकतात" on conversations;
+create policy "फक्त सभासद आपलं conversation बघू शकतात"
+  on conversations for select using (
+    is_conversation_member(id, auth.uid()) or created_by = auth.uid() or (type = 'channel' and is_public = true)
+  );
+
+drop policy if exists "लॉगिन केलेला कोणीही नवीन conversation तयार करू शकतो" on conversations;
+create policy "लॉगिन केलेला कोणीही नवीन conversation तयार करू शकतो"
+  on conversations for insert with check (auth.uid() is not null);
+
+drop policy if exists "सभासद disappearing सेटिंग बदलू शकतात" on conversations;
+create policy "सभासद disappearing सेटिंग बदलू शकतात"
+  on conversations for update using (is_conversation_member(id, auth.uid()));
+
+-- ---------- 4) CONVERSATION_MEMBERS ----------
+create table if not exists conversation_members (
+  conversation_id uuid references conversations(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  role text default 'member', -- member | admin | owner | subscriber
+  joined_at timestamptz default now(),
+  last_read_message_id uuid,
+  last_read_at timestamptz default now(),
+  muted boolean default false,
+  pinned boolean default false,
+  archived boolean default false,
+  primary key (conversation_id, user_id)
+);
+alter table conversation_members add column if not exists last_read_at timestamptz default now();
+alter table conversation_members add column if not exists muted boolean default false;
+alter table conversation_members add column if not exists pinned boolean default false;
+alter table conversation_members add column if not exists archived boolean default false;
+
+alter table conversation_members enable row level security;
+
+drop policy if exists "सभासदांची यादी सभासदांनाच दिसते" on conversation_members;
+create policy "सभासदांची यादी सभासदांनाच दिसते"
+  on conversation_members for select using (is_conversation_member(conversation_id, auth.uid()));
+
+drop policy if exists "स्वतःला/इतरांना सभासद म्हणून जोडता येतं (create flow साठी)" on conversation_members;
+drop policy if exists "फक्त निर्माता/admin इतरांना जोडू शकतो; स्वतःला फक्त public channel मध्ये" on conversation_members;
+create policy "फक्त निर्माता/admin इतरांना जोडू शकतो; स्वतःला फक्त public channel मध्ये"
+  on conversation_members for insert with check (
+    auth.uid() is not null
+    and (
+      (user_id = auth.uid() and (
+        exists (select 1 from conversations c where c.id = conversation_id and c.created_by = auth.uid())
+        or exists (select 1 from conversations c where c.id = conversation_id and c.type = 'channel' and c.is_public = true)
+      ))
+      or exists (select 1 from conversations c where c.id = conversation_id and c.created_by = auth.uid())
+      or is_conversation_admin(conversation_id, auth.uid())
+    )
+  );
+
+drop policy if exists "सभासद स्वतःचं last_read_at अपडेट करू शकतो" on conversation_members;
+create policy "सभासद स्वतःचं last_read_at अपडेट करू शकतो"
+  on conversation_members for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "सभासद स्वतःला काढू शकतो किंवा owner इतरांना काढू शकतो" on conversation_members;
+create policy "सभासद स्वतःला काढू शकतो किंवा owner इतरांना काढू शकतो"
+  on conversation_members for delete using (
+    user_id = auth.uid() or is_conversation_owner(conversation_id, auth.uid())
+  );
+
+-- ---------- 5) MESSAGES ----------
+create table if not exists messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid references conversations(id) on delete cascade,
+  sender_id uuid references profiles(id) on delete cascade,
+  content text not null,
+  reply_to uuid references messages(id),
+  media_url text,
+  media_type text, -- image | audio | file | location | contact | poll
+  expires_at timestamptz,
+  created_at timestamptz default now(),
+  edited boolean default false,
+  deleted boolean default false
+);
+alter table messages add column if not exists media_url text;
+alter table messages add column if not exists media_type text;
+alter table messages add column if not exists expires_at timestamptz;
+
+alter table messages enable row level security;
+
+drop policy if exists "फक्त त्या conversation चे सभासद मेसेज बघू शकतात" on messages;
+create policy "फक्त त्या conversation चे सभासद मेसेज बघू शकतात"
+  on messages for select using (is_conversation_member(messages.conversation_id, auth.uid()));
+
+drop policy if exists "फक्त सभासदच मेसेज पाठवू शकतात, आणि स्वतःच्याच नावाने" on messages;
+create policy "फक्त सभासदच मेसेज पाठवू शकतात, आणि स्वतःच्याच नावाने"
+  on messages for insert with check (
+    auth.uid() = sender_id
+    and (
+      can_post_in_conversation(messages.conversation_id, auth.uid())
+      or (
+        messages.reply_to is not null
+        and (select type from conversations where id = messages.conversation_id) = 'channel'
+        and is_conversation_member(messages.conversation_id, auth.uid())
+      )
+    )
+  );
+
+drop policy if exists "पाठवणारा स्वतःचा मेसेज delete करू शकतो" on messages;
+create policy "पाठवणारा स्वतःचा मेसेज delete करू शकतो"
+  on messages for update using (auth.uid() = sender_id) with check (auth.uid() = sender_id);
+
+alter table messages drop constraint if exists messages_content_length;
+alter table messages add constraint messages_content_length check (char_length(content) <= 5000) not valid;
+
+create or replace function enforce_message_rate_limit()
+returns trigger language plpgsql as $$
+declare
+  recent_count integer;
+begin
+  select count(*) into recent_count
+  from messages
+  where sender_id = new.sender_id and created_at > now() - interval '10 seconds';
+  if recent_count >= 15 then
+    raise exception 'खूप वेगाने मेसेज पाठवत आहात, थोडं थांबा';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_rate_limit on messages;
+create trigger messages_rate_limit
+  before insert on messages
+  for each row execute function enforce_message_rate_limit();
+
+create or replace function cleanup_expired_messages()
+returns void language plpgsql security definer as $$
+begin
+  delete from storage.objects
+  where bucket_id = 'chat-media'
+    and name in (
+      select substring(media_url from '/chat-media/(.*)$')
+      from messages
+      where expires_at is not null and expires_at < now() and media_url is not null
+    );
+  delete from messages where expires_at is not null and expires_at < now();
+end;
+$$;
+
+do $$
+begin
+  create extension if not exists pg_cron;
+  perform cron.schedule('cleanup-expired-messages', '0 * * * *', 'select cleanup_expired_messages();');
+exception when others then
+  raise notice 'pg_cron सेटअप करता आलं नाही — Supabase Dashboard च्या Database > Extensions मध्ये जाऊन pg_cron चालू करा';
+end $$;
+
+-- ---------- 6) MESSAGE REACTIONS ----------
+create table if not exists message_reactions (
+  id uuid primary key default gen_random_uuid(),
+  message_id uuid references messages(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz default now(),
+  unique (message_id, user_id, emoji)
+);
+alter table message_reactions enable row level security;
+
+drop policy if exists "सभासद reactions बघू शकतात" on message_reactions;
+create policy "सभासद reactions बघू शकतात"
+  on message_reactions for select using (is_conversation_member(message_conversation_id(message_id), auth.uid()));
+
+drop policy if exists "सभासद react करू शकतात" on message_reactions;
+create policy "सभासद react करू शकतात"
+  on message_reactions for insert with check (auth.uid() = user_id and is_conversation_member(message_conversation_id(message_id), auth.uid()));
+
+drop policy if exists "स्वतःची reaction काढू शकतो" on message_reactions;
+create policy "स्वतःची reaction काढू शकतो"
+  on message_reactions for delete using (auth.uid() = user_id);
+
+-- ---------- 7) STARRED MESSAGES ----------
+create table if not exists starred_messages (
+  user_id uuid references profiles(id) on delete cascade,
+  message_id uuid references messages(id) on delete cascade,
+  created_at timestamptz default now(),
+  primary key (user_id, message_id)
+);
+alter table starred_messages enable row level security;
+
+drop policy if exists "स्वतःचे starred messages बघू शकतो" on starred_messages;
+create policy "स्वतःचे starred messages बघू शकतो"
+  on starred_messages for select using (auth.uid() = user_id);
+
+drop policy if exists "स्वतः star करू शकतो" on starred_messages;
+create policy "स्वतः star करू शकतो"
+  on starred_messages for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचा star काढू शकतो" on starred_messages;
+create policy "स्वतःचा star काढू शकतो"
+  on starred_messages for delete using (auth.uid() = user_id);
+
+-- ---------- 8) POLLS ----------
+create table if not exists poll_votes (
+  message_id uuid references messages(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  option_index integer not null,
+  created_at timestamptz default now(),
+  primary key (message_id, user_id)
+);
+alter table poll_votes enable row level security;
+
+drop policy if exists "सभासद poll votes बघू शकतात" on poll_votes;
+create policy "सभासद poll votes बघू शकतात"
+  on poll_votes for select using (is_conversation_member(message_conversation_id(message_id), auth.uid()));
+
+drop policy if exists "सभासद vote करू शकतात" on poll_votes;
+create policy "सभासद vote करू शकतात"
+  on poll_votes for insert with check (auth.uid() = user_id and is_conversation_member(message_conversation_id(message_id), auth.uid()));
+
+drop policy if exists "स्वतःचं vote बदलू शकतो" on poll_votes;
+create policy "स्वतःचं vote बदलू शकतो"
+  on poll_votes for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचं vote काढू शकतो" on poll_votes;
+create policy "स्वतःचं vote काढू शकतो"
+  on poll_votes for delete using (auth.uid() = user_id);
+
+-- ---------- 9) BUSINESS PROFILES ----------
+create table if not exists business_profiles (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid references profiles(id) unique,
+  name text not null,
+  category text,
+  location text,
+  phone text,
+  website text,
+  hours text,
+  description text,
+  created_at timestamptz default now()
+);
+alter table business_profiles enable row level security;
+
+drop policy if exists "Business profiles सगळ्यांना दिसतात" on business_profiles;
+create policy "Business profiles सगळ्यांना दिसतात"
+  on business_profiles for select using (true);
+
+drop policy if exists "मालक स्वतःचा business profile तयार करू शकतो" on business_profiles;
+create policy "मालक स्वतःचा business profile तयार करू शकतो"
+  on business_profiles for insert with check (auth.uid() = owner_id);
+
+drop policy if exists "मालक स्वतःचा business profile बदलू शकतो" on business_profiles;
+create policy "मालक स्वतःचा business profile बदलू शकतो"
+  on business_profiles for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+drop policy if exists "मालक स्वतःचा business profile काढू शकतो" on business_profiles;
+create policy "मालक स्वतःचा business profile काढू शकतो"
+  on business_profiles for delete using (auth.uid() = owner_id);
+
+-- ---------- 10) BLOCKED USERS ----------
+create table if not exists blocked_users (
+  blocker_id uuid references profiles(id) on delete cascade,
+  blocked_id uuid references profiles(id) on delete cascade,
+  created_at timestamptz default now(),
+  primary key (blocker_id, blocked_id)
+);
+alter table blocked_users enable row level security;
+
+drop policy if exists "स्वतःची blocked यादी बघू शकतो" on blocked_users;
+create policy "स्वतःची blocked यादी बघू शकतो"
+  on blocked_users for select using (auth.uid() = blocker_id);
+
+drop policy if exists "स्वतः कोणाला तरी block करू शकतो" on blocked_users;
+create policy "स्वतः कोणाला तरी block करू शकतो"
+  on blocked_users for insert with check (auth.uid() = blocker_id);
+
+drop policy if exists "स्वतःचा block काढू शकतो (unblock)" on blocked_users;
+create policy "स्वतःचा block काढू शकतो (unblock)"
+  on blocked_users for delete using (auth.uid() = blocker_id);
+
+-- ---------- 11) PUSH SUBSCRIPTIONS ----------
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth_key text not null,
+  created_at timestamptz default now(),
+  unique (user_id, endpoint)
+);
+alter table push_subscriptions enable row level security;
+
+drop policy if exists "स्वतःचं subscription टाकू शकतो" on push_subscriptions;
+create policy "स्वतःचं subscription टाकू शकतो"
+  on push_subscriptions for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचं subscription बघू शकतो" on push_subscriptions;
+create policy "स्वतःचं subscription बघू शकतो"
+  on push_subscriptions for select using (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचं subscription काढू शकतो" on push_subscriptions;
+create policy "स्वतःचं subscription काढू शकतो"
+  on push_subscriptions for delete using (auth.uid() = user_id);
+
+-- ---------- 12) REPORTS ----------
+create table if not exists reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid references profiles(id),
+  target_type text,
+  target_id uuid,
+  category text,
+  status text default 'open',
+  created_at timestamptz default now()
+);
+alter table reports enable row level security;
+
+drop policy if exists "फक्त स्वतःचा report टाकता येतो" on reports;
+create policy "फक्त स्वतःचा report टाकता येतो"
+  on reports for insert with check (auth.uid() = reporter_id);
+
+-- ---------- 13) STORAGE (फोटो/फाईल/voice/avatars) ----------
+insert into storage.buckets (id, name, public)
+values ('chat-media', 'chat-media', true)
+on conflict (id) do nothing;
+
+drop policy if exists "लॉगिन केलेले chat-media मध्ये अपलोड करू शकतात" on storage.objects;
+create policy "लॉगिन केलेले chat-media मध्ये अपलोड करू शकतात"
+  on storage.objects for insert with check (bucket_id = 'chat-media' and auth.uid() is not null);
+
+drop policy if exists "chat-media सगळ्यांना वाचता येतं" on storage.objects;
+create policy "chat-media सगळ्यांना वाचता येतं"
+  on storage.objects for select using (bucket_id = 'chat-media');
+
+-- ---------- 14) REALTIME ----------
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'messages') then
+    alter publication supabase_realtime add table messages;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'conversation_members') then
+    alter publication supabase_realtime add table conversation_members;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'message_reactions') then
+    alter publication supabase_realtime add table message_reactions;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'poll_votes') then
+    alter publication supabase_realtime add table poll_votes;
+  end if;
+end $$;
+
+-- 21) BUSINESS PROFILE PHOTO
+alter table business_profiles add column if not exists photo_url text;
+
+
+-- 22) PAYMENT INFO (UPI/Account — फक्त माहिती दाखवण्यासाठी, कुठलंही payment processing नाही)
+alter table business_profiles add column if not exists payment_info text; -- उदा. UPI ID किंवा bank account details
+
+-- 23) POLL: multi-select पर्याय
+alter table messages add column if not exists poll_multi boolean default false;
+-- (poll_votes आधीच primary key (message_id, user_id) आहे — multi-select साठी ती काढून
+--  (message_id, user_id, option_index) करतो, जेणेकरून एकाच व्यक्तीने अनेक पर्याय निवडता येतील)
+alter table poll_votes drop constraint if exists poll_votes_pkey;
+alter table poll_votes add primary key (message_id, user_id, option_index);
+
+-- 24) BLOCK — आता खरंच database-level (हार्ड) अडवलं जातं, फक्त app-level नाही
+create or replace function enforce_block_on_message()
+returns trigger language plpgsql security definer as $$
+declare
+  conv_type text;
+  other_member uuid;
+begin
+  select type into conv_type from conversations where id = new.conversation_id;
+  if conv_type = 'direct' then
+    select user_id into other_member from conversation_members
+      where conversation_id = new.conversation_id and user_id != new.sender_id limit 1;
+    if other_member is not null then
+      if exists (select 1 from blocked_users where blocker_id = other_member and blocked_id = new.sender_id)
+        or exists (select 1 from blocked_users where blocker_id = new.sender_id and blocked_id = other_member) then
+        raise exception 'हा मेसेज पाठवता येणार नाही — block केलेलं आहे';
+      end if;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_block_check on messages;
+create trigger messages_block_check
+  before insert on messages
+  for each row execute function enforce_block_on_message();
+
+
+-- 25) ADMIN PANEL — platform_admins वेगळ्या table मध्ये (profiles च्या column मध्ये नाही,
+-- जेणेकरून कोणीही स्वतःच्या profile update द्वारे स्वतःला admin बनवू शकणार नाही)
+create table if not exists platform_admins (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  granted_at timestamptz default now()
+);
+alter table platform_admins enable row level security;
+
+create or replace function is_platform_admin(uid uuid)
+returns boolean language sql security definer stable as $$
+  select exists (select 1 from platform_admins where user_id = uid);
+$$;
+
+drop policy if exists "admin यादी सगळ्यांना दिसते" on platform_admins;
+create policy "admin यादी सगळ्यांना दिसते"
+  on platform_admins for select using (true);
+
+drop policy if exists "फक्त admin नवीन admin बनवू शकतो" on platform_admins;
+create policy "फक्त admin नवीन admin बनवू शकतो"
+  on platform_admins for insert with check (is_platform_admin(auth.uid()));
+
+drop policy if exists "फक्त admin admin काढू शकतो" on platform_admins;
+create policy "फक्त admin admin काढू शकतो"
+  on platform_admins for delete using (is_platform_admin(auth.uid()));
+
+-- BANNED USERS
+create table if not exists banned_users (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  banned_by uuid references profiles(id),
+  reason text,
+  created_at timestamptz default now()
+);
+alter table banned_users enable row level security;
+
+drop policy if exists "स्वतःचा ban-status आणि admin सगळे बघू शकतो" on banned_users;
+create policy "स्वतःचा ban-status आणि admin सगळे बघू शकतो"
+  on banned_users for select using (auth.uid() = user_id or is_platform_admin(auth.uid()));
+
+drop policy if exists "फक्त admin ban करू शकतो" on banned_users;
+create policy "फक्त admin ban करू शकतो"
+  on banned_users for insert with check (is_platform_admin(auth.uid()));
+
+drop policy if exists "फक्त admin unban करू शकतो" on banned_users;
+create policy "फक्त admin unban करू शकतो"
+  on banned_users for delete using (is_platform_admin(auth.uid()));
+
+create or replace function enforce_ban_check()
+returns trigger language plpgsql security definer as $$
+begin
+  if exists (select 1 from banned_users where user_id = new.sender_id) then
+    raise exception 'तुमचं खातं banned आहे, मेसेज पाठवता येणार नाही';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_ban_check on messages;
+create trigger messages_ban_check
+  before insert on messages
+  for each row execute function enforce_ban_check();
+
+-- REPORTS: admin बघू शकतो आणि resolve करू शकतो (आधी फक्त insert शक्य होतं, वाचता येत नव्हतं)
+drop policy if exists "admin सगळे reports बघू शकतो" on reports;
+create policy "admin सगळे reports बघू शकतो"
+  on reports for select using (is_platform_admin(auth.uid()));
+
+drop policy if exists "admin report resolve करू शकतो" on reports;
+create policy "admin report resolve करू शकतो"
+  on reports for update using (is_platform_admin(auth.uid()));
+
+-- ADMIN STATS — फक्त मोजणी (counts) देणारं function, संपूर्ण private मेसेज कंटेंट उघड करत नाही
+create or replace function admin_get_stats()
+returns table(total_users bigint, total_messages bigint, total_conversations bigint, total_reports_open bigint)
+language plpgsql security definer stable as $$
+begin
+  if not is_platform_admin(auth.uid()) then
+    raise exception 'Admin access आवश्यक';
+  end if;
+  return query select
+    (select count(*) from profiles)::bigint,
+    (select count(*) from messages where deleted = false)::bigint,
+    (select count(*) from conversations)::bigint,
+    (select count(*) from reports where status = 'open')::bigint;
+end;
+$$;
+
+-- 26) STORIES (24 तासांनी आपोआप गायब होणाऱ्या पोस्ट्स)
+create table if not exists stories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade,
+  media_url text,
+  media_type text, -- image | text
+  text_content text,
+  bg_color text default '#6366f1',
+  created_at timestamptz default now(),
+  expires_at timestamptz default (now() + interval '24 hours')
+);
+alter table stories enable row level security;
+
+-- दोन व्यक्तींमध्ये direct conversation असेल तरच ते "contacts" — त्यांनाच एकमेकांच्या stories दिसतात
+create or replace function are_contacts(a uuid, b uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from conversation_members m1
+    join conversation_members m2 on m1.conversation_id = m2.conversation_id
+    join conversations c on c.id = m1.conversation_id
+    where c.type = 'direct' and m1.user_id = a and m2.user_id = b
+  );
+$$;
+
+drop policy if exists "स्वतःची आणि contacts ची stories बघू शकतो" on stories;
+create policy "स्वतःची आणि contacts ची stories बघू शकतो"
+  on stories for select using (
+    user_id = auth.uid() or are_contacts(auth.uid(), user_id)
+  );
+
+drop policy if exists "स्वतःची story टाकू शकतो" on stories;
+create policy "स्वतःची story टाकू शकतो"
+  on stories for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःची story काढू शकतो" on stories;
+create policy "स्वतःची story काढू शकतो"
+  on stories for delete using (auth.uid() = user_id);
+
+-- कोणी बघितलं (Seen by) — फक्त owner ला दिसतं
+create table if not exists story_views (
+  story_id uuid references stories(id) on delete cascade,
+  viewer_id uuid references profiles(id) on delete cascade,
+  viewed_at timestamptz default now(),
+  primary key (story_id, viewer_id)
+);
+alter table story_views enable row level security;
+
+drop policy if exists "story च्या मालकाला/स्वतःला view दिसतं" on story_views;
+create policy "story च्या मालकाला/स्वतःला view दिसतं"
+  on story_views for select using (
+    viewer_id = auth.uid() or exists (select 1 from stories s where s.id = story_id and s.user_id = auth.uid())
+  );
+
+drop policy if exists "स्वतःचा view टाकू शकतो" on story_views;
+create policy "स्वतःचा view टाकू शकतो"
+  on story_views for insert with check (auth.uid() = viewer_id);
+
+-- 24 तासांनी आपोआप साफसफाई (आधीच्या cleanup_expired_messages सोबतच होईल असं जोडतो)
+create or replace function cleanup_expired_stories()
+returns void language plpgsql security definer as $$
+begin
+  delete from storage.objects
+  where bucket_id = 'chat-media'
+    and name in (
+      select substring(media_url from '/chat-media/(.*)$')
+      from stories where expires_at < now() and media_url is not null
+    );
+  delete from stories where expires_at < now();
+end;
+$$;
+
+do $$
+begin
+  perform cron.schedule('cleanup-expired-stories', '0 * * * *', 'select cleanup_expired_stories();');
+exception when others then
+  raise notice 'pg_cron आधीच सेटअप नसेल तर हे स्किप झालं — messages cleanup साठीच्या सूचना बघा';
+end $$;
+
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'stories') then
+    alter publication supabase_realtime add table stories;
+  end if;
+end $$;
+
+-- 27) SHORT VIDEOS (Reels-स्टाईल — सार्वजनिक feed, सगळ्या लॉगिन केलेल्यांना दिसतं)
+create table if not exists short_videos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade,
+  video_url text not null,
+  caption text,
+  created_at timestamptz default now()
+);
+alter table short_videos enable row level security;
+
+drop policy if exists "लॉगिन केलेले सगळे short videos बघू शकतात" on short_videos;
+create policy "लॉगिन केलेले सगळे short videos बघू शकतात"
+  on short_videos for select using (auth.uid() is not null);
+
+drop policy if exists "स्वतःचा video टाकू शकतो" on short_videos;
+create policy "स्वतःचा video टाकू शकतो"
+  on short_videos for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचा video काढू शकतो" on short_videos;
+create policy "स्वतःचा video काढू शकतो"
+  on short_videos for delete using (auth.uid() = user_id or is_platform_admin(auth.uid()));
+
+create table if not exists video_likes (
+  video_id uuid references short_videos(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  created_at timestamptz default now(),
+  primary key (video_id, user_id)
+);
+alter table video_likes enable row level security;
+
+drop policy if exists "सगळे likes बघू शकतात" on video_likes;
+create policy "सगळे likes बघू शकतात"
+  on video_likes for select using (auth.uid() is not null);
+
+drop policy if exists "स्वतः like करू शकतो" on video_likes;
+create policy "स्वतः like करू शकतो"
+  on video_likes for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचा like काढू शकतो" on video_likes;
+create policy "स्वतःचा like काढू शकतो"
+  on video_likes for delete using (auth.uid() = user_id);
+
+create table if not exists video_comments (
+  id uuid primary key default gen_random_uuid(),
+  video_id uuid references short_videos(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  content text not null,
+  created_at timestamptz default now()
+);
+alter table video_comments enable row level security;
+
+drop policy if exists "सगळे comments बघू शकतात" on video_comments;
+create policy "सगळे comments बघू शकतात"
+  on video_comments for select using (auth.uid() is not null);
+
+drop policy if exists "स्वतः comment करू शकतो" on video_comments;
+create policy "स्वतः comment करू शकतो"
+  on video_comments for insert with check (auth.uid() = user_id);
+
+drop policy if exists "स्वतःचा comment काढू शकतो" on video_comments;
+create policy "स्वतःचा comment काढू शकतो"
+  on video_comments for delete using (auth.uid() = user_id);
+
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'video_likes') then
+    alter publication supabase_realtime add table video_likes;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'video_comments') then
+    alter publication supabase_realtime add table video_comments;
+  end if;
+end $$;

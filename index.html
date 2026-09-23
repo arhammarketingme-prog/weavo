@@ -1,0 +1,3269 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Weavo — One World. One Communication Layer.</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
+<link rel="manifest" href="manifest.json" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<!-- Inter हा Google Fonts वरून, SIL Open Font License अंतर्गत मोफत आणि कायदेशीर वापरता येणारा font आहे -->
+<meta name="theme-color" content="#6366f1" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="config.js"></script>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
+    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f; --radius: 16px;
+    --input-bg: #10121a; --border: #22252e;
+  }
+  body.light {
+    --bg: #f4f5f7; --panel: #ffffff; --accent: #6366f1; --accent-soft: #6366f11a;
+    --text: #14161c; --muted: #6b7280; --bubble-me: #6366f1; --bubble-them: #eceef2;
+    --input-bg: #f0f1f4; --border: #e5e7eb;
+  }
+  body.light .bubble.them { color: #14161c; }
+  body.light .call-box, body.light #group-info-panel, body.light #discover-panel, body.light #discover-business-panel,
+  body.light #new-group, body.light #new-channel, body.light #settings-panel, body.light #direct-info-panel,
+  body.light #disappear-panel, body.light .archived-toggle, body.light .reaction-picker { background: var(--panel); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
+  #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
+  .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; box-shadow: 0 14px 34px rgba(32,201,189,.28); }
+  #auth-screen h1 { text-align:center; font-size:25px; margin: 0 0 5px; }
+  .auth-switch { display:flex; gap:4px; padding:4px; margin: 2px 0 12px; border:1px solid var(--border); border-radius:14px; background:var(--input-bg); }
+  .auth-tab { flex:1; width:auto; margin:0; padding:10px; border-radius:10px; background:transparent; color:var(--muted); }
+  .auth-tab.active { background:var(--accent); color:#fff; }
+  .auth-or { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px; }
+  .auth-or:before,.auth-or:after { content:""; flex:1; height:1px; background:var(--border); }
+  .passkey-btn { background: var(--input-bg); color: var(--accent); border:1px solid var(--accent-soft); }
+  .passkey-btn:hover { background:var(--accent-soft); }
+  #auth-screen .secondary { margin-top:10px; }
+
+  #auth-screen h1 { font-size: 22px; margin: 0 0 4px; }
+  #auth-screen p.tag { color: var(--muted); margin: 0 0 24px; font-size: 13px; }
+  input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
+  input:focus { outline: none; border-color: var(--accent); }
+  button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
+  button.secondary { background: transparent; color: var(--accent); margin-top: 8px; }
+  #error { color: #f87171; font-size: 13px; min-height: 16px; margin-top: 8px; }
+  #app { display: none; width: 100%; height: 100vh; }
+  #app.active { display: flex; }
+  #sidebar { width: 280px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  #back-btn { display: none; }
+
+  /* ---------- MOBILE RESPONSIVE (list ↔ chat toggle, फोन ॲप्ससारखं) ---------- */
+  @media (max-width: 768px) {
+    #sidebar { width: 100%; }
+    #chat-area { width: 100%; }
+    #app.chat-open #sidebar { display: none; }
+    #app:not(.chat-open) #chat-area { display: none; }
+    #back-btn { display: inline-flex !important; }
+    .call-box.wide { width: 92vw; }
+    .video-tile { width: 44vw; }
+  }
+  #me-bar { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  #me-bar .left { display: flex; align-items: center; gap: 10px; }
+  #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; overflow: hidden; flex-shrink: 0; }
+  #me-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  #me-bar .name { font-weight: 600; }
+  #me-bar .right { display: flex; align-items: center; gap: 4px; }
+  #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; }
+  #settings-panel { display: none; padding: 14px 16px; background: #14161c; border-bottom: 1px solid var(--border); }
+  #settings-panel label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .settings-row { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .settings-label { font-size: 12px; color: var(--muted); }
+  #settings-panel select, #settings-panel textarea, #business-fields input, #business-fields textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 13px; }
+  #settings-panel button, #business-fields button { width: auto; padding: 8px 14px; margin-top: 6px; align-self: flex-start; }
+  #business-fields { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .typing-indicator { padding: 4px 20px; font-size: 12px; color: var(--muted); font-style: italic; }
+  .last-seen { font-size: 11px; color: var(--muted); font-weight: 400; }
+  #global-search-wrap { padding: 10px 16px; border-bottom: 1px solid var(--border); position: relative; }
+  #global-search-input { width: 100%; margin: 0; }
+  #global-search-results { position: absolute; left: 16px; right: 16px; top: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-top: 4px; max-height: 300px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 30px #0006; }
+  .gs-section { padding: 6px 12px; font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .gs-item { padding: 8px 12px; cursor: pointer; font-size: 13px; }
+  .gs-item:hover { background: var(--accent-soft); }
+  #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
+  #new-chat input { margin: 0; }
+  #new-chat button { width: auto; padding: 10px 14px; }
+  #tab-row { padding: 8px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; }
+  .link-btn { width: auto; background: transparent; color: var(--accent); padding: 4px 0; font-size: 12px; text-align: left; margin: 0; }
+  #new-group, #new-channel { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+  #new-group input, #new-channel input { margin: 0; }
+  #new-group button, #new-channel button { width: auto; padding: 8px 14px; align-self: flex-start; }
+  #discover-panel { padding: 12px 16px; border-bottom: 1px solid var(--border); max-height: 220px; overflow-y: auto; }
+  .disc-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .disc-item button { width: auto; padding: 5px 10px; font-size: 12px; margin: 0; }
+  .disc-empty { font-size: 12px; color: var(--muted); }
+  .biz-card { border-bottom: 1px solid var(--border); padding: 10px 0; font-size: 13px; }
+  .biz-name { font-weight: 600; }
+  .biz-cat { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .biz-line { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .biz-desc { margin-top: 4px; font-size: 12px; }
+  .biz-chat { width: auto; padding: 6px 12px; font-size: 12px; margin-top: 8px; }
+  .biz-photo { width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 6px; }
+  .biz-payment { color: #22c55e; font-weight: 600; }
+  .admin-tabs { display: flex; gap: 6px; margin-top: 10px; border-bottom: 1px solid var(--border); }
+  .admin-tab { width: auto; background: transparent; color: var(--muted); padding: 8px 14px; margin: 0; border-radius: 0; font-weight: 600; }
+  .admin-tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+  .admin-stat { display: flex; justify-content: space-between; padding: 10px 4px; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .admin-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--border); font-size: 13px; gap: 8px; }
+  .admin-action-btn { width: auto; padding: 5px 10px; font-size: 12px; margin: 0; background: #ef4444; }
+  .admin-tag { font-size: 10px; background: #ffffff14; padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
+  .admin-tag.banned { background: #ef4444; color: white; }
+  .admin-tag.resolved { background: #22c55e; color: white; }
+  .banned-banner { position: fixed; top: 0; left: 0; right: 0; background: #ef4444; color: white; text-align: center; padding: 8px; font-size: 13px; z-index: 2000; }
+  .story-swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: inline-block; border: 2px solid transparent; }
+  .story-swatch.picked { border-color: white; }
+  .story-view-box { width: min(92vw, 380px); height: min(80vh, 640px); background: #000; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .story-header { color: white; padding: 12px; font-size: 13px; background: linear-gradient(#0008, transparent); position: absolute; top: 0; left: 0; right: 0; z-index: 2; }
+  .story-media { width: 100%; height: 100%; object-fit: contain; margin: auto; }
+  .story-text { color: white; font-size: 24px; font-weight: 600; text-align: center; padding: 40px; margin: auto; }
+  .story-nav { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between; padding: 10px; background: linear-gradient(transparent, #0008); }
+  .story-nav button { width: auto; background: #ffffff22; color: white; padding: 8px 12px; margin: 0; border-radius: 8px; }
+
+  /* ---------- SHORT VIDEOS (Reels) ---------- */
+  .reels-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: #000; }
+  .reels-topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; color: white; font-weight: 600; z-index: 5; }
+  .reels-feed { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; }
+  .reel-item { position: relative; width: 100%; height: 100%; scroll-snap-align: start; display: flex; align-items: center; justify-content: center; }
+  .reel-video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .reel-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; background: linear-gradient(transparent, #000a); color: white; }
+  .reel-caption { font-size: 14px; margin-bottom: 10px; }
+  .reel-actions { display: flex; gap: 12px; }
+  .reel-like-btn, .reel-comment-btn { width: auto; background: #ffffff22; color: white; padding: 8px 14px; margin: 0; border-radius: 20px; font-size: 13px; }
+  .reel-like-btn.liked { background: #ef4444; }
+  .discover-sort-row { display: flex; align-items: center; gap: 8px; }
+  .sort-btn { width: auto; background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; margin: 0; border-radius: 16px; font-size: 12px; }
+  .sort-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .discover-why { font-size: 11px; color: var(--muted); font-style: italic; margin-bottom: 8px; }
+  .my-qr-img { display: block; margin: 14px auto; border-radius: 10px; background: white; padding: 8px; }
+  .readonly-note { padding: 12px 20px; text-align: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
+
+  /* ---------- CALLING ---------- */
+  .call-overlay { position: fixed; inset: 0; background: rgba(10,11,15,0.92); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .call-box { background: var(--panel); padding: 32px; border-radius: 20px; text-align: center; width: 300px; box-shadow: 0 20px 60px #0008; }
+  .call-box.wide { width: min(90vw, 480px); }
+  .call-avatar { font-size: 48px; margin-bottom: 12px; }
+  .call-name { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .call-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .call-btn-row { display: flex; gap: 16px; justify-content: center; }
+  .call-btn { width: auto; padding: 12px 24px; border-radius: 24px; font-weight: 600; }
+  .call-btn.accept { background: #22c55e; }
+  .call-btn.decline { background: #ef4444; }
+  .video-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; justify-content: center; }
+  .video-tile { position: relative; width: 160px; }
+  .video-tile video { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 10px; object-fit: cover; }
+  .call-overlay.audio-only .video-tile video { display: none; }
+  .call-overlay.audio-only .video-tile { width: 60px; height: 60px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .call-icon-btn { width: 52px; height: 52px; border-radius: 50%; font-size: 20px; background: var(--border); margin: 0; padding: 0; }
+  .call-icon-btn.hangup { background: #ef4444; }
+  .call-icon-btn.muted { background: #ef4444; }
+
+  /* ---------- EDIT / TICKS / REACTIONS ---------- */
+  .edit-input { background: #0d0f14; border: 1px solid var(--accent); color: white; border-radius: 6px; padding: 4px 8px; font-size: 14px; width: 160px; }
+  .edit-save { width: auto; padding: 4px 10px; font-size: 12px; margin-left: 4px; }
+  .edited-tag { font-size: 11px; opacity: 0.6; font-style: italic; }
+  .tick { font-size: 11px; margin-left: 4px; opacity: 0.7; }
+  .tick.read { color: #60a5fa; opacity: 1; }
+  .reaction-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .pill { background: var(--bubble-them); border-radius: 10px; padding: 1px 7px; font-size: 12px; cursor: pointer; }
+  .pill.mine { background: var(--accent); }
+  .reaction-picker { position: absolute; bottom: 100%; right: 0; background: var(--bubble-them); border-radius: 20px; padding: 6px 10px; display: flex; gap: 6px; box-shadow: 0 8px 24px #0008; margin-bottom: 4px; z-index: 5; }
+  .pick-emoji { cursor: pointer; font-size: 18px; }
+  .pick-emoji:hover { transform: scale(1.2); }
+  #conv-list { flex: 1; overflow-y: auto; }
+  .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
+  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; overflow: hidden; flex-shrink: 0; }
+  .conv-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .conv-text { flex: 1; min-width: 0; }
+  .conv-item .who { font-weight: 600; font-size: 14px; }
+  .conv-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .unread-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .archived-toggle { padding: 10px 16px; font-size: 12px; color: var(--muted); cursor: pointer; border-top: 1px solid var(--border); }
+  .archived-toggle:hover { background: var(--accent-soft); }
+  #chat-area { flex: 1; display: flex; flex-direction: column; }
+  #chat-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .header-title-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .header-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-actions { display: flex; gap: 4px; }
+  #disappear-panel { background: #14161c; border-bottom: 1px solid var(--border); padding: 14px 20px; }
+  .disappear-opt { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); padding: 8px 4px; font-weight: 400; margin: 0; }
+  .disappear-opt:hover { background: var(--accent-soft); }
+  .icon-btn { width: auto; background: transparent; padding: 6px 10px; font-size: 16px; margin: 0; }
+  .icon-btn.active-toggle { background: var(--accent-soft); border-radius: 8px; }
+  #search-box { padding: 8px 16px; border-bottom: 1px solid var(--border); }
+  #search-box input { margin: 0; width: 100%; }
+  #group-info-panel { background: #14161c; border-bottom: 1px solid var(--border); padding: 14px 20px; max-height: 240px; overflow-y: auto; }
+  .gi-title { font-weight: 600; margin-bottom: 8px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+  .gi-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; }
+  .gi-remove { width: auto; background: #3a1f24; color: #f87171; padding: 4px 10px; font-size: 12px; margin: 0; }
+  .gi-add { display: flex; gap: 6px; margin-top: 10px; }
+  .gi-add input { margin: 0; flex: 1; }
+  .gi-add button { width: auto; padding: 8px 12px; }
+  .di-action { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); padding: 10px 4px; font-weight: 400; margin: 0; border-top: 1px solid var(--border); }
+  .di-action:hover { background: var(--accent-soft); }
+  #direct-info-panel { background: #14161c; border-bottom: 1px solid var(--border); padding: 14px 20px; }
+  #reply-preview { padding: 8px 20px; background: var(--border); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .reply-text { font-size: 12px; color: var(--muted); }
+  #cancel-reply { width: auto; background: transparent; color: var(--muted); padding: 2px 8px; margin: 0; }
+  .reply-quote { font-size: 11px; opacity: 0.7; border-left: 2px solid var(--accent); padding-left: 6px; margin-bottom: 4px; }
+  .msg-image { max-width: 220px; border-radius: 10px; display: block; cursor: pointer; margin-bottom: 4px; }
+  .msg-audio { max-width: 220px; height: 36px; }
+  .location-preview { width: 220px; height: 140px; border: none; border-radius: 10px; display: block; margin-bottom: 4px; }
+  .contact-card { background: #ffffff14; border-radius: 8px; padding: 10px; min-width: 160px; }
+  .poll-box { min-width: 200px; }
+  .poll-question { font-weight: 600; margin-bottom: 8px; }
+  .poll-multi-tag { font-weight: 400; font-size: 11px; opacity: 0.7; }
+  .poll-option { position: relative; background: #ffffff14; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; overflow: hidden; }
+  .poll-option.voted { outline: 2px solid var(--accent); }
+  .poll-bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-soft); z-index: 0; transition: width 0.3s; }
+  .poll-label, .poll-count { position: relative; z-index: 1; }
+  .poll-count { float: right; font-size: 11px; opacity: 0.7; }
+  #mic-btn.recording { background: #ef4444; color: white; }
+  #recording-indicator { color: #ef4444; font-size: 13px; display: flex; align-items: center; padding: 0 6px; white-space: nowrap; }
+  .msg-file { color: inherit; text-decoration: underline; font-size: 13px; }
+  .caption { margin-top: 4px; }
+  .bubble { position: relative; }
+  .bubble-actions { display: none; position: absolute; top: -22px; right: 4px; gap: 6px; background: var(--border); border-radius: 8px; padding: 2px 6px; font-size: 12px; }
+  .bubble:hover .bubble-actions { display: flex; }
+  .bubble-actions span { cursor: pointer; opacity: 0.8; }
+  .bubble-actions span:hover { opacity: 1; }
+  .act-star.starred { opacity: 1; filter: drop-shadow(0 0 2px gold); }
+  .star-marker { position: absolute; top: -6px; left: -6px; font-size: 11px; }
+  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 60%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
+  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
+  .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
+  .bubble .time { display: block; font-size: 10px; opacity: 0.6; margin-top: 4px; }
+  .bubble .sender { display: block; font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 3px; }
+  #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; position: relative; }
+  #emoji-picker-box { position: absolute; bottom: 100%; left: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 8px; margin-bottom: 6px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; width: 260px; box-shadow: 0 10px 30px #0006; z-index: 10; }
+  #emoji-picker-box span { cursor: pointer; font-size: 18px; text-align: center; padding: 2px; border-radius: 4px; }
+  #emoji-picker-box span:hover { background: var(--accent-soft); }
+  #plus-menu { position: absolute; bottom: 100%; left: 60px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 6px; box-shadow: 0 10px 30px #0006; z-index: 10; display: flex; flex-direction: column; }
+  #plus-menu button { width: auto; background: transparent; color: var(--text); padding: 10px 16px; text-align: left; font-weight: 400; margin: 0; }
+  #plus-menu button:hover { background: var(--accent-soft); }
+  #composer input { margin: 0; flex: 1; }
+  #composer button { width: auto; padding: 12px 20px; }
+  #empty-state { margin: auto; color: var(--muted); text-align: center; }
+
+
+  /* =========================================================
+     WEAVO 2026 PREMIUM UI — visual rebuild layer
+     Keeps existing IDs / JS hooks intact.
+     ========================================================= */
+  :root {
+    --bg:#f3f6f8;
+    --panel:#ffffff;
+    --panel-2:#f8fafb;
+    --accent:#0b8f87;
+    --accent-2:#16b8a9;
+    --accent-soft:rgba(11,143,135,.10);
+    --accent-glow:rgba(22,184,169,.22);
+    --text:#172126;
+    --muted:#738188;
+    --bubble-me:#0b8f87;
+    --bubble-them:#ffffff;
+    --input-bg:#f2f5f6;
+    --border:#e4eaed;
+    --radius:18px;
+    --shadow:0 12px 40px rgba(26,52,58,.08);
+  }
+  body:not(.light){
+    --bg:#081214; --panel:#101b1e; --panel-2:#0d1719;
+    --accent:#22c7b7; --accent-2:#4be0d1; --accent-soft:rgba(34,199,183,.11);
+    --accent-glow:rgba(34,199,183,.18); --text:#edf7f6; --muted:#91a7a8;
+    --bubble-me:#0c827b; --bubble-them:#172326; --input-bg:#0d181b; --border:#223336;
+    --shadow:0 18px 60px rgba(0,0,0,.28);
+  }
+  body.light{background:var(--bg)}
+  html,body{overflow:hidden}
+  body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;letter-spacing:-.01em}
+  button,input,textarea,select{font-family:inherit}
+  button{transition:transform .16s ease,box-shadow .16s ease,background .16s ease,opacity .16s ease}
+  button:active{transform:scale(.97)}
+  ::-webkit-scrollbar{width:7px;height:7px}
+  ::-webkit-scrollbar-thumb{background:rgba(127,148,151,.24);border-radius:99px}
+
+  #auth-screen{
+    width:min(410px,calc(100vw - 32px)); padding:38px 34px;
+    border:1px solid var(--border); border-radius:28px; background:var(--panel);
+    box-shadow:0 30px 90px rgba(5,30,34,.18); position:relative; overflow:hidden;
+  }
+  #auth-screen:before{content:"";position:absolute;inset:-80px -80px auto auto;width:210px;height:210px;background:radial-gradient(circle,var(--accent-glow),transparent 68%);pointer-events:none}
+  #auth-screen h1{font-size:34px;letter-spacing:-.05em;margin:0;font-weight:800;background:linear-gradient(120deg,var(--accent),var(--accent-2));-webkit-background-clip:text;color:transparent}
+  #auth-screen p.tag{font-size:13px;margin:4px 0 28px;color:var(--muted)}
+  #auth-screen input{height:50px;border-radius:15px;background:var(--input-bg);border:1px solid transparent;padding:0 15px;margin-bottom:10px}
+  #auth-screen input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  #auth-screen button{height:50px;border-radius:15px;margin-top:7px;box-shadow:0 8px 22px var(--accent-glow)}
+
+  #app{background:var(--bg);gap:0}
+  #sidebar{width:370px;background:var(--panel);border-right:1px solid var(--border);box-shadow:8px 0 30px rgba(0,0,0,.025);position:relative;z-index:3}
+  #me-bar{height:72px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--panel);}
+  #me-avatar,.conv-avatar{box-shadow:0 0 0 2px var(--panel),0 0 0 3px var(--accent-soft)}
+  #me-avatar{width:44px;height:44px;background:linear-gradient(135deg,var(--accent),var(--accent-2));font-size:16px}
+  #me-bar .name{font-size:14px;font-weight:750}
+  #me-bar .left:after{content:"Private • Fast • Simple";display:block;font-size:10px;color:var(--muted);margin-left:0;margin-top:1px}
+  #me-bar .left{gap:12px}
+  #me-bar .right{gap:3px}
+  .icon-btn{width:40px!important;height:40px;padding:0!important;border-radius:12px!important;color:var(--muted)!important}
+  .icon-btn:hover{background:var(--accent-soft)!important;color:var(--accent)!important}
+  #me-bar button.logout{height:38px;border-radius:12px;background:var(--input-bg);padding:0 11px;font-weight:650}
+
+  #global-search-wrap{padding:12px 16px 10px;border:0;background:var(--panel)}
+  #global-search-input{height:46px;border:1px solid transparent;background:var(--input-bg);border-radius:15px;padding-left:42px;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
+  #global-search-wrap:before{content:"⌕";position:absolute;z-index:2;margin:11px 0 0 15px;color:var(--muted);font-size:21px}
+  #new-chat{padding:4px 16px 12px;border:0;background:var(--panel)}
+  #new-chat input{height:42px;margin:0;border-radius:13px;background:var(--input-bg);border:1px solid transparent;font-size:13px}
+  #new-chat button{height:42px;border-radius:13px;padding:0 16px;box-shadow:0 6px 18px var(--accent-glow)}
+  #tab-row{padding:4px 14px 10px;border:0;display:flex;flex-direction:row;overflow-x:auto;gap:6px;scrollbar-width:none}
+  #tab-row::-webkit-scrollbar{display:none}
+  .link-btn{white-space:nowrap;background:var(--input-bg)!important;color:var(--muted)!important;border-radius:999px!important;padding:8px 11px!important;font-size:11px!important;border:1px solid transparent!important}
+  .link-btn:hover{color:var(--accent)!important;border-color:var(--accent-soft)!important;background:var(--accent-soft)!important}
+  #conv-list{padding:4px 8px 16px}
+  .conv-item{border:0;border-radius:16px;margin:2px 0;padding:11px 10px;gap:12px}
+  .conv-item:hover{background:var(--input-bg)}
+  .conv-item.active{background:linear-gradient(90deg,var(--accent-soft),transparent);box-shadow:inset 3px 0 0 var(--accent)}
+  .conv-avatar{width:50px;height:50px;font-size:17px;background:linear-gradient(135deg,var(--accent),#3cbbb1)}
+  .conv-item .who{font-size:14px;font-weight:720}
+  .conv-item .preview{font-size:12px;margin-top:4px}
+  .unread-dot{width:8px;height:8px;box-shadow:0 0 0 4px var(--accent-soft)}
+
+  #chat-area{position:relative;background:var(--panel-2);min-width:0}
+  #chat-area:before{content:"";position:absolute;inset:0;opacity:.22;pointer-events:none;background-image:radial-gradient(circle at 20% 20%,var(--accent-soft) 0 1px,transparent 1px),radial-gradient(circle at 80% 70%,var(--accent-soft) 0 1px,transparent 1px);background-size:34px 34px}
+  #chat-header{height:72px;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--border);position:relative;z-index:2;box-shadow:0 3px 18px rgba(0,0,0,.025)}
+  #back-btn{width:40px!important;height:40px;padding:0!important;border-radius:12px!important;background:var(--input-bg)!important;color:var(--text)!important}
+  .header-title{font-size:15px;font-weight:780}
+  .last-seen{font-size:11px;margin-top:2px}
+  .header-actions .icon-btn{font-size:17px}
+  #messages{position:relative;z-index:1;padding:22px clamp(14px,4vw,52px);gap:7px;scroll-behavior:smooth}
+  #messages:after{content:"";height:8px;flex-shrink:0}
+  .bubble{max-width:min(68%,620px);padding:10px 13px;border-radius:18px;font-size:14px;line-height:1.48;box-shadow:0 2px 10px rgba(20,40,44,.045);animation:weavoIn .18s ease-out}
+  @keyframes weavoIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .bubble.me{background:linear-gradient(135deg,var(--bubble-me),#0b9f94);border-bottom-right-radius:6px;box-shadow:0 5px 16px rgba(11,143,135,.13)}
+  .bubble.them{background:var(--bubble-them);border:1px solid var(--border);border-bottom-left-radius:6px}
+  .bubble .time{font-size:10px;margin-top:5px}
+  .bubble .sender{color:var(--accent);font-size:11px}
+  .tick.read{color:#8de9e0}
+
+  #composer{padding:10px 14px max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--panel);gap:7px;z-index:3;box-shadow:0 -8px 25px rgba(0,0,0,.025)}
+  #composer input{height:48px;border-radius:18px;background:var(--input-bg);border:1px solid transparent;padding:0 15px;font-size:14px}
+  #composer input:focus{border-color:var(--accent-soft);box-shadow:0 0 0 4px var(--accent-soft)}
+  #composer button{height:46px;min-width:46px;border-radius:16px;padding:0 14px;box-shadow:0 7px 18px var(--accent-glow)}
+  #composer .icon-btn{box-shadow:none;background:var(--input-bg);color:var(--muted);min-width:42px}
+  #composer .icon-btn:hover{color:var(--accent);background:var(--accent-soft)}
+  #empty-state{position:relative;z-index:1;padding:28px;color:var(--muted);font-size:14px}
+  #empty-state:before{content:"W";display:flex;width:72px;height:72px;margin:0 auto 16px;align-items:center;justify-content:center;border-radius:24px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:white;font-weight:850;font-size:30px;box-shadow:0 18px 40px var(--accent-glow)}
+
+  #settings-panel,#discover-panel,#discover-business-panel,#new-group,#new-channel,#group-info-panel,#direct-info-panel,#disappear-panel{background:var(--panel)!important}
+  #settings-panel{padding:14px 16px}
+  #global-search-results{border-radius:16px;box-shadow:var(--shadow)}
+  .reaction-picker,#emoji-picker-box,#plus-menu{border:1px solid var(--border);box-shadow:var(--shadow);background:var(--panel)}
+  .reaction-picker{border-radius:999px}
+
+  .call-overlay{backdrop-filter:blur(18px);background:rgba(4,15,17,.78)}
+  .call-box{border:1px solid var(--border);background:var(--panel);border-radius:28px;box-shadow:0 30px 90px rgba(0,0,0,.35)}
+
+  @media (min-width:1200px){#sidebar{width:390px}.bubble{max-width:62%}}
+  @media (max-width:768px){
+    #app{height:100dvh}
+    #sidebar{width:100%;border:0}
+    #me-bar{height:68px;padding:10px 14px}
+    #global-search-wrap{padding:10px 12px 7px}
+    #new-chat{padding:3px 12px 9px}
+    #tab-row{padding:2px 10px 8px}
+    #conv-list{padding:3px 7px calc(14px + env(safe-area-inset-bottom))}
+    .conv-item{padding:10px 9px;border-radius:15px}
+    .conv-avatar{width:48px;height:48px}
+    #chat-header{height:64px;padding:8px 10px}
+    #messages{padding:14px 10px 12px}
+    .bubble{max-width:82%;font-size:14px;padding:9px 12px;border-radius:17px}
+    #composer{padding:8px 9px max(9px,env(safe-area-inset-bottom));gap:5px}
+    #composer input{height:46px;border-radius:17px}
+    #composer button{height:44px;min-width:44px;padding:0 12px}
+    #composer .icon-btn{min-width:40px}
+    .header-actions{gap:0}
+    .header-actions .icon-btn{width:38px!important}
+  }
+  @media (max-width:390px){
+    #me-bar .right .logout{font-size:0;width:38px;padding:0}
+    #me-bar .right .logout:after{content:"↪";font-size:18px}
+    .link-btn{padding:7px 9px!important}
+  }
+
+
+  /* =========================================================
+     LANDING PAGE — पहिली, marketing/hero screen (login च्याही आधी)
+     ========================================================= */
+  #landing { width: 100%; height: 100vh; overflow-y: auto; background: var(--bg); }
+  .landing-nav { display: flex; align-items: center; justify-content: space-between; padding: 20px clamp(20px, 6vw, 64px); position: sticky; top: 0; background: var(--bg); z-index: 10; border-bottom: 1px solid var(--border); }
+  .landing-logo { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .landing-logo-mark { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; box-shadow: 0 8px 22px var(--accent-glow); }
+  .landing-nav-actions { display: flex; gap: 10px; }
+  .landing-btn-primary, .landing-btn-ghost { border-radius: 14px; padding: 11px 20px; font-weight: 700; font-size: 14px; cursor: pointer; border: none; transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease; }
+  .landing-btn-primary { background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: white; box-shadow: 0 10px 26px var(--accent-glow); }
+  .landing-btn-primary:hover { transform: translateY(-1px); }
+  .landing-btn-primary:active { transform: scale(.97); }
+  .landing-btn-ghost { background: var(--input-bg); color: var(--text); }
+  .landing-btn-ghost:hover { background: var(--accent-soft); color: var(--accent); }
+  .landing-btn-lg { padding: 15px 28px; font-size: 15px; border-radius: 16px; }
+
+  .landing-hero { max-width: 760px; margin: 0 auto; text-align: center; padding: clamp(50px, 10vh, 110px) 20px 60px; }
+  .landing-badge { display: inline-block; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--input-bg); border: 1px solid var(--border); padding: 7px 16px; border-radius: 999px; margin-bottom: 24px; }
+  .landing-h1 { font-size: clamp(32px, 6vw, 56px); font-weight: 800; letter-spacing: -0.04em; line-height: 1.08; margin: 0 0 18px; background: linear-gradient(120deg, var(--text), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .landing-sub { font-size: clamp(15px, 2vw, 18px); color: var(--muted); line-height: 1.55; max-width: 560px; margin: 0 auto 34px; }
+  .landing-cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  .landing-features { max-width: 1080px; margin: 0 auto; padding: 20px 20px 80px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  .landing-feature-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px 22px; box-shadow: var(--shadow); transition: transform .2s ease; }
+  .landing-feature-card:hover { transform: translateY(-3px); }
+  .landing-feature-icon { font-size: 30px; margin-bottom: 12px; }
+  .landing-feature-title { font-weight: 750; font-size: 16px; margin-bottom: 8px; color: var(--text); }
+  .landing-feature-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  .landing-footer-cta { text-align: center; padding: 60px 20px 90px; border-top: 1px solid var(--border); }
+  .landing-h2 { font-size: clamp(22px, 4vw, 32px); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 22px; color: var(--text); }
+
+  @media (max-width: 600px) {
+    .landing-nav-actions .landing-btn-ghost { display: none; }
+    .landing-cta-row { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+
+<div id="landing">
+  <div class="landing-nav">
+    <div class="landing-logo"><span class="landing-logo-mark">W</span> Weavo</div>
+    <div class="landing-nav-actions">
+      <button id="landing-login-btn" class="landing-btn-ghost">Login</button>
+      <button id="landing-getstarted-btn" class="landing-btn-primary">Get Started</button>
+    </div>
+  </div>
+
+  <div class="landing-hero">
+    <div class="landing-badge">🔒 Privacy-first · 💸 Free forever · 🚫 No Ads</div>
+    <h1 class="landing-h1">One World.<br />One Communication Layer.</h1>
+    <p class="landing-sub">Chat. Call. Create Communities. Share Stories &amp; Reels. All in one fast, private platform — built for everyone, everywhere.</p>
+    <div class="landing-cta-row">
+      <button id="landing-hero-getstarted" class="landing-btn-primary landing-btn-lg">Get Started — It's Free</button>
+      <button id="landing-hero-login" class="landing-btn-ghost landing-btn-lg">I already have an account</button>
+    </div>
+  </div>
+
+  <div class="landing-features">
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">💬</div>
+      <div class="landing-feature-title">Real-time Messaging</div>
+      <div class="landing-feature-desc">1:1 chats, groups, and broadcast channels — with reactions, replies, voice notes, and disappearing messages.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">📞</div>
+      <div class="landing-feature-title">Voice &amp; Video Calls</div>
+      <div class="landing-feature-desc">Crystal-clear 1:1 and group calls, direct peer-to-peer — nothing is ever recorded or stored on our servers.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">📸</div>
+      <div class="landing-feature-title">Stories &amp; Reels</div>
+      <div class="landing-feature-desc">Share moments that disappear in 24 hours, or post short videos to a public feed.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">🔐</div>
+      <div class="landing-feature-title">Privacy You Control</div>
+      <div class="landing-feature-desc">Hide your last-seen, read receipts, block anyone — and log in with a Passkey instead of a password.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">🏢</div>
+      <div class="landing-feature-title">Business Directory</div>
+      <div class="landing-feature-desc">Discover local businesses and pay them directly — no middleman, no extra fees.</div>
+    </div>
+    <div class="landing-feature-card">
+      <div class="landing-feature-icon">🧭</div>
+      <div class="landing-feature-title">Discover Everything</div>
+      <div class="landing-feature-desc">Browse public channels, trending videos, and businesses — with full transparency on why you're seeing them.</div>
+    </div>
+  </div>
+
+  <div class="landing-footer-cta">
+    <h2 class="landing-h2">Ready to join?</h2>
+    <button id="landing-footer-getstarted" class="landing-btn-primary landing-btn-lg">Create your free account</button>
+  </div>
+</div>
+
+<div id="auth-screen" style="display:none">
+  <div class="auth-logo">W</div>
+  <h1>Welcome to Weavo</h1>
+  <p class="tag">One World. One Communication Layer.</p>
+  <input id="reg-username" placeholder="Username" autocomplete="username" />
+  <div class="auth-switch" role="tablist" aria-label="Login identifier">
+    <button type="button" id="auth-email-tab" class="auth-tab active">Email</button>
+    <button type="button" id="auth-mobile-tab" class="auth-tab">Mobile</button>
+  </div>
+  <input id="reg-email" placeholder="Email address" autocomplete="username" />
+  <input id="reg-password" type="password" placeholder="Password (किमान 6 अक्षरं)" autocomplete="current-password" />
+  <button id="login-btn">Continue to Weavo</button>
+  <div class="auth-or"><span>OR</span></div>
+  <button id="passkey-login-btn" class="passkey-btn" type="button">🔐 Continue with Passkey</button>
+  <button id="register-btn" class="secondary">नवीन खातं तयार करा</button>
+  <button id="back-to-landing-btn" class="landing-btn-ghost" type="button" style="margin-top:10px;">← Back</button>
+  <div id="error" aria-live="polite"></div>
+</div>
+
+<div id="app">
+  <div id="sidebar">
+    <div id="me-bar">
+      <div class="left">
+        <div id="me-avatar">?</div>
+        <span class="name" id="me-name"></span>
+      </div>
+      <div class="right">
+        <button class="icon-btn" id="settings-btn" title="Settings">⚙</button>
+        <button class="logout" id="logout-btn">Logout</button>
+      </div>
+    </div>
+    <input type="file" id="avatar-input" accept="image/*" style="display:none" />
+    <div id="settings-panel">
+      <label><input type="checkbox" id="hide-last-seen-toggle" /> माझं last-seen लपवा (मग तुम्हालाही इतरांचं दिसणार नाही)</label>
+      <label><input type="checkbox" id="hide-read-receipts-toggle" /> माझ्या Read Receipts (✓✓) लपवा (मग तुम्हालाही इतरांचं दिसणार नाही)</label>
+      <div class="settings-row">
+        <button id="my-qr-btn">📱 माझा QR कोड बघा</button>
+        <button id="scan-qr-btn">📷 QR स्कॅन करून Chat सुरू करा</button>
+      </div>
+      <div class="settings-row">
+        <button id="theme-toggle-btn">🌙 Dark / ☀️ Light बदला</button>
+      </div>
+      <div class="settings-row">
+        <button id="register-passkey-btn">🔐 या device वर Passkey सेट करा</button>
+        <span id="passkey-status" class="settings-label"></span>
+      </div>
+      <div class="settings-row" id="notif-settings-row" style="display:none">
+        <button id="enable-notif-btn">🔔 Push Notifications चालू करा</button>
+        <span id="notif-status" class="settings-label"></span>
+      </div>
+      <div class="settings-row">
+        <label class="settings-label">Account type</label>
+        <select id="account-type-select">
+          <option value="personal">Personal</option>
+          <option value="creator">Creator</option>
+          <option value="business">Business</option>
+        </select>
+      </div>
+      <div id="creator-bio-row" class="settings-row" style="display:none">
+        <label class="settings-label">Bio</label>
+        <textarea id="bio-input" placeholder="स्वतःबद्दल थोडक्यात..." rows="2"></textarea>
+        <button id="save-bio-btn">Save Bio</button>
+      </div>
+      <div id="business-fields" style="display:none">
+        <div class="conv-avatar" id="biz-photo-preview" style="width:56px;height:56px;cursor:pointer;"><span>🏢</span></div>
+        <input type="file" id="biz-photo-input" accept="image/*" style="display:none" />
+        <input id="biz-name" placeholder="Business चं नाव" />
+        <input id="biz-category" placeholder="Category (उदा: Restaurant, Salon)" />
+        <input id="biz-location" placeholder="Location" />
+        <input id="biz-phone" placeholder="Phone" />
+        <input id="biz-website" placeholder="Website (optional)" />
+        <input id="biz-hours" placeholder="वेळ (उदा: 9am-9pm)" />
+        <input id="biz-payment" placeholder="UPI ID / Payment details (customer थेट पाठवतील)" />
+        <textarea id="biz-desc" placeholder="वर्णन" rows="2"></textarea>
+        <button id="save-business-btn">Business Profile Save करा</button>
+      </div>
+    </div>
+    <div id="global-search-wrap">
+      <input id="global-search-input" placeholder="🔍 सगळीकडे शोधा (चॅट्स/लोक)..." />
+      <div id="global-search-results" style="display:none"></div>
+    </div>
+    <div id="new-chat"><input id="new-chat-username" placeholder="username टाका (@ शिवाय)..." /><button id="new-chat-btn">Chat</button></div>
+    <div id="tab-row">
+      <button id="tab-toggle-group" class="link-btn">+ नवीन Group</button>
+      <button id="tab-toggle-channel" class="link-btn">+ नवीन Channel</button>
+      <button id="tab-toggle-business" class="link-btn">🏢 Discover Businesses</button>
+      <button id="tab-toggle-stories" class="link-btn">📸 Stories</button>
+      <button id="tab-toggle-reels" class="link-btn">🎬 Short Videos</button>
+      <button id="tab-toggle-discover-hub" class="link-btn">🧭 Discover (सगळं एकत्र)</button>
+      <button id="tab-toggle-starred" class="link-btn">⭐ Starred Messages</button>
+      <button id="install-app-btn" class="link-btn" style="display:none">📲 App Install करा</button>
+      <button id="admin-panel-btn" class="link-btn" style="display:none">🛡 Admin Panel</button>
+      <button id="tab-toggle-discover" class="link-btn">🔍 Discover Channels</button>
+    </div>
+    <div id="new-group" style="display:none">
+      <input id="group-name" placeholder="Group चं नाव" />
+      <input id="group-usernames" placeholder="usernames, कॉमाने वेगळे (उदा: raj, priya)" />
+      <button id="new-group-btn">Group तयार करा</button>
+    </div>
+    <div id="new-channel" style="display:none">
+      <input id="channel-name" placeholder="Channel चं नाव" />
+      <input id="channel-desc" placeholder="छोटं वर्णन (optional)" />
+      <label style="font-size:12px; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="channel-public" checked /> Public (कोणीही शोधून join करू शकेल)</label>
+      <button id="new-channel-btn">Channel तयार करा</button>
+    </div>
+    <div id="discover-panel" style="display:none"></div>
+    <div id="discover-business-panel" style="display:none"></div>
+    <div id="conv-list"></div>
+  </div>
+  <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
+</div>
+
+<!-- ---------- CALLING (WebRTC) ---------- -->
+<div id="incoming-call-overlay" class="call-overlay" style="display:none">
+  <div class="call-box">
+    <div class="call-avatar">📞</div>
+    <div id="incoming-call-text" class="call-name"></div>
+    <div class="call-sub">Incoming call...</div>
+    <div class="call-btn-row">
+      <button id="decline-call-btn" class="call-btn decline">नकार</button>
+      <button id="accept-call-btn" class="call-btn accept">स्वीकार</button>
+    </div>
+  </div>
+</div>
+
+<div id="active-call-overlay" class="call-overlay" style="display:none">
+  <div class="call-box wide">
+    <div id="call-status" class="call-sub"></div>
+    <div class="video-grid" id="video-grid">
+      <div class="video-tile local-tile"><video id="local-video" autoplay playsinline muted></video></div>
+    </div>
+    <div class="call-btn-row">
+      <button id="mute-btn" class="call-icon-btn" title="Mute">🎙️</button>
+      <button id="camera-btn" class="call-icon-btn" title="Camera">📷</button>
+      <button id="hangup-btn" class="call-icon-btn hangup" title="Hang up">📵</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Theme (Light/Dark) — पेज लोड होताच लागू, auth screen लाही ----------
+if (localStorage.getItem('weavo_theme') === 'light') document.body.classList.add('light');
+
+// ---------- Supabase client ----------
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { experimental: { passkey: true }, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+let me = null;             // { id, username }
+let activeConv = null;
+let messagesChannel = null;
+const $ = (id) => document.getElementById(id);
+$('theme-toggle-btn').onclick = () => {
+  document.body.classList.toggle('light');
+  localStorage.setItem('weavo_theme', document.body.classList.contains('light') ? 'light' : 'dark');
+};
+
+// ---------- LANDING PAGE ----------
+function showAuthFromLanding() {
+  $('landing').style.display = 'none';
+  $('auth-screen').style.display = 'block';
+}
+['landing-login-btn', 'landing-getstarted-btn', 'landing-hero-getstarted', 'landing-hero-login', 'landing-footer-getstarted'].forEach(id => {
+  const el = $(id);
+  if (el) el.onclick = showAuthFromLanding;
+});
+$('back-to-landing-btn').onclick = () => {
+  $('auth-screen').style.display = 'none';
+  $('landing').style.display = 'block';
+};
+
+// ---------- AUTH / PASSKEY ----------
+let authMode = 'email';
+function setAuthMode(mode) {
+  authMode = mode;
+  $('auth-email-tab').classList.toggle('active', mode === 'email');
+  $('auth-mobile-tab').classList.toggle('active', mode === 'mobile');
+  $('reg-email').placeholder = mode === 'email' ? 'Email address' : 'Mobile number (+91)';
+  $('reg-email').inputMode = mode === 'email' ? 'email' : 'tel';
+  $('reg-email').autocomplete = mode === 'email' ? 'username' : 'tel';
+}
+$('auth-email-tab').onclick = () => setAuthMode('email');
+$('auth-mobile-tab').onclick = () => setAuthMode('mobile');
+
+async function signInWithRealPasskey() {
+  $('error').textContent = '';
+  if (!window.PublicKeyCredential || !navigator.credentials) {
+    $('error').textContent = 'या browser/device वर Passkey support उपलब्ध नाही.';
+    return;
+  }
+  try {
+    const { data, error } = await sb.auth.signInWithPasskey();
+    if (error) throw error;
+    if (!data?.session || !data?.user) throw new Error('Passkey sign-in ने session तयार केला नाही.');
+    const { data: profile } = await sb.from('profiles').select('username').eq('id', data.user.id).single();
+    me = { id: data.user.id, username: profile?.username || data.user.email || data.user.phone || 'user' };
+    enterApp();
+  } catch (err) {
+    console.error('Passkey sign-in failed:', err);
+    $('error').textContent = err?.message || 'Passkey login पूर्ण झाला नाही. पुन्हा प्रयत्न करा.';
+  }
+}
+$('passkey-login-btn').onclick = signInWithRealPasskey;
+
+async function registerRealPasskey() {
+  $('error').textContent = '';
+  $('passkey-status').textContent = 'Device authentication उघडत आहे…';
+  try {
+    const { data, error } = await sb.auth.registerPasskey();
+    if (error) throw error;
+    $('passkey-status').textContent = '✅ Passkey या device वर सुरक्षितपणे जोडली आहे.';
+    alert('Passkey यशस्वीपणे सेट झाली. पुढच्या वेळी एक tap + device PIN/fingerprint ने login करू शकता.');
+    return data;
+  } catch (err) {
+    console.error('Passkey registration failed:', err);
+    $('passkey-status').textContent = '';
+    $('error').textContent = err?.message || 'Passkey registration पूर्ण झाला नाही.';
+  }
+}
+$('register-passkey-btn').onclick = registerRealPasskey;
+
+// ---------- AUTH ----------
+$('register-btn').onclick = async () => {
+  $('error').textContent = '';
+  const username = normalizeUsername($('reg-username').value);
+  const identifier = $('reg-email').value.trim();
+  const password = $('reg-password').value;
+  if (!username || !identifier || !password) { $('error').textContent = 'सगळे field भरा'; return; }
+  if (authMode !== 'email') { $('error').textContent = 'नवीन account तयार करण्यासाठी सध्या Email वापरा. Mobile login alias पुढच्या account-linking step मध्ये जोडू.'; return; }
+  const email = identifier;
+
+  // username आधीच वापरात आहे का तपासा
+  const { data: existing } = await sb.from('profiles').select('id').ilike('username', username).maybeSingle();
+  if (existing) { $('error').textContent = 'हे username आधीच वापरात आहे'; return; }
+
+  const { data, error } = await sb.auth.signUp({
+    email, password,
+    options: { data: { username } } // trigger द्वारे profiles table मध्ये जाईल
+  });
+  if (error) { $('error').textContent = error.message; return; }
+  if (data.user) { me = { id: data.user.id, username }; enterApp(); }
+};
+
+$('login-btn').onclick = async () => {
+  $('error').textContent = '';
+  const identifier = $('reg-email').value.trim();
+  const password = $('reg-password').value;
+  if (!identifier || !password) { $('error').textContent = 'Email/Mobile आणि password भरा.'; return; }
+  const payload = authMode === 'email' ? { email: identifier, password } : { phone: identifier.startsWith('+') ? identifier : '+91' + identifier.replace(/\D/g,'').replace(/^91/, ''), password };
+  const { data, error } = await sb.auth.signInWithPassword(payload);
+  if (error) { $('error').textContent = error.message; return; }
+  const { data: profile } = await sb.from('profiles').select('username').eq('id', data.user.id).single();
+  me = { id: data.user.id, username: profile?.username || data.user.email || data.user.phone || 'user' };
+  enterApp();
+};
+
+$('logout-btn').onclick = async () => {
+  if (amIInCall) endCall(true);
+  await sb.auth.signOut();
+  if (messagesChannel) sb.removeChannel(messagesChannel);
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  me = null; activeConv = null;
+  $('app').classList.remove('active');
+  $('auth-screen').style.display = 'block';
+};
+
+// पेज रिलोड झाल्यावर आधीच लॉगिन असेल तर थेट app मध्ये जा
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    const { data: profile } = await sb.from('profiles').select('username').eq('id', session.user.id).single();
+    me = { id: session.user.id, username: profile?.username };
+    enterApp();
+  }
+})();
+
+// ---------- APP ----------
+let myProfile = { avatar_url: null, hide_last_seen: false, hide_read_receipts: false };
+let heartbeatTimer = null;
+
+async function enterApp() {
+  $('landing').style.display = 'none';
+  $('auth-screen').style.display = 'none';
+  $('app').classList.add('active');
+  $('me-name').textContent = '@' + me.username;
+  subscribeRealtime();
+  loadConversations();
+
+  // Profile (avatar + privacy setting + account type + bio) आणून display करतो
+  const { data: p } = await sb.from('profiles').select('avatar_url, hide_last_seen, hide_read_receipts, account_type, bio').eq('id', me.id).single();
+  if (p) {
+    myProfile = p; renderMyAvatar();
+    $('hide-last-seen-toggle').checked = !!p.hide_last_seen;
+    $('hide-read-receipts-toggle').checked = !!p.hide_read_receipts;
+    $('account-type-select').value = p.account_type || 'personal';
+    $('bio-input').value = p.bio || '';
+    updateAccountTypeUI(p.account_type || 'personal');
+    if (p.account_type === 'business') await loadMyBusinessProfile();
+  }
+
+  try {
+    const { data: passkeys, error: pkErr } = await sb.auth.passkey.list();
+    if (!pkErr && $('passkey-status')) {
+      $('passkey-status').textContent = passkeys?.length ? `✅ ${passkeys.length} Passkey जोडलेली आहे` : 'या device वर Passkey अजून सेट केलेली नाही.';
+    }
+  } catch (_) {}
+
+  // Block केलेल्या लोकांची यादी आणतो
+  const { data: blocked } = await sb.from('blocked_users').select('blocked_id').eq('blocker_id', me.id);
+  blockedUserIds = new Set((blocked || []).map(b => b.blocked_id));
+
+  // Heartbeat: दर 60 सेकंदांनी last_seen_at अपडेट (ऑनलाइन स्टेटससाठी)
+  updateLastSeen();
+  heartbeatTimer = setInterval(updateLastSeen, 60000);
+
+  $('settings-btn').onclick = () => {
+    const panel = $('settings-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  };
+  $('hide-last-seen-toggle').onchange = async (e) => {
+    await sb.from('profiles').update({ hide_last_seen: e.target.checked }).eq('id', me.id);
+    myProfile.hide_last_seen = e.target.checked;
+  };
+  $('hide-read-receipts-toggle').onchange = async (e) => {
+    await sb.from('profiles').update({ hide_read_receipts: e.target.checked }).eq('id', me.id);
+    myProfile.hide_read_receipts = e.target.checked;
+  };
+  $('me-avatar').onclick = () => $('avatar-input').click();
+  $('avatar-input').onchange = handleAvatarUpload;
+
+  $('account-type-select').onchange = async (e) => {
+    const val = e.target.value;
+    await sb.from('profiles').update({ account_type: val }).eq('id', me.id);
+    updateAccountTypeUI(val);
+    if (val === 'business') await loadMyBusinessProfile();
+  };
+  $('save-bio-btn').onclick = async () => {
+    await sb.from('profiles').update({ bio: $('bio-input').value.trim() }).eq('id', me.id);
+    alert('Bio save झाली');
+  };
+  $('save-business-btn').onclick = saveBusinessProfile;
+  $('biz-photo-preview').onclick = () => $('biz-photo-input').click();
+  $('biz-photo-input').onchange = handleBusinessPhotoUpload;
+
+  setupPushNotifications();
+  setupGlobalSearch();
+  setupInstallPrompt();
+  $('my-qr-btn').onclick = showMyQrCode;
+  $('scan-qr-btn').onclick = openQrScanner;
+
+  // मी admin आहे का तपासतो — असेल तरच Admin Panel बटण दाखवतो
+  const { data: adminRow } = await sb.from('platform_admins').select('user_id').eq('user_id', me.id).maybeSingle();
+  if (adminRow) {
+    $('admin-panel-btn').style.display = 'block';
+    $('admin-panel-btn').onclick = openAdminPanel;
+  }
+
+  // मी स्वतः banned आहे का तपासतो — असेल तर वरती स्पष्ट सूचना दाखवतो
+  const { data: myBan } = await sb.from('banned_users').select('reason').eq('user_id', me.id).maybeSingle();
+  if (myBan) {
+    const banner = document.createElement('div');
+    banner.className = 'banned-banner';
+    banner.textContent = '⚠️ तुमचं खातं banned केलं आहे — मेसेज पाठवता येणार नाहीत.' + (myBan.reason ? ' कारण: ' + myBan.reason : '');
+    document.body.prepend(banner);
+  }
+}
+
+// ---------- GLOBAL SEARCH ----------
+let globalSearchDebounce = null;
+function setupGlobalSearch() {
+  $('global-search-input').oninput = (e) => {
+    clearTimeout(globalSearchDebounce);
+    const q = e.target.value.trim();
+    if (!q) { $('global-search-results').style.display = 'none'; return; }
+    globalSearchDebounce = setTimeout(() => runGlobalSearch(q), 250);
+  };
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#global-search-wrap')) $('global-search-results').style.display = 'none';
+  });
+}
+
+async function runGlobalSearch(q) {
+  const qLower = q.toLowerCase();
+
+  // सध्याच्या चॅट्समध्ये नावाने शोध (client-side, आधीच cache आहे)
+  const chatMatches = Object.entries(convTitleCache).filter(([id, title]) => title.toLowerCase().includes(qLower)).slice(0, 5);
+
+  // Username नुसार लोक शोध (server query)
+  const { data: people } = await sb.from('profiles').select('id, username').ilike('username', `%${q}%`).neq('id', me.id).limit(5);
+
+  // मेसेज मजकुरात शोध (माझ्या चॅट्समध्ये, server query)
+  const myConvIds = Object.keys(convTitleCache);
+  let msgMatches = [];
+  if (myConvIds.length && q.length >= 2) {
+    const { data } = await sb.from('messages').select('id, content, conversation_id, sender_id')
+      .in('conversation_id', myConvIds).ilike('content', `%${q}%`).eq('deleted', false).limit(5);
+    msgMatches = data || [];
+  }
+
+  const box = $('global-search-results');
+  let html = '';
+  if (chatMatches.length) {
+    html += '<div class="gs-section">चॅट्स</div>';
+    for (const [id, title] of chatMatches) {
+      html += `<div class="gs-item" data-conv="${id}" data-title="${escapeHtml(title)}">${escapeHtml(title)}</div>`;
+    }
+  }
+  if (people && people.length) {
+    html += '<div class="gs-section">लोक</div>';
+    for (const p of people) {
+      html += `<div class="gs-item" data-username="${escapeHtml(p.username)}">@${escapeHtml(p.username)}</div>`;
+    }
+  }
+  if (msgMatches.length) {
+    html += '<div class="gs-section">मेसेजेस</div>';
+    for (const m of msgMatches) {
+      const convTitle = convTitleCache[m.conversation_id] || 'Chat';
+      html += `<div class="gs-item" data-msg-conv="${m.conversation_id}" data-msg-title="${escapeHtml(convTitle)}"><b>${escapeHtml(convTitle)}</b>: ${escapeHtml((m.content || '').slice(0, 50))}</div>`;
+    }
+  }
+  if (!html) html = '<div class="gs-item" style="color:var(--muted)">काहीही सापडलं नाही</div>';
+  box.innerHTML = html;
+  box.style.display = 'block';
+
+  box.querySelectorAll('.gs-item[data-conv]').forEach(el => {
+    el.onclick = () => {
+      box.style.display = 'none';
+      $('global-search-input').value = '';
+      // conv-list मधल्या त्याच चॅटचा प्रकार शोधण्यासाठी वापरतो — title वरून प्रकार अंदाजतो
+      const title = el.dataset.title;
+      const type = title.startsWith('# ') ? 'channel' : title.startsWith('@') ? 'direct' : 'group';
+      openConversation(el.dataset.conv, title, type);
+    };
+  });
+  box.querySelectorAll('.gs-item[data-msg-conv]').forEach(el => {
+    el.onclick = () => {
+      box.style.display = 'none';
+      $('global-search-input').value = '';
+      const title = el.dataset.msgTitle;
+      const type = title.startsWith('# ') ? 'channel' : title.startsWith('@') ? 'direct' : 'group';
+      openConversation(el.dataset.msgConv, title, type);
+    };
+  });
+  box.querySelectorAll('.gs-item[data-username]').forEach(el => {
+    el.onclick = () => {
+      box.style.display = 'none';
+      $('global-search-input').value = '';
+      $('new-chat-username').value = el.dataset.username;
+      $('new-chat-btn').click();
+    };
+  });
+}
+
+// ---------- CUSTOM "ADD TO HOME SCREEN" PROMPT ----------
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('install-app-btn');
+  if (btn) btn.style.display = 'block';
+});
+function setupInstallPrompt() {
+  const btn = $('install-app-btn');
+  if (!btn) return;
+  btn.onclick = async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    btn.style.display = 'none';
+  };
+}
+
+// ---------- PUSH NOTIFICATIONS ----------
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+function setupPushNotifications() {
+  const supported = 'serviceWorker' in navigator && 'PushManager' in window && VAPID_PUBLIC_KEY;
+  if (!supported) return; // VAPID key सेट नसेल किंवा browser support नसेल तर हे फीचर लपवतो
+
+  $('notif-settings-row').style.display = 'flex';
+
+  if (Notification.permission === 'granted') {
+    $('notif-status').textContent = 'चालू आहे ✓';
+    $('enable-notif-btn').style.display = 'none';
+  } else if (Notification.permission === 'denied') {
+    $('notif-status').textContent = 'Browser मध्ये बंद केलं आहे';
+    $('enable-notif-btn').style.display = 'none';
+  }
+
+  $('enable-notif-btn').onclick = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') { $('notif-status').textContent = 'परवानगी नाकारली'; return; }
+
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+      const subJson = sub.toJSON();
+      await sb.from('push_subscriptions').upsert({
+        user_id: me.id,
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys.p256dh,
+        auth_key: subJson.keys.auth,
+      }, { onConflict: 'user_id,endpoint' });
+
+      $('notif-status').textContent = 'चालू आहे ✓';
+      $('enable-notif-btn').style.display = 'none';
+    } catch (err) {
+      alert('Notifications चालू करता आलं नाही: ' + err.message);
+    }
+  };
+}
+
+function updateAccountTypeUI(accountType) {
+  $('creator-bio-row').style.display = (accountType === 'creator' || accountType === 'business') ? 'flex' : 'none';
+  $('business-fields').style.display = accountType === 'business' ? 'flex' : 'none';
+}
+
+async function loadMyBusinessProfile() {
+  const { data } = await sb.from('business_profiles').select('*').eq('owner_id', me.id).maybeSingle();
+  if (data) {
+    $('biz-name').value = data.name || '';
+    $('biz-category').value = data.category || '';
+    $('biz-location').value = data.location || '';
+    $('biz-phone').value = data.phone || '';
+    $('biz-website').value = data.website || '';
+    $('biz-hours').value = data.hours || '';
+    $('biz-desc').value = data.description || '';
+    $('biz-payment').value = data.payment_info || '';
+    if (data.photo_url) $('biz-photo-preview').innerHTML = `<img src="${data.photo_url}" />`;
+  }
+}
+
+async function handleBusinessPhotoUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { alert('फोटो 3MB पेक्षा लहान असावा'); return; }
+  const ext = file.name.split('.').pop();
+  const path = `business-photos/${me.id}-${Date.now()}.${ext}`;
+  const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+  if (upErr) { alert(upErr.message); return; }
+  const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+  await sb.from('business_profiles').upsert({ owner_id: me.id, name: $('biz-name').value.trim() || 'माझा Business', photo_url: pub.publicUrl }, { onConflict: 'owner_id' });
+  $('biz-photo-preview').innerHTML = `<img src="${pub.publicUrl}" />`;
+  e.target.value = '';
+}
+
+async function saveBusinessProfile() {
+  const name = $('biz-name').value.trim();
+  if (!name) { alert('Business चं नाव आवश्यक आहे'); return; }
+  const payload = {
+    owner_id: me.id, name,
+    category: $('biz-category').value.trim(),
+    location: $('biz-location').value.trim(),
+    phone: $('biz-phone').value.trim(),
+    website: $('biz-website').value.trim(),
+    hours: $('biz-hours').value.trim(),
+    description: $('biz-desc').value.trim(),
+    payment_info: $('biz-payment').value.trim(),
+  };
+  const { error } = await sb.from('business_profiles').upsert(payload, { onConflict: 'owner_id' });
+  if (error) { alert(error.message); return; }
+  alert('Business Profile save झाली');
+}
+
+function renderMyAvatar() {
+  const el = $('me-avatar');
+  if (myProfile.avatar_url) el.innerHTML = `<img src="${myProfile.avatar_url}" />`;
+  else el.textContent = (me.username || '?')[0].toUpperCase();
+}
+
+async function updateLastSeen() {
+  if (!me) return;
+  await sb.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', me.id);
+}
+
+async function handleAvatarUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { alert('फोटो 3MB पेक्षा लहान असावा'); return; }
+  const ext = file.name.split('.').pop();
+  const path = `avatars/${me.id}-${Date.now()}.${ext}`;
+  const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+  if (upErr) { alert('अपलोड चुकलं: ' + upErr.message); return; }
+  const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+  await sb.from('profiles').update({ avatar_url: pub.publicUrl }).eq('id', me.id);
+  myProfile.avatar_url = pub.publicUrl;
+  renderMyAvatar();
+  e.target.value = '';
+}
+
+// Postgres Changes द्वारे नवीन मेसेज real-time ऐकणे
+function subscribeRealtime() {
+  messagesChannel = sb
+    .channel('messages-listener')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      const msg = payload.new;
+      if (msg.conversation_id === activeConv) {
+        renderIncoming(msg);
+        if (msg.sender_id !== me.id) markAsRead(activeConv);
+      }
+      loadConversations();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+      const msg = payload.new;
+      if (msg.deleted) {
+        const el = document.querySelector(`[data-msg-id="${msg.id}"]`);
+        if (el) el.remove();
+      } else if (msg.conversation_id === activeConv) {
+        // edit झालेला असेल तर तेवढाच content अपडेट करतो
+        const el = document.querySelector(`[data-msg-id="${msg.id}"] .msg-content`);
+        if (el && msg.edited) {
+          el.innerHTML = `${escapeHtml(msg.content)}<span class="edited-tag"> (edited)</span>`;
+        }
+      }
+      if (msg.conversation_id === activeConv) loadConversations();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_members' }, (payload) => {
+      const row = payload.new;
+      if (row.conversation_id !== activeConv || row.user_id === me.id) return;
+      if (activeConvType === 'direct') {
+        // समोरच्याने चॅट वाचला (last_read_at अपडेट) — तर आपल्या मेसेजवरचं ✓✓ live अपडेट करतो
+        otherLastReadAt = row.last_read_at;
+        refreshReadTicks();
+      } else if (activeConvType === 'group' || activeConvType === 'channel') {
+        activeMemberLastRead[row.user_id] = row.last_read_at;
+        refreshGroupReadTicks();
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, (payload) => {
+      const msgId = (payload.new && payload.new.message_id) || (payload.old && payload.old.message_id);
+      if (msgId && document.querySelector(`[data-msg-id="${msgId}"]`)) loadReactionsFor(msgId);
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, (payload) => {
+      const msgId = (payload.new && payload.new.message_id) || (payload.old && payload.old.message_id);
+      if (msgId && document.querySelector(`[data-msg-id="${msgId}"] .poll-box`)) refreshPollUI(msgId);
+    })
+    .subscribe();
+}
+
+let activeConvType = null;
+let blockedUserIds = new Set(); // मी block केलेले users (त्यांचे मेसेज दाखवायचे नाहीत)
+let renderedMsgCache = {}; // msg_id -> { content, sender_id, media_type } (reply-quote preview साठी)
+let activeMembers = {}; // user_id -> username, सध्याच्या conversation पुरतं (group मध्ये नाव दाखवण्यासाठी)
+const convTitleCache = {}; // conversation_id -> title (sidebar क्लिकसाठी)
+
+let showArchived = false;
+
+async function loadConversations() {
+  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id, last_read_at, muted, pinned, archived').eq('user_id', me.id);
+  const ids = (memberRows || []).map(r => r.conversation_id);
+  const myMeta = {};
+  (memberRows || []).forEach(r => { myMeta[r.conversation_id] = r; });
+  const list = $('conv-list');
+  list.innerHTML = '';
+  if (!ids.length) { renderArchivedToggle(0); return; }
+
+  const { data: convs } = await sb.from('conversations').select('id, type, name, avatar_url').in('id', ids);
+
+  // Direct चॅट्ससाठी समोरच्या व्यक्तीचं username + avatar मिळवतो (group/channel साठी c.name आधीच पुरेसं आहे)
+  const directIds = (convs || []).filter(c => c.type === 'direct').map(c => c.id);
+  const otherInfo = {}; // conversation_id -> { username, avatar_url }
+  if (directIds.length) {
+    const { data: otherMembers } = await sb.from('conversation_members')
+      .select('conversation_id, user_id, profiles(username, avatar_url)')
+      .in('conversation_id', directIds)
+      .neq('user_id', me.id);
+    for (const row of otherMembers || []) {
+      otherInfo[row.conversation_id] = { username: row.profiles?.username || 'Unknown', avatar_url: row.profiles?.avatar_url };
+    }
+  }
+
+  const rows = [];
+  for (const c of convs || []) {
+    const { data: lastMsgs } = await sb.from('messages')
+      .select('content, created_at, sender_id, media_type').eq('conversation_id', c.id)
+      .order('created_at', { ascending: false }).limit(1);
+    const last = lastMsgs && lastMsgs[0];
+    const meta = myMeta[c.id] || {};
+
+    const title = c.type === 'group' ? (c.name || 'Group')
+      : c.type === 'channel' ? ('# ' + (c.name || 'Channel'))
+      : ('@' + (otherInfo[c.id]?.username || '...'));
+    convTitleCache[c.id] = title;
+
+    rows.push({
+      id: c.id, type: c.type, title, last,
+      isUnread: !!(last && last.sender_id !== me.id && (!meta.last_read_at || new Date(last.created_at) > new Date(meta.last_read_at))),
+      isMuted: !!meta.muted, isPinned: !!meta.pinned, isArchived: !!meta.archived,
+      avatarUrl: c.type === 'direct' ? otherInfo[c.id]?.avatar_url : c.avatar_url,
+      lastTime: last ? new Date(last.created_at).getTime() : 0,
+    });
+  }
+
+  const visible = rows.filter(r => !r.isArchived);
+  const archived = rows.filter(r => r.isArchived);
+  visible.sort((a, b) => (b.isPinned - a.isPinned) || (b.lastTime - a.lastTime));
+
+  for (const r of visible) list.appendChild(buildConvItemEl(r));
+  renderArchivedToggle(archived.length, archived);
+}
+
+function buildConvItemEl(r) {
+  let previewText = 'अजून मेसेज नाही';
+  if (r.last) previewText = r.last.media_type
+    ? (r.last.media_type === 'image' ? '📷 फोटो'
+      : r.last.media_type === 'audio' ? '🎤 Voice message'
+      : r.last.media_type === 'location' ? '📍 Location'
+      : r.last.media_type === 'contact' ? '👤 Contact'
+      : r.last.media_type === 'poll' ? '📊 Poll'
+      : '📎 फाईल')
+    : (r.last.content || '');
+  const avatarLetter = (r.type === 'channel' ? '#' : r.title.replace('@', '')[0] || '?').toUpperCase();
+  const avatarHtml = r.avatarUrl ? `<img src="${r.avatarUrl}" />` : `<span>${escapeHtml(avatarLetter)}</span>`;
+
+  const div = document.createElement('div');
+  div.className = 'conv-item' + (r.id === activeConv ? ' active' : '');
+  div.innerHTML = `
+    <div class="conv-avatar">${avatarHtml}</div>
+    <div class="conv-text">
+      <div class="who">${r.isPinned ? '📌 ' : ''}${r.title}${r.isMuted ? ' 🔕' : ''}</div>
+      <div class="preview">${escapeHtml(previewText)}</div>
+    </div>
+    ${r.isUnread && !r.isMuted ? '<span class="unread-dot"></span>' : ''}
+  `;
+  div.onclick = () => openConversation(r.id, r.title, r.type);
+  return div;
+}
+
+function renderArchivedToggle(count, archivedRows) {
+  let el = document.getElementById('archived-toggle-wrap');
+  if (el) el.remove();
+  if (!count) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'archived-toggle-wrap';
+  const toggle = document.createElement('div');
+  toggle.className = 'archived-toggle';
+  toggle.textContent = (showArchived ? '▾' : '▸') + ' 🗄 Archived (' + count + ')';
+  toggle.onclick = () => { showArchived = !showArchived; loadConversations(); };
+  wrap.appendChild(toggle);
+  if (showArchived) {
+    archivedRows.forEach(r => wrap.appendChild(buildConvItemEl(r)));
+  }
+  $('conv-list').appendChild(wrap);
+}
+
+$('new-chat-btn').onclick = async () => {
+  let username = normalizeUsername($('new-chat-username').value);
+  if (!username) return;
+
+  const { data: other, error: findErr } = await sb.from('profiles').select('id, username').ilike('username', username).maybeSingle();
+  if (findErr) { console.error('Search error:', findErr); alert('शोधताना error आली: ' + findErr.message); return; }
+  if (!other) { alert('वापरकर्ता सापडला नाही — username बरोबर टाइप केलं आहे का तपासा, किंवा त्या व्यक्तीने अजून signup पूर्ण केलेला नसेल'); return; }
+  if (other.id === me.id) { alert('स्वतःशी चॅट करता येत नाही'); return; }
+
+  // आधीच direct conversation आहे का शोधा
+  const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const myIds = (myConvs || []).map(r => r.conversation_id);
+  let existingId = null;
+  if (myIds.length) {
+    const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
+    if (theirConvs && theirConvs.length) existingId = theirConvs[0].conversation_id;
+  }
+
+  let convId = existingId;
+  if (!convId) {
+    const { data: newConv, error: convErr } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+    if (convErr) { alert(convErr.message); return; }
+    convId = newConv.id;
+    await sb.from('conversation_members').insert([
+      { conversation_id: convId, user_id: me.id },
+      { conversation_id: convId, user_id: other.id },
+    ]);
+  }
+
+  $('new-chat-username').value = '';
+  await loadConversations();
+  openConversation(convId, '@' + username, 'direct');
+};
+
+// ---------- GROUP CREATION ----------
+function closeAllPanels() {
+  ['new-group', 'new-channel', 'discover-panel', 'discover-business-panel'].forEach(id => { $(id).style.display = 'none'; });
+}
+
+$('tab-toggle-group').onclick = () => {
+  const box = $('new-group');
+  const willOpen = box.style.display === 'none';
+  closeAllPanels();
+  box.style.display = willOpen ? 'flex' : 'none';
+};
+
+$('new-group-btn').onclick = async () => {
+  const groupName = $('group-name').value.trim();
+  const usernamesRaw = $('group-usernames').value.trim();
+  if (!groupName) { alert('Group ला नाव द्या'); return; }
+  if (!usernamesRaw) { alert('किमान एक username टाका'); return; }
+
+  const usernames = usernamesRaw.split(',').map(u => normalizeUsername(u)).filter(Boolean);
+  const memberIds = [me.id];
+  const notFound = [];
+
+  for (const uname of usernames) {
+    const { data: user } = await sb.from('profiles').select('id').ilike('username', uname).maybeSingle();
+    if (user) { if (!memberIds.includes(user.id)) memberIds.push(user.id); }
+    else notFound.push(uname);
+  }
+
+  if (notFound.length) { alert('हे सापडले नाहीत: ' + notFound.join(', ') + ' — बाकीच्यांना घेऊन पुढे जातो'); }
+  if (memberIds.length < 2) { alert('किमान एक वैध सभासद हवा'); return; }
+
+  const { data: newGroup, error: groupErr } = await sb.from('conversations')
+    .insert({ type: 'group', name: groupName, created_by: me.id }).select().single();
+  if (groupErr) { alert(groupErr.message); return; }
+
+  await sb.from('conversation_members').insert(memberIds.map(uid => ({ conversation_id: newGroup.id, user_id: uid, role: uid === me.id ? 'owner' : 'member' })));
+
+  $('group-name').value = '';
+  $('group-usernames').value = '';
+  $('new-group').style.display = 'none';
+  await loadConversations();
+  openConversation(newGroup.id, groupName, 'group');
+};
+
+// ---------- CHANNEL CREATION ----------
+$('tab-toggle-channel').onclick = () => {
+  const box = $('new-channel');
+  const willOpen = box.style.display === 'none';
+  closeAllPanels();
+  box.style.display = willOpen ? 'flex' : 'none';
+};
+
+$('new-channel-btn').onclick = async () => {
+  const name = $('channel-name').value.trim();
+  const desc = $('channel-desc').value.trim();
+  const isPublic = $('channel-public').checked;
+  if (!name) { alert('Channel ला नाव द्या'); return; }
+
+  const { data: newChannel, error } = await sb.from('conversations')
+    .insert({ type: 'channel', name, description: desc, is_public: isPublic, created_by: me.id }).select().single();
+  if (error) { alert(error.message); return; }
+
+  await sb.from('conversation_members').insert({ conversation_id: newChannel.id, user_id: me.id, role: 'owner' });
+
+  $('channel-name').value = ''; $('channel-desc').value = '';
+  $('new-channel').style.display = 'none';
+  await loadConversations();
+  openConversation(newChannel.id, '# ' + name, 'channel');
+};
+
+// ---------- DISCOVER CHANNELS ----------
+$('tab-toggle-discover').onclick = async () => {
+  const box = $('discover-panel');
+  const willOpen = box.style.display === 'none';
+  closeAllPanels();
+  if (!willOpen) return;
+  box.style.display = 'block';
+  box.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+
+  const { data: myMemberships } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const joinedIds = (myMemberships || []).map(r => r.conversation_id);
+
+  const { data: publicChannels } = await sb.from('conversations').select('id, name, description').eq('type', 'channel').eq('is_public', true);
+  const available = (publicChannels || []).filter(c => !joinedIds.includes(c.id));
+
+  if (!available.length) { box.innerHTML = '<div class="disc-empty">सध्या कोणतेही नवीन public channels नाहीत</div>'; return; }
+
+  box.innerHTML = available.map(c => `
+    <div class="disc-item">
+      <span>${escapeHtml('# ' + c.name)}${c.description ? ' — ' + escapeHtml(c.description) : ''}</span>
+      <button class="disc-join" data-id="${c.id}" data-name="${escapeHtml(c.name)}">Join</button>
+    </div>
+  `).join('');
+
+  box.querySelectorAll('.disc-join').forEach(btn => {
+    btn.onclick = async () => {
+      const convId = btn.dataset.id;
+      const { error } = await sb.from('conversation_members').insert({ conversation_id: convId, user_id: me.id, role: 'subscriber' });
+      if (error) { alert(error.message); return; }
+      closeAllPanels();
+      await loadConversations();
+      openConversation(convId, '# ' + btn.dataset.name, 'channel');
+    };
+  });
+};
+
+// ---------- DISCOVER BUSINESSES ----------
+$('tab-toggle-business').onclick = async () => {
+  const box = $('discover-business-panel');
+  const willOpen = box.style.display === 'none';
+  closeAllPanels();
+  if (!willOpen) return;
+  box.style.display = 'block';
+  box.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+
+  const { data: businesses } = await sb.from('business_profiles').select('id, name, category, location, phone, website, hours, description, photo_url, payment_info, owner_id, profiles(username)');
+
+  if (!businesses || !businesses.length) { box.innerHTML = '<div class="disc-empty">अजून कोणतेही business profiles नाहीत</div>'; return; }
+
+  box.innerHTML = businesses.map(b => `
+    <div class="biz-card">
+      ${b.photo_url ? `<img src="${b.photo_url}" class="biz-photo" />` : ''}
+      <div class="biz-name">${escapeHtml(b.name)}${b.category ? ' <span class="biz-cat">(' + escapeHtml(b.category) + ')</span>' : ''}</div>
+      ${b.location ? `<div class="biz-line">📍 ${escapeHtml(b.location)}</div>` : ''}
+      ${b.phone ? `<div class="biz-line">📞 ${escapeHtml(b.phone)}</div>` : ''}
+      ${b.hours ? `<div class="biz-line">🕒 ${escapeHtml(b.hours)}</div>` : ''}
+      ${b.website ? `<div class="biz-line">🔗 ${escapeHtml(b.website)}</div>` : ''}
+      ${b.description ? `<div class="biz-desc">${escapeHtml(b.description)}</div>` : ''}
+      ${b.payment_info ? `<div class="biz-line biz-payment">💳 Pay: ${escapeHtml(b.payment_info)}</div>` : ''}
+      <button class="biz-chat" data-username="${escapeHtml(b.profiles?.username || '')}">@${escapeHtml(b.profiles?.username || '')} शी Chat करा</button>
+    </div>
+  `).join('');
+
+  box.querySelectorAll('.biz-chat').forEach(btn => {
+    btn.onclick = async () => {
+      const username = btn.dataset.username;
+      if (!username) return;
+      const { data: other } = await sb.from('profiles').select('id, username').eq('username', username).maybeSingle();
+      if (!other) { alert('वापरकर्ता सापडला नाही'); return; }
+      const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+      const myIds = (myConvs || []).map(r => r.conversation_id);
+      let existingId = null;
+      if (myIds.length) {
+        const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
+        if (theirConvs && theirConvs.length) existingId = theirConvs[0].conversation_id;
+      }
+      let convId = existingId;
+      if (!convId) {
+        const { data: newConv, error } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+        if (error) { alert(error.message); return; }
+        convId = newConv.id;
+        await sb.from('conversation_members').insert([
+          { conversation_id: convId, user_id: me.id },
+          { conversation_id: convId, user_id: other.id },
+        ]);
+      }
+      closeAllPanels();
+      await loadConversations();
+      openConversation(convId, '@' + username, 'direct');
+    };
+  });
+};
+
+$('tab-toggle-starred').onclick = () => openStarredPanel();
+
+let replyingTo = null; // { id, content, senderLabel } — reply करताना कोणत्या मेसेजला उत्तर देतोय
+let channelCanPost = true; // channel मध्ये मी post करू शकतो का (owner/admin असल्यास true)
+
+let otherDirectUserId = null; // सध्या उघडलेल्या direct चॅट मधल्या समोरच्या व्यक्तीचा id (typing/last-seen साठी)
+let activeDisappearingSeconds = null; // सध्याच्या conversation ची disappearing setting (सेकंदात, null = बंद)
+let typingChannel = null;
+let typingTimeout = null;
+
+async function openConversation(id, title, type) {
+  if (amIInCall) { alert('कॉल चालू असताना दुसरा चॅट उघडता येणार नाही — आधी कॉल संपवा'); return; }
+  activeConv = id;
+  activeConvType = type || 'direct';
+  activeMembers = {};
+  replyingTo = null;
+  otherDirectUserId = null;
+  otherLastReadAt = null;
+  otherHideReadReceipts = false;
+  renderedMsgCache = {};
+  loadConversations();
+  $('app').classList.add('chat-open'); // मोबाईलवर chat उघडताना sidebar लपवतो
+  const area = $('chat-area');
+  area.innerHTML = `
+    <div id="chat-header">
+      <button id="back-btn" class="icon-btn" title="Back">←</button>
+      <span class="header-title-wrap"><span class="header-title">${title}</span><span class="last-seen" id="header-last-seen"></span></span>
+      <span class="header-actions">
+        ${(type === 'direct' || type === 'group' || type === 'channel') ? '<button id="voice-call-btn" class="icon-btn" title="Voice Call">📞</button><button id="video-call-btn" class="icon-btn" title="Video Call">🎥</button>' : ''}
+        <button id="mute-toggle-btn" class="icon-btn" title="Mute">🔔</button>
+        <button id="pin-toggle-btn" class="icon-btn" title="Pin">📌</button>
+        <button id="archive-toggle-btn" class="icon-btn" title="Archive">🗄</button>
+        <button id="search-toggle-btn" class="icon-btn" title="Search in chat">🔍</button>
+        <button id="disappear-btn" class="icon-btn" title="Disappearing messages">⏱</button>
+        ${(activeConvType === 'group' || activeConvType === 'channel') ? '<button id="group-info-btn" class="icon-btn" title="Members/Info">⋮</button>' : ''}
+        ${type === 'direct' ? '<button id="direct-info-btn" class="icon-btn" title="Options">⋮</button>' : ''}
+      </span>
+    </div>
+    <div id="disappear-panel" style="display:none"></div>
+    <div id="group-info-panel" style="display:none"></div>
+    <div id="direct-info-panel" style="display:none"></div>
+    <div id="search-box" style="display:none"><input id="search-input" placeholder="या चॅटमध्ये शोधा (अलीकडचे 200 मेसेज)..." /></div>
+    <div id="messages"></div>
+    <div id="blocked-notice" style="display:none" class="readonly-note">तुम्ही या व्यक्तीला block केलं आहे — यांचे नवीन मेसेज दिसणार नाहीत.</div>
+    <div class="typing-indicator" id="typing-indicator" style="display:none">टाइप करत आहे...</div>
+    <div id="reply-preview" style="display:none"></div>
+    <div id="composer">
+      <button id="emoji-btn" class="icon-btn" title="Emoji">😊</button>
+      <div id="emoji-picker-box" style="display:none"></div>
+      <button id="attach-btn" class="icon-btn" title="फोटो/फाईल पाठवा">📎</button>
+      <input type="file" id="file-input" style="display:none" accept="image/*,.pdf,.doc,.docx,.zip,.txt" />
+      <button id="plus-btn" class="icon-btn" title="अजून पर्याय">➕</button>
+      <div id="plus-menu" style="display:none">
+        <button id="plus-location">📍 Location पाठवा</button>
+        <button id="plus-contact">👤 Contact पाठवा</button>
+        <button id="plus-poll">📊 Poll तयार करा</button>
+      </div>
+      <input id="msg-input" placeholder="मेसेज लिहा..." />
+      <button id="mic-btn" class="icon-btn" title="Voice message">🎤</button>
+      <span id="recording-indicator" style="display:none">● <span id="rec-timer">0:00</span></span>
+      <button id="send-btn">पाठवा</button>
+    </div>
+  `;
+
+  // Disappearing messages सध्याची सेटिंग आणून घेतो
+  const { data: convRow } = await sb.from('conversations').select('disappearing_seconds').eq('id', id).single();
+  activeDisappearingSeconds = convRow?.disappearing_seconds || null;
+  $('disappear-btn').onclick = () => toggleDisappearPanel(id);
+
+  // Group/Channel असेल तर सभासदांची नावं + role आधीच आणून ठेवतो
+  if (activeConvType === 'group' || activeConvType === 'channel') {
+    await refreshGroupMembers(id);
+    $('group-info-btn').onclick = () => toggleGroupInfo(id);
+
+    // Channel मध्ये फक्त owner/admin पोस्ट करू शकतात — बाकीच्यांसाठी composer लपवतो, पण comment करता यावं म्हणून global flag ठेवतो
+    if (activeConvType === 'channel') {
+      const myRole = activeMemberRoles[me.id];
+      channelCanPost = (myRole === 'owner' || myRole === 'admin');
+      if (!channelCanPost) {
+        $('composer').style.display = 'none';
+        const note = document.createElement('div');
+        note.className = 'readonly-note';
+        note.id = 'channel-readonly-note';
+        note.textContent = 'हे broadcast channel आहे — फक्त admins पोस्ट करू शकतात. एखाद्या पोस्टवरच्या ↩ बटणाने तुम्ही comment करू शकता.';
+        $('composer').insertAdjacentElement('afterend', note);
+      }
+    } else {
+      channelCanPost = true;
+    }
+  } else {
+    channelCanPost = true;
+    // Direct chat: समोरच्या व्यक्तीचा last-seen/online + last_read_at (read receipts साठी) दाखवतो
+    const { data: memberRow } = await sb.from('conversation_members')
+      .select('user_id, last_read_at, profiles(username, last_seen_at, hide_last_seen, hide_read_receipts)')
+      .eq('conversation_id', id).neq('user_id', me.id).maybeSingle();
+    if (memberRow) {
+      otherDirectUserId = memberRow.user_id;
+      otherLastReadAt = memberRow.last_read_at;
+      const other = memberRow.profiles;
+      otherHideReadReceipts = !!other?.hide_read_receipts;
+      if (other && !other.hide_last_seen && !myProfile.hide_last_seen) {
+        const lastSeen = new Date(other.last_seen_at);
+        const isOnline = (Date.now() - lastSeen.getTime()) < 2 * 60 * 1000;
+        $('header-last-seen').textContent = isOnline ? ' • ऑनलाइन' : ' • शेवटचं ' + lastSeen.toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' });
+      }
+    }
+  }
+
+  // Typing indicator + Calling (WebRTC signaling) — दोन्हीसाठी हाच एक broadcast channel वापरतो
+  if (typingChannel) sb.removeChannel(typingChannel);
+  typingChannel = sb.channel('typing-' + id)
+    .on('broadcast', { event: 'typing' }, (payload) => {
+      if (payload.payload.user_id === me.id) return;
+      const ind = $('typing-indicator');
+      if (!ind) return;
+      ind.style.display = 'block';
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => { ind.style.display = 'none'; }, 3000);
+    })
+    .on('broadcast', { event: 'call-join' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id) return;
+      handleCallJoin(id, title, p);
+    })
+    .on('broadcast', { event: 'call-offer' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id) return;
+      handleCallOffer(p);
+    })
+    .on('broadcast', { event: 'call-answer' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id) return;
+      handleCallAnswer(p);
+    })
+    .on('broadcast', { event: 'call-ice' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id) return;
+      handleCallIce(p);
+    })
+    .on('broadcast', { event: 'call-leave' }, (msg) => {
+      const p = msg.payload;
+      if (p.from === me.id) return;
+      handleCallLeave(p);
+    })
+    .subscribe();
+
+  if (type === 'direct' || type === 'group' || type === 'channel') {
+    $('voice-call-btn').onclick = () => startCall(id, title, 'audio');
+    $('video-call-btn').onclick = () => startCall(id, title, 'video');
+  }
+
+  // Mute/Pin/Archive toggles — सध्याच्या conversation साठी माझी स्थिती आणतो
+  const { data: myMemberRow } = await sb.from('conversation_members').select('muted, pinned, archived').eq('conversation_id', id).eq('user_id', me.id).maybeSingle();
+  let isMuted = !!myMemberRow?.muted;
+  let isPinned = !!myMemberRow?.pinned;
+  $('mute-toggle-btn').textContent = isMuted ? '🔕' : '🔔';
+  $('mute-toggle-btn').onclick = async () => {
+    isMuted = !isMuted;
+    await sb.from('conversation_members').update({ muted: isMuted }).eq('conversation_id', id).eq('user_id', me.id);
+    $('mute-toggle-btn').textContent = isMuted ? '🔕' : '🔔';
+    loadConversations();
+  };
+  $('pin-toggle-btn').classList.toggle('active-toggle', isPinned);
+  $('pin-toggle-btn').onclick = async () => {
+    isPinned = !isPinned;
+    await sb.from('conversation_members').update({ pinned: isPinned }).eq('conversation_id', id).eq('user_id', me.id);
+    $('pin-toggle-btn').classList.toggle('active-toggle', isPinned);
+    loadConversations();
+  };
+  $('archive-toggle-btn').onclick = async () => {
+    if (!confirm('हा चॅट Archive करायचा? (परत Archived विभागातून बघता येईल)')) return;
+    await sb.from('conversation_members').update({ archived: true }).eq('conversation_id', id).eq('user_id', me.id);
+    $('app').classList.remove('chat-open');
+    $('chat-area').innerHTML = '<div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div>';
+    loadConversations();
+  };
+  $('search-toggle-btn').onclick = () => toggleInChatSearch();
+
+  // Direct chat: Block/Report मेनू
+  if (type === 'direct' && otherDirectUserId) {
+    $('direct-info-btn').onclick = () => toggleDirectInfoPanel(otherDirectUserId, otherInfoUsername(title));
+    if (blockedUserIds.has(otherDirectUserId)) {
+      $('blocked-notice').style.display = 'block';
+      $('composer').style.display = 'none';
+    }
+  }
+
+  const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+    .order('created_at', { ascending: true }).limit(200);
+  const deletedForMe = getDeletedForMeSet();
+  for (const m of history || []) { if (!deletedForMe.has(m.id)) renderIncoming(m); }
+  await markAsRead(id);
+  refreshReadTicks();
+  refreshGroupReadTicks();
+  loadConversations(); // unread dot लगेच हटावी म्हणून
+
+  $('send-btn').onclick = sendMessage;
+  $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+  let typingDebounce = null;
+  $('msg-input').oninput = () => {
+    clearTimeout(typingDebounce);
+    typingDebounce = setTimeout(() => {
+      typingChannel.send({ type: 'broadcast', event: 'typing', payload: { user_id: me.id } });
+    }, 200);
+  };
+  $('attach-btn').onclick = () => $('file-input').click();
+  $('back-btn').onclick = () => { $('app').classList.remove('chat-open'); };
+  $('mic-btn').onclick = toggleVoiceRecording;
+  $('file-input').onchange = handleFileUpload;
+  $('emoji-btn').onclick = toggleEmojiPicker;
+  $('plus-btn').onclick = () => { $('plus-menu').style.display = $('plus-menu').style.display === 'none' ? 'flex' : 'none'; };
+  $('plus-location').onclick = sendLocation;
+  $('plus-contact').onclick = openContactSharePicker;
+  $('plus-poll').onclick = openPollCreator;
+}
+
+function otherInfoUsername(title) {
+  return title.replace(/^@/, '');
+}
+
+// ============================================================
+// WEBRTC CALLING (Voice/Video) — signaling Supabase broadcast वरून,
+// media direct peer-to-peer (कोणताही मीडिया सर्व्हरवर साठवला जात नाही)
+// ============================================================
+// STUN (मोफत, Google) + TURN (मोफत Open Relay Project — कडक/corporate नेटवर्कवर सुद्धा कॉल जोडला जाण्यासाठी)
+// टीप: हे सार्वजनिक demo credentials आहेत, उच्च-वापरासाठी विश्वासार्ह नाहीत; मोठ्या प्रमाणावर वापरासाठी स्वतःचा coturn किंवा paid TURN service (Twilio/Metered) घ्यावा.
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  ],
+};
+
+// कमी resolution/bitrate — कमकुवत नेटवर्क किंवा दूरच्या TURN relay वरून जाताना lag कमी करण्यासाठी
+function getMediaConstraints(isVideo) {
+  return {
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: isVideo ? { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 24, max: 24 } } : false,
+  };
+}
+
+// Peer connection ला bitrate-cap लावतो (विशेषतः video साठी) — यामुळे buffering/lag कमी होतो
+async function capVideoBitrate(pc, kbps = 400) {
+  const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+  if (!sender) return;
+  const params = sender.getParameters();
+  if (!params.encodings) params.encodings = [{}];
+  params.encodings[0].maxBitrate = kbps * 1000;
+  try { await sender.setParameters(params); } catch (e) { /* काही ब्राउझर support करत नाहीत, दुर्लक्ष */ }
+}
+
+let peers = {}; // userId -> RTCPeerConnection (mesh: प्रत्येक इतर सभासदासाठी वेगळं connection)
+let localStream = null;
+let amIInCall = false;
+let currentCallConvId = null;
+let currentCallTitle = null;
+let currentCallType = null;
+let showingIncomingFor = null; // कोणाचा ring popup सध्या दाखवतोय (डुप्लिकेट टाळण्यासाठी)
+let pendingCallInfo = null;
+let callTimerInterval = null;
+
+function createPeerConnectionFor(uid) {
+  const conn = new RTCPeerConnection(ICE_SERVERS);
+  conn.onicecandidate = (e) => {
+    if (e.candidate) typingChannel.send({ type: 'broadcast', event: 'call-ice', payload: { from: me.id, to: uid, candidate: e.candidate } });
+  };
+  conn.ontrack = (e) => addRemoteTile(uid, e.streams[0]);
+  conn.onconnectionstatechange = () => {
+    if (['disconnected', 'failed', 'closed'].includes(conn.connectionState)) removePeer(uid);
+  };
+  if (localStream) localStream.getTracks().forEach(t => conn.addTrack(t, localStream));
+  peers[uid] = conn;
+  return conn;
+}
+
+async function offerTo(uid) {
+  const conn = createPeerConnectionFor(uid);
+  await capVideoBitrate(conn);
+  const offer = await conn.createOffer();
+  await conn.setLocalDescription(offer);
+  typingChannel.send({ type: 'broadcast', event: 'call-offer', payload: { from: me.id, to: uid, sdp: offer } });
+}
+
+// कॉल सुरू करणे: स्वतः "join" होतो + बाकीच्यांना ring पाठवतो (1:1 आणि group दोन्हीसाठी हाच मार्ग)
+async function startCall(convId, title, type) {
+  if (amIInCall) { alert('आधीच एक कॉल सुरू आहे'); return; }
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(type === 'video'));
+  } catch (err) {
+    alert('Microphone/Camera access मिळालं नाही: ' + err.message);
+    return;
+  }
+  amIInCall = true;
+  currentCallConvId = convId;
+  currentCallTitle = title;
+  currentCallType = type;
+  showActiveCallUI(type, 'इतरांची वाट बघतोय...');
+  typingChannel.send({ type: 'broadcast', event: 'call-join', payload: { from: me.id, callType: type, fromName: me.username } });
+}
+
+// कोणीतरी join झाल्याचं ऐकल्यावर: मी आधीच कॉलवर असेन तर त्यांना offer पाठवतो (mesh तयार होतो);
+// नसेन तर हा त्यांचा "ring" समजून incoming-call popup दाखवतो
+function handleCallJoin(convId, title, payload) {
+  if (payload.from === me.id) return;
+  if (currentCallConvId && currentCallConvId !== convId) return; // वेगळ्या चॅटमधला कॉल असेल तर दुर्लक्ष
+
+  if (amIInCall) {
+    if (!peers[payload.from]) offerTo(payload.from);
+  } else {
+    if (showingIncomingFor === payload.from) return;
+    showingIncomingFor = payload.from;
+    pendingCallInfo = { convId, title, callType: payload.callType };
+    $('incoming-call-text').textContent = '@' + (payload.fromName || 'कोणीतरी') + ' — ' + (payload.callType === 'video' ? 'Video' : 'Voice') + ' कॉल करतोय';
+    $('incoming-call-overlay').style.display = 'flex';
+  }
+}
+
+async function acceptCall() {
+  $('incoming-call-overlay').style.display = 'none';
+  if (!pendingCallInfo) return;
+  const { convId, title, callType } = pendingCallInfo;
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(callType === 'video'));
+  } catch (err) {
+    alert('Microphone/Camera access मिळालं नाही: ' + err.message);
+    declineCall();
+    return;
+  }
+  amIInCall = true;
+  currentCallConvId = convId;
+  currentCallTitle = title;
+  currentCallType = callType;
+  showActiveCallUI(callType, 'कॉल सुरू आहे');
+  startCallTimer();
+  typingChannel.send({ type: 'broadcast', event: 'call-join', payload: { from: me.id, callType, fromName: me.username } });
+  showingIncomingFor = null;
+  pendingCallInfo = null;
+}
+
+function declineCall() {
+  $('incoming-call-overlay').style.display = 'none';
+  showingIncomingFor = null;
+  pendingCallInfo = null;
+}
+
+function handleCallOffer(payload) {
+  if (payload.to !== me.id) return;
+  const conn = peers[payload.from] || createPeerConnectionFor(payload.from);
+  (async () => {
+    await capVideoBitrate(conn);
+    await conn.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+    const answer = await conn.createAnswer();
+    await conn.setLocalDescription(answer);
+    typingChannel.send({ type: 'broadcast', event: 'call-answer', payload: { from: me.id, to: payload.from, sdp: answer } });
+  })();
+}
+
+function handleCallAnswer(payload) {
+  if (payload.to !== me.id) return;
+  const conn = peers[payload.from];
+  if (conn) conn.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+  $('call-status').textContent = 'कॉल सुरू आहे';
+  if (!callTimerInterval) startCallTimer();
+}
+
+function handleCallIce(payload) {
+  if (payload.to !== me.id) return;
+  const conn = peers[payload.from];
+  if (conn) conn.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(() => {});
+}
+
+function handleCallLeave(payload) {
+  removePeer(payload.from);
+}
+
+function removePeer(uid) {
+  if (peers[uid]) { peers[uid].close(); delete peers[uid]; }
+  const tile = document.getElementById('remote-tile-' + uid);
+  if (tile) tile.remove();
+}
+
+function addRemoteTile(uid, stream) {
+  let tile = document.getElementById('remote-tile-' + uid);
+  let video;
+  if (!tile) {
+    tile = document.createElement('div');
+    tile.className = 'video-tile';
+    tile.id = 'remote-tile-' + uid;
+    video = document.createElement('video');
+    video.autoplay = true; video.playsInline = true;
+    tile.appendChild(video);
+    $('video-grid').appendChild(tile);
+  } else {
+    video = tile.querySelector('video');
+  }
+  if (video.srcObject !== stream) video.srcObject = stream;
+}
+
+function showActiveCallUI(type, statusText) {
+  $('active-call-overlay').style.display = 'flex';
+  $('active-call-overlay').classList.toggle('audio-only', type !== 'video');
+  $('call-status').textContent = statusText;
+  if (localStream) $('local-video').srcObject = localStream;
+
+  $('mute-btn').onclick = () => {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (!audioTrack) return;
+    audioTrack.enabled = !audioTrack.enabled;
+    $('mute-btn').classList.toggle('muted', !audioTrack.enabled);
+  };
+  $('camera-btn').onclick = () => {
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+    videoTrack.enabled = !videoTrack.enabled;
+    $('camera-btn').classList.toggle('muted', !videoTrack.enabled);
+  };
+  $('hangup-btn').onclick = () => endCall(true);
+}
+
+function startCallTimer() {
+  let seconds = 0;
+  clearInterval(callTimerInterval);
+  callTimerInterval = setInterval(() => {
+    seconds++;
+    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    $('call-status').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+function endCall(notifyPeer) {
+  clearInterval(callTimerInterval); callTimerInterval = null;
+  if (notifyPeer && typingChannel && amIInCall) typingChannel.send({ type: 'broadcast', event: 'call-leave', payload: { from: me.id } });
+  Object.keys(peers).forEach(uid => { peers[uid].close(); });
+  peers = {};
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  document.querySelectorAll('.video-tile[id^="remote-tile-"]').forEach(el => el.remove());
+  $('active-call-overlay').style.display = 'none';
+  $('incoming-call-overlay').style.display = 'none';
+  $('local-video').srcObject = null;
+  amIInCall = false;
+  currentCallConvId = null;
+  currentCallType = null;
+  showingIncomingFor = null;
+  pendingCallInfo = null;
+}
+
+$('accept-call-btn').onclick = acceptCall;
+$('decline-call-btn').onclick = declineCall;
+
+// ---------- GROUP INFO PANEL ----------
+let activeMemberRoles = {}; // user_id -> role, आणि सोबत activeMembers मध्ये username
+let activeMemberLastRead = {}; // user_id -> last_read_at (group read receipts साठी)
+
+async function refreshGroupMembers(convId) {
+  const { data: members } = await sb.from('conversation_members')
+    .select('user_id, role, last_read_at, profiles(username)').eq('conversation_id', convId);
+  activeMembers = {}; activeMemberRoles = {}; activeMemberLastRead = {};
+  for (const m of members || []) {
+    activeMembers[m.user_id] = m.profiles?.username || 'Unknown';
+    activeMemberRoles[m.user_id] = m.role;
+    activeMemberLastRead[m.user_id] = m.last_read_at;
+  }
+}
+
+function groupReadCount(msgCreatedAt) {
+  const t = new Date(msgCreatedAt).getTime();
+  let count = 0;
+  for (const [uid, lastRead] of Object.entries(activeMemberLastRead)) {
+    if (uid === me.id) continue;
+    if (lastRead && new Date(lastRead).getTime() >= t) count++;
+  }
+  return count;
+}
+
+// ---------- DISAPPEARING MESSAGES ----------
+// ---------- IN-CHAT SEARCH ----------
+function toggleInChatSearch() {
+  const box = $('search-box');
+  const willOpen = box.style.display === 'none';
+  box.style.display = willOpen ? 'block' : 'none';
+  if (!willOpen) {
+    $('search-input').value = '';
+    filterMessagesBySearch('');
+    return;
+  }
+  $('search-input').focus();
+  $('search-input').oninput = (e) => filterMessagesBySearch(e.target.value.trim().toLowerCase());
+}
+
+function filterMessagesBySearch(query) {
+  const bubbles = document.querySelectorAll('#messages .bubble');
+  let firstMatch = null;
+  bubbles.forEach(b => {
+    const textEl = b.querySelector('.msg-content, .caption, .msg-file');
+    const text = (textEl ? textEl.textContent : '').toLowerCase();
+    const matches = !query || text.includes(query);
+    b.style.display = matches ? 'block' : 'none';
+    if (matches && query && !firstMatch) firstMatch = b;
+  });
+  if (firstMatch) firstMatch.scrollIntoView({ block: 'center' });
+}
+
+// ---------- FORWARD ----------
+async function openForwardPicker(msg) {
+  const { data: memberRows } = await sb.from('conversation_members')
+    .select('conversation_id, role, conversations(type)').eq('user_id', me.id);
+  // Channel असेल आणि मी owner/admin नसेन, तर तिथे forward करता येणार नाही (post करण्याचा अधिकार नाही) — त्यामुळे यादीतूनच वगळतो
+  const candidates = (memberRows || []).filter(r => {
+    if (r.conversation_id === activeConv) return false;
+    if (r.conversations?.type === 'channel') return r.role === 'owner' || r.role === 'admin';
+    return true;
+  }).map(r => r.conversation_id);
+
+  if (!candidates.length) { alert('Forward करण्यासाठी दुसरा (पोस्ट करता येईल असा) चॅट नाही'); return; }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'forward-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = '<div class="call-name">कुठे Forward करायचं?</div><div id="forward-list" style="max-height:260px; overflow-y:auto; margin-top:10px;"></div><button id="forward-cancel" class="call-btn decline" style="margin-top:12px;">रद्द करा</button>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const listEl = box.querySelector('#forward-list');
+  for (const id of candidates) {
+    const t = convTitleCache[id] || 'Chat';
+    const btn = document.createElement('button');
+    btn.className = 'disc-join';
+    btn.style.cssText = 'width:100%; margin-top:6px; text-align:left;';
+    btn.textContent = t;
+    btn.onclick = async () => {
+      const { error } = await sb.from('messages').insert({
+        conversation_id: id, sender_id: me.id,
+        content: msg.content || '', media_url: msg.media_url || null, media_type: msg.media_type || null,
+      });
+      if (error) { alert('Forward करता आलं नाही: ' + error.message); return; }
+      overlay.remove();
+      alert(t + ' ला forward केलं');
+    };
+    listEl.appendChild(btn);
+  }
+  box.querySelector('#forward-cancel').onclick = () => overlay.remove();
+}
+
+function toggleDisappearPanel(convId) {
+  const panel = $('disappear-panel');
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+
+  const options = [
+    { label: 'बंद', value: '' },
+    { label: '24 तास', value: 86400 },
+    { label: '7 दिवस', value: 604800 },
+  ];
+  panel.innerHTML = `<div class="gi-title">Disappearing Messages (जुने मेसेज आपोआप डिलीट)</div>` +
+    options.map(o => `<button class="disappear-opt" data-val="${o.value}">${o.label}${activeDisappearingSeconds == o.value || (!activeDisappearingSeconds && !o.value) ? ' ✓' : ''}</button>`).join('');
+  panel.style.display = 'block';
+
+  panel.querySelectorAll('.disappear-opt').forEach(btn => {
+    btn.onclick = async () => {
+      const val = btn.dataset.val ? parseInt(btn.dataset.val) : null;
+      const { error } = await sb.from('conversations').update({ disappearing_seconds: val }).eq('id', convId);
+      if (error) { alert(error.message); return; }
+      activeDisappearingSeconds = val;
+      panel.style.display = 'none';
+    };
+  });
+}
+
+// ---------- DIRECT CHAT INFO (Block/Report) ----------
+function toggleDirectInfoPanel(otherUserId, otherUsername) {
+  const panel = $('direct-info-panel');
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+
+  const isBlocked = blockedUserIds.has(otherUserId);
+  panel.innerHTML = `
+    <div class="gi-row"><span>@${escapeHtml(otherUsername)}</span></div>
+    <button class="di-action" id="di-block-btn">${isBlocked ? '✅ Unblock करा' : '🚫 Block करा'}</button>
+    <button class="di-action" id="di-report-btn">⚠️ Report करा</button>
+  `;
+  panel.style.display = 'block';
+
+  $('di-block-btn').onclick = async () => {
+    if (isBlocked) {
+      await sb.from('blocked_users').delete().eq('blocker_id', me.id).eq('blocked_id', otherUserId);
+      blockedUserIds.delete(otherUserId);
+      alert('Unblock केलं');
+    } else {
+      if (!confirm('@' + otherUsername + ' ला block करायचं?')) return;
+      await sb.from('blocked_users').insert({ blocker_id: me.id, blocked_id: otherUserId });
+      blockedUserIds.add(otherUserId);
+      alert('Block केलं');
+    }
+    panel.style.display = 'none';
+    $('blocked-notice').style.display = blockedUserIds.has(otherUserId) ? 'block' : 'none';
+    $('composer').style.display = blockedUserIds.has(otherUserId) ? 'none' : 'flex';
+    document.querySelectorAll(`.bubble[data-sender="${otherUserId}"]`).forEach(el => el.style.display = blockedUserIds.has(otherUserId) ? 'none' : 'flex');
+  };
+
+  $('di-report-btn').onclick = async () => {
+    const category = prompt('कारण लिहा (उदा: Spam, Harassment, Fraud, इ.):');
+    if (!category) return;
+    const { error } = await sb.from('reports').insert({ reporter_id: me.id, target_type: 'user', target_id: otherUserId, category });
+    if (error) { alert(error.message); return; }
+    alert('Report पाठवला गेला, धन्यवाद.');
+    panel.style.display = 'none';
+  };
+}
+
+function toggleGroupInfo(convId) {
+  const panel = $('group-info-panel');
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+
+  const isOwner = activeMemberRoles[me.id] === 'owner';
+  const isOwnerOrAdmin = isOwner || activeMemberRoles[me.id] === 'admin';
+  let html = '';
+  if (isOwner) {
+    html += `<div class="gi-title">Group Avatar</div>
+      <div class="conv-avatar" id="gi-avatar-preview" style="width:56px;height:56px;cursor:pointer;margin-bottom:10px;"><span>?</span></div>
+      <input type="file" id="gi-avatar-input" accept="image/*" style="display:none" />`;
+  }
+  html += '<div class="gi-title">सभासद</div>';
+  for (const [uid, uname] of Object.entries(activeMembers)) {
+    const role = activeMemberRoles[uid];
+    html += `<div class="gi-row"><span>@${escapeHtml(uname)}${role === 'owner' ? ' (owner)' : ''}</span>`;
+    if (isOwner && uid !== me.id) html += `<button class="gi-remove" data-uid="${uid}">काढा</button>`;
+    html += `</div>`;
+  }
+  if (isOwnerOrAdmin) {
+    html += `<div class="gi-add"><input id="gi-add-input" placeholder="username (नवीन सभासद)" /><button id="gi-add-btn">जोडा</button></div>`;
+  }
+  panel.innerHTML = html;
+  panel.style.display = 'block';
+
+  if (isOwner) {
+    sb.from('conversations').select('avatar_url').eq('id', convId).single().then(({ data }) => {
+      if (data?.avatar_url) $('gi-avatar-preview').innerHTML = `<img src="${data.avatar_url}" />`;
+    });
+    $('gi-avatar-preview').onclick = () => $('gi-avatar-input').click();
+    $('gi-avatar-input').onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const ext = file.name.split('.').pop();
+      const path = `group-avatars/${convId}-${Date.now()}.${ext}`;
+      const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+      if (upErr) { alert(upErr.message); return; }
+      const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+      await sb.from('conversations').update({ avatar_url: pub.publicUrl }).eq('id', convId);
+      $('gi-avatar-preview').innerHTML = `<img src="${pub.publicUrl}" />`;
+      loadConversations();
+    };
+  }
+
+  panel.querySelectorAll('.gi-remove').forEach(btn => {
+    btn.onclick = async () => {
+      const uid = btn.dataset.uid;
+      const { error } = await sb.from('conversation_members').delete().eq('conversation_id', convId).eq('user_id', uid);
+      if (error) { alert(error.message); return; }
+      await refreshGroupMembers(convId);
+      toggleGroupInfo(convId); toggleGroupInfo(convId); // पॅनल refresh
+    };
+  });
+
+  if (!isOwnerOrAdmin) return; // add-member handlers फक्त owner/admin साठी लागतात
+  $('gi-add-btn').onclick = async () => {
+    let uname = normalizeUsername($('gi-add-input').value);
+    if (!uname) return;
+    const { data: user } = await sb.from('profiles').select('id').ilike('username', uname).maybeSingle();
+    if (!user) { alert('वापरकर्ता सापडला नाही'); return; }
+    const { error } = await sb.from('conversation_members').insert({ conversation_id: convId, user_id: user.id, role: 'member' });
+    if (error) { alert(error.message); return; }
+    $('gi-add-input').value = '';
+    await refreshGroupMembers(convId);
+    toggleGroupInfo(convId); toggleGroupInfo(convId);
+  };
+}
+
+// ---------- REPLY ----------
+function quotePreviewText(cached) {
+  if (cached.media_type === 'image') return '📷 फोटो';
+  if (cached.media_type === 'audio') return '🎤 Voice message';
+  if (cached.media_type) return '📎 फाईल';
+  return (cached.content || '').slice(0, 60);
+}
+
+async function fetchAndFillQuote(quotedId, forMsgId) {
+  const { data } = await sb.from('messages').select('content, sender_id, media_type').eq('id', quotedId).maybeSingle();
+  if (!data) return;
+  renderedMsgCache[quotedId] = data;
+  document.querySelectorAll(`.reply-quote[data-quote-for="${quotedId}"]`).forEach(el => {
+    el.textContent = '↩ ' + quotePreviewText(data);
+  });
+}
+
+function setReplyTarget(msg) {
+  const senderLabel = msg.sender_id === me.id ? 'तुम्ही' : (activeMembers[msg.sender_id] || (activeConvType === 'group' ? 'Unknown' : ''));
+  replyingTo = { id: msg.id, content: msg.content || '[फोटो/फाईल]', senderLabel };
+  const bar = $('reply-preview');
+  bar.style.display = 'flex';
+  bar.innerHTML = `<div class="reply-text"><b>${escapeHtml(senderLabel || 'Reply')}</b>: ${escapeHtml(replyingTo.content.slice(0, 60))}</div><button id="cancel-reply">✕</button>`;
+  $('cancel-reply').onclick = () => {
+    replyingTo = null; bar.style.display = 'none'; bar.innerHTML = '';
+    if (!channelCanPost) $('composer').style.display = 'none'; // channel मध्ये comment cancel केलं तर composer परत लपवतो
+  };
+  // Channel मध्ये पोस्ट करण्याचा अधिकार नसेल तर फक्त comment (reply) साठी तात्पुरता composer दाखवतो
+  if (!channelCanPost) $('composer').style.display = 'flex';
+  $('msg-input').focus();
+}
+
+// ---------- EMOJI PICKER (composer साठी) ----------
+const COMMON_EMOJIS = ['😀','😂','😍','😊','😉','😢','😭','😡','👍','👎','🙏','👏','🔥','🎉','❤️','💯','😎','🤔','😴','🥳','😱','🙌','✅','❌','⭐','💡','📌','🎂','☕','🌹'];
+function toggleEmojiPicker() {
+  const box = $('emoji-picker-box');
+  const willOpen = box.style.display === 'none';
+  box.style.display = willOpen ? 'grid' : 'none';
+  if (willOpen && !box.dataset.filled) {
+    box.innerHTML = COMMON_EMOJIS.map(e => `<span>${e}</span>`).join('');
+    box.dataset.filled = '1';
+    box.querySelectorAll('span').forEach(el => {
+      el.onclick = () => { $('msg-input').value += el.textContent; $('msg-input').focus(); };
+    });
+  }
+}
+
+// ---------- LOCATION SHARING ----------
+function sendLocation() {
+  $('plus-menu').style.display = 'none';
+  if (!activeConv) return;
+  if (!navigator.geolocation) { alert('या browser मध्ये location support नाही'); return; }
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const { latitude, longitude } = pos.coords;
+    const { error } = await sb.from('messages').insert({
+      conversation_id: activeConv, sender_id: me.id,
+      content: `${latitude},${longitude}`, media_type: 'location',
+      expires_at: computeExpiresAt(),
+    });
+    if (error) alert(error.message);
+  }, (err) => alert('Location मिळालं नाही: ' + err.message));
+}
+
+// ---------- CONTACT SHARING ----------
+function openContactSharePicker() {
+  $('plus-menu').style.display = 'none';
+  const uname = prompt('कोणाचा contact share करायचा? username टाका:');
+  if (!uname) return;
+  (async () => {
+    const { data: user } = await sb.from('profiles').select('id, username').ilike('username', normalizeUsername(uname)).maybeSingle();
+    if (!user) { alert('वापरकर्ता सापडला नाही'); return; }
+    const { error } = await sb.from('messages').insert({
+      conversation_id: activeConv, sender_id: me.id,
+      content: user.username, media_type: 'contact',
+      expires_at: computeExpiresAt(),
+    });
+    if (error) alert(error.message);
+  })();
+}
+
+// ---------- POLLS ----------
+function openPollCreator() {
+  $('plus-menu').style.display = 'none';
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">Poll तयार करा</div>
+    <input id="poll-question" placeholder="प्रश्न" style="width:100%; margin-top:10px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <input id="poll-opt-1" placeholder="पर्याय 1" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <input id="poll-opt-2" placeholder="पर्याय 2" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <input id="poll-opt-3" placeholder="पर्याय 3 (optional)" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <input id="poll-opt-4" placeholder="पर्याय 4 (optional)" style="width:100%; margin-top:6px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px;"><input type="checkbox" id="poll-multi-check" /> एकापेक्षा जास्त पर्याय निवडता येतील (multi-select)</label>
+    <button class="disc-join" id="poll-submit" style="width:100%; margin-top:10px;">Poll पाठवा</button>
+    <button class="call-btn decline" id="poll-cancel" style="margin-top:8px;">रद्द करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#poll-cancel').onclick = () => overlay.remove();
+  box.querySelector('#poll-submit').onclick = async () => {
+    const question = box.querySelector('#poll-question').value.trim();
+    const options = [1, 2, 3, 4].map(i => box.querySelector('#poll-opt-' + i).value.trim()).filter(Boolean);
+    const multi = box.querySelector('#poll-multi-check').checked;
+    if (!question || options.length < 2) { alert('प्रश्न आणि किमान 2 पर्याय आवश्यक'); return; }
+    const { error } = await sb.from('messages').insert({
+      conversation_id: activeConv, sender_id: me.id,
+      content: JSON.stringify({ question, options }), media_type: 'poll', poll_multi: multi,
+      expires_at: computeExpiresAt(),
+    });
+    if (error) { alert(error.message); return; }
+    overlay.remove();
+  };
+}
+
+async function castPollVote(msgId, optionIndex, isMulti) {
+  if (isMulti) {
+    // Multi-select: याच पर्यायावर toggle (आधीच निवडलेला असेल तर काढतो, नसेल तर जोडतो)
+    const { data: existing } = await sb.from('poll_votes').select('option_index').eq('message_id', msgId).eq('user_id', me.id).eq('option_index', optionIndex).maybeSingle();
+    if (existing) {
+      await sb.from('poll_votes').delete().eq('message_id', msgId).eq('user_id', me.id).eq('option_index', optionIndex);
+    } else {
+      await sb.from('poll_votes').insert({ message_id: msgId, user_id: me.id, option_index: optionIndex });
+    }
+  } else {
+    // Single-select: आधीचं (कुठलंही) माझं vote काढून नवीन टाकतो
+    await sb.from('poll_votes').delete().eq('message_id', msgId).eq('user_id', me.id);
+    await sb.from('poll_votes').insert({ message_id: msgId, user_id: me.id, option_index: optionIndex });
+  }
+  refreshPollUI(msgId);
+}
+
+async function refreshPollUI(msgId) {
+  const el = document.querySelector(`[data-msg-id="${msgId}"] .poll-box`);
+  if (!el) return;
+  const { data: votes } = await sb.from('poll_votes').select('user_id, option_index').eq('message_id', msgId);
+  const options = JSON.parse(el.dataset.options);
+  const counts = options.map((_, i) => (votes || []).filter(v => v.option_index === i).length);
+  const total = counts.reduce((a, b) => a + b, 0) || 1;
+  const myVotes = new Set((votes || []).filter(v => v.user_id === me.id).map(v => v.option_index));
+
+  el.querySelectorAll('.poll-option').forEach((optEl, i) => {
+    const pct = Math.round((counts[i] / total) * 100);
+    optEl.querySelector('.poll-bar').style.width = pct + '%';
+    optEl.querySelector('.poll-count').textContent = counts[i] + ' (' + pct + '%)';
+    optEl.classList.toggle('voted', myVotes.has(i));
+  });
+}
+
+// ---------- SEND (टेक्स्ट) ----------
+function computeExpiresAt() {
+  return activeDisappearingSeconds ? new Date(Date.now() + activeDisappearingSeconds * 1000).toISOString() : null;
+}
+
+async function sendMessage() {
+  const input = $('msg-input');
+  const content = input.value.trim();
+  if (!content || !activeConv) return;
+  input.value = '';
+  const payload = { conversation_id: activeConv, sender_id: me.id, content, expires_at: computeExpiresAt() };
+  if (replyingTo) payload.reply_to = replyingTo.id;
+  const { error } = await sb.from('messages').insert(payload);
+  if (error) alert(error.message);
+  if (replyingTo) {
+    replyingTo = null; $('reply-preview').style.display = 'none'; $('reply-preview').innerHTML = '';
+    if (!channelCanPost) $('composer').style.display = 'none'; // channel मध्ये comment पाठवून झाल्यावर composer परत लपवतो
+  }
+}
+
+// ---------- PHOTO/FILE UPLOAD ----------
+async function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file || !activeConv) return;
+  if (file.size > 10 * 1024 * 1024) { alert('फाईल 10MB पेक्षा मोठी आहे'); return; }
+
+  const ext = file.name.split('.').pop();
+  const path = `${activeConv}/${crypto.randomUUID()}.${ext}`;
+  const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+  if (upErr) { alert('अपलोड चुकलं: ' + upErr.message); return; }
+
+  const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+  const mediaType = file.type.startsWith('image/') ? 'image' : 'file';
+
+  const { error } = await sb.from('messages').insert({
+    conversation_id: activeConv, sender_id: me.id,
+    content: mediaType === 'image' ? '' : file.name,
+    media_url: pub.publicUrl, media_type: mediaType,
+    expires_at: computeExpiresAt(),
+  });
+  if (error) alert(error.message);
+  e.target.value = '';
+}
+
+// ---------- VOICE MESSAGES ----------
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimerInterval = null;
+let recordingSeconds = 0;
+
+async function toggleVoiceRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  let micStream;
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    alert('Microphone access मिळालं नाही: ' + err.message);
+    return;
+  }
+  audioChunks = [];
+  mediaRecorder = new MediaRecorder(micStream);
+  mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+  mediaRecorder.onstop = async () => {
+    micStream.getTracks().forEach(t => t.stop());
+    clearInterval(recordingTimerInterval);
+    $('recording-indicator').style.display = 'none';
+    $('mic-btn').classList.remove('recording');
+    recordingSeconds = 0;
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    if (blob.size < 500) return; // खूप छोटं (चुकून क्लिक) असेल तर पाठवायचं नाही
+    await uploadAndSendVoice(blob);
+  };
+  mediaRecorder.start();
+  $('mic-btn').classList.add('recording');
+  $('recording-indicator').style.display = 'inline';
+  recordingSeconds = 0;
+  $('rec-timer').textContent = '0:00';
+  recordingTimerInterval = setInterval(() => {
+    recordingSeconds++;
+    const m = String(Math.floor(recordingSeconds / 60)).padStart(1, '0');
+    const s = String(recordingSeconds % 60).padStart(2, '0');
+    $('rec-timer').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+async function uploadAndSendVoice(blob) {
+  if (!activeConv) return;
+  const path = `${activeConv}/voice-${crypto.randomUUID()}.webm`;
+  const { error: upErr } = await sb.storage.from('chat-media').upload(path, blob, { contentType: 'audio/webm' });
+  if (upErr) { alert('Voice message अपलोड चुकलं: ' + upErr.message); return; }
+  const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+  const { error } = await sb.from('messages').insert({
+    conversation_id: activeConv, sender_id: me.id, content: '',
+    media_url: pub.publicUrl, media_type: 'audio',
+    expires_at: computeExpiresAt(),
+  });
+  if (error) alert(error.message);
+}
+
+// ---------- DELETE ----------
+async function deleteMessage(msgId) {
+  const { error } = await sb.from('messages').update({ deleted: true, content: '', media_url: null }).eq('id', msgId);
+  if (error) { alert(error.message); return; }
+  const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+  if (el) el.remove();
+}
+
+// "Delete for me" — फक्त स्वतःच्या ब्राउझरमध्ये लपवतो, इतरांना तो मेसेज दिसतच राहतो (डिव्हाइसेसमध्ये sync होत नाही)
+function getDeletedForMeSet() {
+  try { return new Set(JSON.parse(localStorage.getItem('weavo_deleted_for_me_' + me.id) || '[]')); }
+  catch { return new Set(); }
+}
+function saveDeletedForMeSet(set) {
+  localStorage.setItem('weavo_deleted_for_me_' + me.id, JSON.stringify([...set]));
+}
+function deleteForMe(msgId) {
+  const set = getDeletedForMeSet();
+  set.add(msgId);
+  saveDeletedForMeSet(set);
+  const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+  if (el) el.remove();
+}
+
+function showDeleteChoice(msg) {
+  const mine = msg.sender_id === me.id;
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">मेसेज Delete करायचा?</div>
+    <button class="disc-join" id="del-for-me" style="width:100%; margin-top:10px;">फक्त माझ्यासाठी Delete करा</button>
+    ${mine ? '<button class="disc-join" id="del-for-everyone" style="width:100%; margin-top:6px; color:#f87171;">सर्वांसाठी Delete करा</button>' : ''}
+    <button class="call-btn decline" id="del-cancel" style="margin-top:12px;">रद्द करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#del-for-me').onclick = () => { deleteForMe(msg.id); overlay.remove(); };
+  if (mine) box.querySelector('#del-for-everyone').onclick = () => { deleteMessage(msg.id); overlay.remove(); };
+  box.querySelector('#del-cancel').onclick = () => overlay.remove();
+}
+
+// ---------- STAR ----------
+async function toggleStar(msgId, bubbleEl) {
+  const { data: existing } = await sb.from('starred_messages').select('message_id').eq('user_id', me.id).eq('message_id', msgId).maybeSingle();
+  if (existing) {
+    await sb.from('starred_messages').delete().eq('user_id', me.id).eq('message_id', msgId);
+  } else {
+    await sb.from('starred_messages').insert({ user_id: me.id, message_id: msgId });
+  }
+  checkStarred(msgId, bubbleEl);
+}
+
+async function checkStarred(msgId, bubbleEl) {
+  const { data } = await sb.from('starred_messages').select('message_id').eq('user_id', me.id).eq('message_id', msgId).maybeSingle();
+  const starBtn = bubbleEl.querySelector('.act-star');
+  if (starBtn) starBtn.classList.toggle('starred', !!data);
+  if (data && !bubbleEl.querySelector('.star-marker')) {
+    const marker = document.createElement('span');
+    marker.className = 'star-marker';
+    marker.textContent = '⭐';
+    bubbleEl.appendChild(marker);
+  } else if (!data) {
+    const marker = bubbleEl.querySelector('.star-marker');
+    if (marker) marker.remove();
+  }
+}
+
+async function openStarredPanel() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box wide';
+  box.innerHTML = '<div class="call-name">⭐ Starred Messages</div><div id="starred-list" style="max-height:300px; overflow-y:auto; margin-top:10px; text-align:left;"></div><button class="call-btn decline" id="starred-close" style="margin-top:12px;">बंद करा</button>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#starred-close').onclick = () => overlay.remove();
+
+  const { data: starred } = await sb.from('starred_messages').select('message_id, messages(content, media_type, conversation_id, created_at)').eq('user_id', me.id).order('created_at', { ascending: false });
+  const listEl = box.querySelector('#starred-list');
+  if (!starred || !starred.length) { listEl.innerHTML = '<div class="disc-empty">अजून काहीही star केलेलं नाही</div>'; return; }
+  listEl.innerHTML = starred.map(s => {
+    const m = s.messages;
+    if (!m) return '';
+    const preview = m.media_type ? (m.media_type === 'image' ? '📷 फोटो' : m.media_type === 'audio' ? '🎤 Voice' : '📎 फाईल') : (m.content || '');
+    const convTitle = convTitleCache[m.conversation_id] || 'Chat';
+    return `<div class="biz-card"><div class="biz-name">${escapeHtml(convTitle)}</div><div class="biz-desc">${escapeHtml(preview)}</div></div>`;
+  }).join('');
+}
+
+// ---------- STORIES ----------
+$('tab-toggle-stories').onclick = () => openStoriesPanel();
+
+async function openStoriesPanel() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'stories-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box wide';
+  box.innerHTML = `
+    <div class="call-name">📸 Stories</div>
+    <button class="disc-join" id="add-story-btn" style="width:100%; margin-top:10px;">+ नवीन Story टाका</button>
+    <div id="stories-list" style="max-height:280px; overflow-y:auto; margin-top:12px; text-align:left;"></div>
+    <button class="call-btn decline" id="stories-close" style="margin-top:12px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#stories-close').onclick = () => overlay.remove();
+  box.querySelector('#add-story-btn').onclick = openAddStory;
+
+  const listEl = box.querySelector('#stories-list');
+  listEl.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+
+  const { data: stories } = await sb.from('stories').select('id, user_id, created_at, profiles(username)').gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false });
+  if (!stories || !stories.length) { listEl.innerHTML = '<div class="disc-empty">सध्या कोणाच्याही active stories नाहीत</div>'; return; }
+
+  // प्रत्येक व्यक्तीच्या stories एकत्र गटात करतो
+  const groups = {};
+  for (const s of stories) {
+    if (!groups[s.user_id]) groups[s.user_id] = { username: s.profiles?.username || 'Unknown', items: [] };
+    groups[s.user_id].items.push(s);
+  }
+
+  listEl.innerHTML = Object.entries(groups).map(([uid, g]) => `
+    <div class="admin-row" style="cursor:pointer;" data-uid="${uid}">
+      <span>${uid === me.id ? '🟣 माझी Story' : '@' + escapeHtml(g.username)}</span>
+      <span class="admin-tag">${g.items.length} story</span>
+    </div>
+  `).join('');
+
+  listEl.querySelectorAll('.admin-row').forEach(row => {
+    row.onclick = () => {
+      overlay.remove();
+      openStoryViewer(groups[row.dataset.uid].items.map(s => s.id));
+    };
+  });
+}
+
+function openAddStory() {
+  document.getElementById('stories-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">नवीन Story</div>
+    <button class="disc-join" id="story-photo-btn" style="width:100%; margin-top:10px;">📷 फोटो टाका</button>
+    <input type="file" id="story-photo-input" accept="image/*" style="display:none" />
+    <textarea id="story-text-input" placeholder="किंवा इथे मजकूर लिहा..." rows="3" style="width:100%; margin-top:10px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);"></textarea>
+    <div id="story-color-row" style="display:flex; gap:6px; margin-top:8px;"></div>
+    <button class="disc-join" id="story-text-submit" style="width:100%; margin-top:10px;">मजकूर Story टाका</button>
+    <button class="call-btn decline" id="story-cancel" style="margin-top:8px;">रद्द करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#story-cancel').onclick = () => overlay.remove();
+
+  const colors = ['#6366f1', '#ef4444', '#22c55e', '#f59e0b', '#ec4899', '#0ea5e9'];
+  let chosenColor = colors[0];
+  const colorRow = box.querySelector('#story-color-row');
+  colorRow.innerHTML = colors.map(c => `<span class="story-swatch" data-c="${c}" style="background:${c}"></span>`).join('');
+  colorRow.querySelectorAll('.story-swatch').forEach(sw => {
+    sw.onclick = () => { chosenColor = sw.dataset.c; colorRow.querySelectorAll('.story-swatch').forEach(s => s.classList.remove('picked')); sw.classList.add('picked'); };
+  });
+
+  box.querySelector('#story-photo-btn').onclick = () => box.querySelector('#story-photo-input').click();
+  box.querySelector('#story-photo-input').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop();
+    const path = `stories/${me.id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+    if (upErr) { alert(upErr.message); return; }
+    const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+    const { error } = await sb.from('stories').insert({ user_id: me.id, media_url: pub.publicUrl, media_type: 'image' });
+    if (error) { alert(error.message); return; }
+    overlay.remove();
+    alert('Story टाकली — 24 तासांनी आपोआप गायब होईल');
+  };
+
+  box.querySelector('#story-text-submit').onclick = async () => {
+    const text = box.querySelector('#story-text-input').value.trim();
+    if (!text) { alert('मजकूर लिहा'); return; }
+    const { error } = await sb.from('stories').insert({ user_id: me.id, media_type: 'text', text_content: text, bg_color: chosenColor });
+    if (error) { alert(error.message); return; }
+    overlay.remove();
+    alert('Story टाकली — 24 तासांनी आपोआप गायब होईल');
+  };
+}
+
+async function openStoryViewer(storyIds) {
+  let idx = 0;
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'story-viewer-overlay';
+  document.body.appendChild(overlay);
+  let timer = null;
+
+  async function showStory() {
+    clearTimeout(timer);
+    const { data: s } = await sb.from('stories').select('*, profiles(username)').eq('id', storyIds[idx]).single();
+    if (!s) { overlay.remove(); return; }
+    await sb.from('story_views').upsert({ story_id: s.id, viewer_id: me.id }, { onConflict: 'story_id,viewer_id' });
+
+    overlay.innerHTML = `
+      <div class="story-view-box" style="${s.media_type === 'text' ? 'background:' + s.bg_color + ';' : ''}">
+        <div class="story-header">@${escapeHtml(s.profiles?.username || '')} · ${new Date(s.created_at).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+        ${s.media_type === 'image' ? `<img src="${s.media_url}" class="story-media" />` : `<div class="story-text">${escapeHtml(s.text_content)}</div>`}
+        <div class="story-nav">
+          <button id="story-prev">◀</button>
+          <button id="story-close">✕ बंद करा</button>
+          <button id="story-next">▶</button>
+        </div>
+      </div>
+    `;
+    overlay.querySelector('#story-close').onclick = () => overlay.remove();
+    overlay.querySelector('#story-prev').onclick = () => { if (idx > 0) { idx--; showStory(); } };
+    overlay.querySelector('#story-next').onclick = () => { if (idx < storyIds.length - 1) { idx++; showStory(); } else overlay.remove(); };
+
+    timer = setTimeout(() => {
+      if (idx < storyIds.length - 1) { idx++; showStory(); } else overlay.remove();
+    }, 5000);
+  }
+  showStory();
+}
+
+// ---------- QR PROFILE (Identity System) ----------
+function showMyQrCode() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  const qrData = encodeURIComponent('WEAVO_USER:' + me.username);
+  box.innerHTML = `
+    <div class="call-name">📱 माझा QR कोड</div>
+    <div class="call-sub">@${escapeHtml(me.username)}</div>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${qrData}" class="my-qr-img" alt="QR code" />
+    <div class="call-sub">हा QR कोड दुसऱ्या व्यक्तीला दाखव — ते "📷 QR स्कॅन करून Chat सुरू करा" वापरून लगेच तुझ्याशी chat सुरू करू शकतील.</div>
+    <button class="call-btn decline" id="qr-close" style="margin-top:12px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#qr-close').onclick = () => overlay.remove();
+}
+
+async function openQrScanner() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">📷 QR स्कॅन करा</div>
+    <video id="qr-scan-video" autoplay playsinline muted style="width:100%; border-radius:10px; margin-top:10px;"></video>
+    <div class="call-sub" id="qr-scan-status">कॅमेरा सुरू होतोय...</div>
+    <button class="call-btn decline" id="qr-scan-close" style="margin-top:10px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  let stream = null;
+  let stopped = false;
+  const video = box.querySelector('#qr-scan-video');
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  function stop() {
+    stopped = true;
+    if (stream) stream.getTracks().forEach(t => t.stop());
+  }
+  box.querySelector('#qr-scan-close').onclick = () => { stop(); overlay.remove(); };
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = stream;
+    box.querySelector('#qr-scan-status').textContent = 'QR कोड कॅमेऱ्यासमोर धर...';
+  } catch (err) {
+    box.querySelector('#qr-scan-status').textContent = 'कॅमेरा access मिळालं नाही: ' + err.message;
+    return;
+  }
+
+  function tick() {
+    if (stopped) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code && code.data && code.data.startsWith('WEAVO_USER:')) {
+        const username = code.data.replace('WEAVO_USER:', '');
+        stop();
+        overlay.remove();
+        $('new-chat-username').value = username;
+        $('new-chat-btn').click();
+        return;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ---------- DISCOVER HUB (Channels + Businesses + Videos एकत्र, sorting + transparency सकट) ----------
+$('tab-toggle-discover-hub').onclick = () => openDiscoverHub();
+
+async function openDiscoverHub() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'discover-hub-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box wide';
+  box.innerHTML = `
+    <div class="call-name">🧭 Discover</div>
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="videos">Videos</button>
+      <button class="admin-tab" data-tab="channels">Channels</button>
+      <button class="admin-tab" data-tab="businesses">Businesses</button>
+    </div>
+    <div id="discover-hub-content" style="max-height:340px; overflow-y:auto; margin-top:10px; text-align:left;"></div>
+    <button class="call-btn decline" id="discover-hub-close" style="margin-top:12px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#discover-hub-close').onclick = () => overlay.remove();
+  box.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.onclick = () => {
+      box.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      loadDiscoverHubTab(tab.dataset.tab, box.querySelector('#discover-hub-content'), overlay);
+    };
+  });
+  loadDiscoverHubTab('videos', box.querySelector('#discover-hub-content'), overlay);
+}
+
+async function loadDiscoverHubTab(tab, container, overlay) {
+  container.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+
+  if (tab === 'videos') {
+    container.innerHTML = `
+      <div class="discover-sort-row">
+        <span class="settings-label">क्रम:</span>
+        <button class="sort-btn active" data-sort="recent">🕒 अलीकडचे</button>
+        <button class="sort-btn" data-sort="trending">🔥 सगळ्यात लोकप्रिय</button>
+      </div>
+      <div id="discover-video-list" style="margin-top:10px;"></div>
+    `;
+    const renderVideos = async (sort) => {
+      const listEl = document.getElementById('discover-video-list');
+      listEl.innerHTML = '<div class="disc-empty">शोधतोय...</div>';
+      const { data: videos } = await sb.from('short_videos').select('id, caption, created_at, profiles(username)').order('created_at', { ascending: false }).limit(30);
+      let items = videos || [];
+      let why = 'हे अलीकडे टाकलेले video आहेत, वेळेनुसार क्रमाने.';
+      if (sort === 'trending') {
+        const withLikes = await Promise.all(items.map(async v => {
+          const { count } = await sb.from('video_likes').select('*', { count: 'exact', head: true }).eq('video_id', v.id);
+          return { ...v, likeCount: count || 0 };
+        }));
+        items = withLikes.sort((a, b) => b.likeCount - a.likeCount);
+        why = 'हे सगळ्यात जास्त ❤️ मिळालेले video आहेत (लोकप्रियतेनुसार क्रम).';
+      }
+      listEl.innerHTML = `<div class="discover-why">ⓘ ${why}</div>` + items.map(v => `
+        <div class="admin-row">
+          <span>@${escapeHtml(v.profiles?.username || '')}${v.caption ? ' — ' + escapeHtml(v.caption) : ''}${v.likeCount !== undefined ? ' · ❤️ ' + v.likeCount : ''}</span>
+        </div>
+      `).join('') || '<div class="disc-empty">अजून कोणतेही videos नाहीत</div>';
+    };
+    container.querySelectorAll('.sort-btn').forEach(btn => {
+      btn.onclick = () => {
+        container.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderVideos(btn.dataset.sort);
+      };
+    });
+    renderVideos('recent');
+
+    container.querySelector('#discover-video-list').onclick = () => { overlay.remove(); openReelsFeed(); };
+  }
+
+  if (tab === 'channels') {
+    const { data: myMemberships } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+    const joinedIds = (myMemberships || []).map(r => r.conversation_id);
+    const { data: publicChannels } = await sb.from('conversations').select('id, name, description').eq('type', 'channel').eq('is_public', true);
+    const available = (publicChannels || []).filter(c => !joinedIds.includes(c.id));
+    container.innerHTML = `<div class="discover-why">ⓘ हे सगळे सार्वजनिक (public) channels आहेत, ज्यात तू अजून नाहीस.</div>` +
+      (available.length ? available.map(c => `
+        <div class="disc-item">
+          <span># ${escapeHtml(c.name)}${c.description ? ' — ' + escapeHtml(c.description) : ''}</span>
+          <button class="disc-join" data-id="${c.id}" data-name="${escapeHtml(c.name)}">Join</button>
+        </div>
+      `).join('') : '<div class="disc-empty">सध्या कोणतेही नवीन public channels नाहीत</div>');
+    container.querySelectorAll('.disc-join').forEach(btn => {
+      btn.onclick = async () => {
+        const { error } = await sb.from('conversation_members').insert({ conversation_id: btn.dataset.id, user_id: me.id, role: 'subscriber' });
+        if (error) { alert(error.message); return; }
+        overlay.remove();
+        await loadConversations();
+        openConversation(btn.dataset.id, '# ' + btn.dataset.name, 'channel');
+      };
+    });
+  }
+
+  if (tab === 'businesses') {
+    const { data: businesses } = await sb.from('business_profiles').select('name, category, location, photo_url').limit(20);
+    container.innerHTML = `<div class="discover-why">ⓘ नोंदणी केलेले सगळे local businesses.</div>` +
+      ((businesses && businesses.length) ? businesses.map(b => `
+        <div class="admin-row"><span>${escapeHtml(b.name)}${b.category ? ' (' + escapeHtml(b.category) + ')' : ''}${b.location ? ' — 📍 ' + escapeHtml(b.location) : ''}</span></div>
+      `).join('') : '<div class="disc-empty">अजून कोणतेही businesses नाहीत</div>');
+  }
+}
+
+// ---------- SHORT VIDEOS (Reels) ----------
+$('tab-toggle-reels').onclick = () => openReelsFeed();
+
+async function openReelsFeed() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'reels-overlay';
+  overlay.innerHTML = `
+    <div class="reels-container" id="reels-container">
+      <div class="reels-topbar">
+        <span>🎬 Short Videos</span>
+        <button id="add-reel-btn" class="icon-btn" title="नवीन Video टाका">➕</button>
+        <button id="reels-close" class="icon-btn" title="बंद करा">✕</button>
+      </div>
+      <div id="reels-feed" class="reels-feed"><div class="disc-empty" style="color:white; padding:20px;">लोड होतंय...</div></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#reels-close').onclick = () => overlay.remove();
+  overlay.querySelector('#add-reel-btn').onclick = openAddReel;
+
+  const { data: videos } = await sb.from('short_videos').select('id, video_url, caption, created_at, user_id, profiles(username)').order('created_at', { ascending: false }).limit(30);
+  const feedEl = overlay.querySelector('#reels-feed');
+  if (!videos || !videos.length) { feedEl.innerHTML = '<div class="disc-empty" style="color:white; padding:20px;">अजून कोणतेही videos नाहीत — पहिला तूच टाक!</div>'; return; }
+
+  feedEl.innerHTML = videos.map(v => `
+    <div class="reel-item" data-id="${v.id}">
+      <video src="${v.video_url}" class="reel-video" loop muted playsinline></video>
+      <div class="reel-overlay">
+        <div class="reel-caption">@${escapeHtml(v.profiles?.username || '')}${v.caption ? ' — ' + escapeHtml(v.caption) : ''}</div>
+        <div class="reel-actions">
+          <button class="reel-like-btn" data-id="${v.id}">❤️ <span class="like-count">0</span></button>
+          <button class="reel-comment-btn" data-id="${v.id}">💬 Comments</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  // Video वर क्लिक केल्यावर mute/unmute toggle, आणि सध्या दिसणारा व्हिडिओ आपोआप play/बाकीचे pause (IntersectionObserver)
+  feedEl.querySelectorAll('.reel-video').forEach(video => {
+    video.onclick = () => { video.muted = !video.muted; };
+  });
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const video = entry.target;
+      if (entry.isIntersecting) video.play().catch(() => {}); else video.pause();
+    });
+  }, { threshold: 0.6, root: feedEl });
+  feedEl.querySelectorAll('.reel-video').forEach(v => observer.observe(v));
+
+  feedEl.querySelectorAll('.reel-like-btn').forEach(btn => {
+    refreshLikeUI(btn.dataset.id, btn);
+    btn.onclick = async () => {
+      const vid = btn.dataset.id;
+      const { data: existing } = await sb.from('video_likes').select('video_id').eq('video_id', vid).eq('user_id', me.id).maybeSingle();
+      if (existing) await sb.from('video_likes').delete().eq('video_id', vid).eq('user_id', me.id);
+      else await sb.from('video_likes').insert({ video_id: vid, user_id: me.id });
+      refreshLikeUI(vid, btn);
+    };
+  });
+  feedEl.querySelectorAll('.reel-comment-btn').forEach(btn => {
+    btn.onclick = () => openReelComments(btn.dataset.id);
+  });
+}
+
+async function refreshLikeUI(videoId, btn) {
+  const { data: likes } = await sb.from('video_likes').select('user_id').eq('video_id', videoId);
+  const mine = (likes || []).some(l => l.user_id === me.id);
+  btn.querySelector('.like-count').textContent = (likes || []).length;
+  btn.classList.toggle('liked', mine);
+}
+
+function openAddReel() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">नवीन Short Video</div>
+    <button class="disc-join" id="reel-video-btn" style="width:100%; margin-top:10px;">🎥 Video निवडा (जास्तीत जास्त 20MB)</button>
+    <input type="file" id="reel-video-input" accept="video/*" style="display:none" />
+    <input id="reel-caption-input" placeholder="Caption (optional)" style="width:100%; margin-top:10px; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+    <button class="call-btn decline" id="reel-cancel" style="margin-top:12px;">रद्द करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#reel-cancel').onclick = () => overlay.remove();
+  box.querySelector('#reel-video-btn').onclick = () => box.querySelector('#reel-video-input').click();
+  box.querySelector('#reel-video-input').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { alert('Video 20MB पेक्षा लहान असावा'); return; }
+    box.querySelector('#reel-video-btn').textContent = 'अपलोड होतंय...';
+    const ext = file.name.split('.').pop();
+    const path = `reels/${me.id}-${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('chat-media').upload(path, file);
+    if (upErr) { alert(upErr.message); return; }
+    const { data: pub } = sb.storage.from('chat-media').getPublicUrl(path);
+    const caption = box.querySelector('#reel-caption-input').value.trim();
+    const { error } = await sb.from('short_videos').insert({ user_id: me.id, video_url: pub.publicUrl, caption });
+    if (error) { alert(error.message); return; }
+    overlay.remove();
+    document.getElementById('reels-overlay')?.remove();
+    openReelsFeed();
+  };
+}
+
+async function openReelComments(videoId) {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box';
+  box.innerHTML = `
+    <div class="call-name">Comments</div>
+    <div id="reel-comments-list" style="max-height:240px; overflow-y:auto; margin-top:10px; text-align:left;"></div>
+    <div style="display:flex; gap:6px; margin-top:10px;">
+      <input id="reel-comment-input" placeholder="Comment लिहा..." style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);" />
+      <button id="reel-comment-send">पाठवा</button>
+    </div>
+    <button class="call-btn decline" id="reel-comments-close" style="margin-top:10px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#reel-comments-close').onclick = () => overlay.remove();
+
+  const loadComments = async () => {
+    const { data: comments } = await sb.from('video_comments').select('content, created_at, profiles(username)').eq('video_id', videoId).order('created_at', { ascending: true });
+    box.querySelector('#reel-comments-list').innerHTML = (comments || []).map(c =>
+      `<div class="admin-row"><span><b>@${escapeHtml(c.profiles?.username || '')}</b>: ${escapeHtml(c.content)}</span></div>`
+    ).join('') || '<div class="disc-empty">अजून कोणी comment केलेलं नाही</div>';
+  };
+  await loadComments();
+
+  box.querySelector('#reel-comment-send').onclick = async () => {
+    const content = box.querySelector('#reel-comment-input').value.trim();
+    if (!content) return;
+    const { error } = await sb.from('video_comments').insert({ video_id: videoId, user_id: me.id, content });
+    if (error) { alert(error.message); return; }
+    box.querySelector('#reel-comment-input').value = '';
+    loadComments();
+  };
+}
+
+// ---------- ADMIN PANEL ----------
+async function openAdminPanel() {
+  const overlay = document.createElement('div');
+  overlay.className = 'call-overlay';
+  overlay.id = 'admin-overlay';
+  const box = document.createElement('div');
+  box.className = 'call-box wide';
+  box.innerHTML = `
+    <div class="call-name">🛡 Admin Panel</div>
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="stats">Stats</button>
+      <button class="admin-tab" data-tab="users">Users</button>
+      <button class="admin-tab" data-tab="reports">Reports</button>
+    </div>
+    <div id="admin-content" style="max-height:340px; overflow-y:auto; margin-top:10px; text-align:left;"></div>
+    <button class="call-btn decline" id="admin-close" style="margin-top:12px;">बंद करा</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  box.querySelector('#admin-close').onclick = () => overlay.remove();
+
+  box.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.onclick = () => {
+      box.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      loadAdminTab(tab.dataset.tab, box.querySelector('#admin-content'));
+    };
+  });
+  loadAdminTab('stats', box.querySelector('#admin-content'));
+}
+
+async function loadAdminTab(tab, container) {
+  container.innerHTML = '<div class="disc-empty">लोड होतंय...</div>';
+
+  if (tab === 'stats') {
+    const { data, error } = await sb.rpc('admin_get_stats');
+    if (error) { container.innerHTML = `<div class="disc-empty">${escapeHtml(error.message)}</div>`; return; }
+    const s = data[0] || {};
+    container.innerHTML = `
+      <div class="admin-stat"><span>एकूण Users</span><b>${s.total_users}</b></div>
+      <div class="admin-stat"><span>एकूण Messages</span><b>${s.total_messages}</b></div>
+      <div class="admin-stat"><span>एकूण Conversations</span><b>${s.total_conversations}</b></div>
+      <div class="admin-stat"><span>Open Reports</span><b>${s.total_reports_open}</b></div>
+    `;
+  }
+
+  if (tab === 'users') {
+    container.innerHTML = `<input id="admin-user-search" placeholder="username शोधा..." style="width:100%; margin-bottom:10px;" /><div id="admin-user-list"></div>`;
+    const renderUsers = async (q) => {
+      let query = sb.from('profiles').select('id, username, account_type, created_at').order('created_at', { ascending: false }).limit(20);
+      if (q) query = sb.from('profiles').select('id, username, account_type, created_at').ilike('username', `%${q}%`).limit(20);
+      const { data: users } = await query;
+      const { data: banned } = await sb.from('banned_users').select('user_id');
+      const bannedSet = new Set((banned || []).map(b => b.user_id));
+      const listEl = document.getElementById('admin-user-list');
+      if (!users || !users.length) { listEl.innerHTML = '<div class="disc-empty">कोणी सापडलं नाही</div>'; return; }
+      listEl.innerHTML = users.map(u => `
+        <div class="admin-row">
+          <span>@${escapeHtml(u.username)} <span class="admin-tag">${u.account_type}</span>${bannedSet.has(u.id) ? ' <span class="admin-tag banned">BANNED</span>' : ''}</span>
+          <button class="admin-action-btn" data-uid="${u.id}" data-banned="${bannedSet.has(u.id)}">${bannedSet.has(u.id) ? 'Unban' : 'Ban'}</button>
+        </div>
+      `).join('');
+      listEl.querySelectorAll('.admin-action-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const uid = btn.dataset.uid;
+          const isBanned = btn.dataset.banned === 'true';
+          if (isBanned) {
+            await sb.from('banned_users').delete().eq('user_id', uid);
+          } else {
+            const reason = prompt('Ban करण्याचं कारण (optional):') || '';
+            await sb.from('banned_users').insert({ user_id: uid, banned_by: me.id, reason });
+          }
+          renderUsers(document.getElementById('admin-user-search').value.trim());
+        };
+      });
+    };
+    document.getElementById('admin-user-search').oninput = (e) => renderUsers(e.target.value.trim());
+    renderUsers('');
+  }
+
+  if (tab === 'reports') {
+    const { data: reports, error } = await sb.from('reports').select('*').order('created_at', { ascending: false }).limit(30);
+    if (error) { container.innerHTML = `<div class="disc-empty">${escapeHtml(error.message)}</div>`; return; }
+    if (!reports || !reports.length) { container.innerHTML = '<div class="disc-empty">कोणतेही reports नाहीत</div>'; return; }
+    container.innerHTML = reports.map(r => `
+      <div class="admin-row">
+        <span>${escapeHtml(r.target_type)} — ${escapeHtml(r.category)} <span class="admin-tag ${r.status === 'open' ? '' : 'resolved'}">${r.status}</span></span>
+        ${r.status === 'open' ? `<button class="admin-action-btn" data-report="${r.id}">Resolve</button>` : ''}
+      </div>
+    `).join('');
+    container.querySelectorAll('.admin-action-btn').forEach(btn => {
+      btn.onclick = async () => {
+        await sb.from('reports').update({ status: 'resolved' }).eq('id', btn.dataset.report);
+        loadAdminTab('reports', container);
+      };
+    });
+  }
+}
+
+// ---------- EDIT ----------
+function startEditMessage(msg) {
+  const el = document.querySelector(`[data-msg-id="${msg.id}"]`);
+  if (!el) return;
+  const contentEl = el.querySelector('.msg-content');
+  if (!contentEl) return;
+  const original = msg.content;
+  contentEl.innerHTML = `<input class="edit-input" value="${escapeHtml(original)}" /><button class="edit-save">Save</button>`;
+  el.querySelector('.edit-input').focus();
+  el.querySelector('.edit-save').onclick = async () => {
+    const newContent = el.querySelector('.edit-input').value.trim();
+    if (!newContent) return;
+    const { error } = await sb.from('messages').update({ content: newContent, edited: true }).eq('id', msg.id);
+    if (error) { alert(error.message); return; }
+    contentEl.textContent = newContent;
+    if (!el.querySelector('.edited-tag')) {
+      const tag = document.createElement('span'); tag.className = 'edited-tag'; tag.textContent = ' (edited)';
+      contentEl.appendChild(tag);
+    }
+  };
+}
+
+// ---------- READ RECEIPTS ----------
+let otherLastReadAt = null; // सध्याच्या direct चॅटमधल्या समोरच्याने शेवटचं कधी वाचलं
+let otherHideReadReceipts = false; // समोरच्याने read receipts लपवले आहेत का (mutual — मग मलाही त्याचं दिसणार नाही)
+
+async function markAsRead(convId) {
+  await sb.from('conversation_members').update({ last_read_at: new Date().toISOString() }).eq('conversation_id', convId).eq('user_id', me.id);
+}
+
+function refreshReadTicks() {
+  if (activeConvType !== 'direct') return;
+  const receiptsHidden = myProfile.hide_read_receipts || otherHideReadReceipts;
+  document.querySelectorAll('.bubble.me .tick').forEach(tick => {
+    const msgTime = new Date(tick.dataset.createdAt);
+    const isRead = !receiptsHidden && otherLastReadAt && new Date(otherLastReadAt) >= msgTime;
+    tick.textContent = isRead ? '✓✓' : '✓';
+    tick.classList.toggle('read', !!isRead);
+  });
+}
+
+function refreshGroupReadTicks() {
+  document.querySelectorAll('.bubble.me[data-msg-id]').forEach(bubble => {
+    const tick = bubble.querySelector('.tick');
+    if (!tick) return;
+    const createdAt = bubble.dataset.createdAt;
+    if (!createdAt) return;
+    const readCount = groupReadCount(createdAt);
+    tick.textContent = readCount > 0 ? `✓✓ Read by ${readCount}` : '✓ Sent';
+    tick.classList.toggle('read', readCount > 0);
+  });
+}
+
+// ---------- REACTIONS ----------
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+async function toggleReaction(msgId, emoji) {
+  const { data: existing } = await sb.from('message_reactions').select('id').eq('message_id', msgId).eq('user_id', me.id).eq('emoji', emoji).maybeSingle();
+  if (existing) {
+    await sb.from('message_reactions').delete().eq('id', existing.id);
+  } else {
+    await sb.from('message_reactions').insert({ message_id: msgId, user_id: me.id, emoji });
+  }
+}
+
+async function loadReactionsFor(msgId) {
+  const { data } = await sb.from('message_reactions').select('emoji, user_id').eq('message_id', msgId);
+  renderReactionPills(msgId, data || []);
+}
+
+function renderReactionPills(msgId, reactions) {
+  const el = document.querySelector(`[data-msg-id="${msgId}"] .reaction-pills`);
+  if (!el) return;
+  const counts = {};
+  reactions.forEach(r => { counts[r.emoji] = counts[r.emoji] || { count: 0, mine: false }; counts[r.emoji].count++; if (r.user_id === me.id) counts[r.emoji].mine = true; });
+  el.innerHTML = Object.entries(counts).map(([emoji, info]) =>
+    `<span class="pill ${info.mine ? 'mine' : ''}" data-emoji="${emoji}" data-msg="${msgId}">${emoji} ${info.count}</span>`
+  ).join('');
+  el.querySelectorAll('.pill').forEach(p => { p.onclick = () => toggleReaction(p.dataset.msg, p.dataset.emoji); });
+}
+
+function toggleReactionPicker(msgId, anchorEl) {
+  let picker = document.querySelector('.reaction-picker');
+  if (picker) { picker.remove(); if (picker.dataset.for === msgId) return; }
+  picker = document.createElement('div');
+  picker.className = 'reaction-picker';
+  picker.dataset.for = msgId;
+  picker.innerHTML = REACTION_EMOJIS.map(e => `<span class="pick-emoji">${e}</span>`).join('');
+  anchorEl.appendChild(picker);
+  picker.querySelectorAll('.pick-emoji').forEach(el => {
+    el.onclick = async (ev) => {
+      ev.stopPropagation();
+      await toggleReaction(msgId, el.textContent);
+      picker.remove();
+    };
+  });
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.reaction-picker') && !e.target.closest('.act-react')) {
+    document.querySelectorAll('.reaction-picker').forEach(p => p.remove());
+  }
+  if (!e.target.closest('#emoji-picker-box') && !e.target.closest('#emoji-btn')) {
+    const box = document.getElementById('emoji-picker-box');
+    if (box) box.style.display = 'none';
+  }
+  if (!e.target.closest('#plus-menu') && !e.target.closest('#plus-btn')) {
+    const menu = document.getElementById('plus-menu');
+    if (menu) menu.style.display = 'none';
+  }
+});
+
+// ---------- RENDER ----------
+function renderIncoming(msg) {
+  const box = $('messages');
+  if (!box) return;
+  if (msg.deleted) return; // delete झालेला मेसेज दाखवायचा नाही
+  if (msg.expires_at && new Date(msg.expires_at) < new Date()) return; // आधीच expire झालेला (cleanup अजून चालला नसेल तर सुद्धा client वर लपवतो)
+  if (blockedUserIds.has(msg.sender_id)) return; // block केलेल्या व्यक्तीचा मेसेज दाखवायचा नाही
+  if (getDeletedForMeSet().has(msg.id)) return; // मी "फक्त माझ्यासाठी delete" केलेला मेसेज
+
+  const mine = msg.sender_id === me.id;
+  const div = document.createElement('div');
+  div.className = 'bubble ' + (mine ? 'me' : 'them');
+  div.dataset.msgId = msg.id;
+  div.dataset.createdAt = msg.created_at;
+  div.dataset.sender = msg.sender_id;
+  const time = new Date(msg.created_at).toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' });
+  const senderLabel = (activeConvType !== 'direct' && !mine)
+    ? `<span class="sender">${escapeHtml(activeMembers[msg.sender_id] || 'Unknown')}</span>` : '';
+
+  // Reply-quote साठी नंतर उपयोगी पडावं म्हणून cache करतो
+  renderedMsgCache[msg.id] = { content: msg.content, sender_id: msg.sender_id, media_type: msg.media_type };
+
+  let bodyHtml = '';
+  if (msg.media_url && msg.media_type === 'image') {
+    bodyHtml += `<img src="${msg.media_url}" class="msg-image" onclick="window.open('${msg.media_url}','_blank')" />`;
+    if (msg.content) bodyHtml += `<div class="caption">${escapeHtml(msg.content)}</div>`;
+  } else if (msg.media_url && msg.media_type === 'audio') {
+    bodyHtml += `<audio controls src="${msg.media_url}" class="msg-audio"></audio>`;
+  } else if (msg.media_type === 'location') {
+    const [lat, lng] = msg.content.split(',');
+    const delta = 0.01;
+    const bbox = `${parseFloat(lng) - delta},${parseFloat(lat) - delta},${parseFloat(lng) + delta},${parseFloat(lat) + delta}`;
+    bodyHtml += `<iframe class="location-preview" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${lat},${lng}" loading="lazy"></iframe>
+    <a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}" target="_blank" class="msg-file">📍 पूर्ण नकाशा उघडा</a>`;
+  } else if (msg.media_type === 'contact') {
+    bodyHtml += `<div class="contact-card">👤 <b>@${escapeHtml(msg.content)}</b></div>`;
+  } else if (msg.media_type === 'poll') {
+    let poll = { question: '', options: [] };
+    try { poll = JSON.parse(msg.content); } catch (e) {}
+    bodyHtml += `<div class="poll-box" data-options='${escapeHtml(JSON.stringify(poll.options))}'>
+      <div class="poll-question">📊 ${escapeHtml(poll.question)}${msg.poll_multi ? ' <span class="poll-multi-tag">(अनेक निवडा)</span>' : ''}</div>
+      ${poll.options.map((opt, i) => `
+        <div class="poll-option" data-idx="${i}">
+          <div class="poll-bar" style="width:0%"></div>
+          <span class="poll-label">${escapeHtml(opt)}</span>
+          <span class="poll-count">0 (0%)</span>
+        </div>
+      `).join('')}
+    </div>`;
+  } else if (msg.media_url) {
+    bodyHtml += `<a href="${msg.media_url}" target="_blank" class="msg-file">📎 ${escapeHtml(msg.content || 'फाईल')}</a>`;
+  } else {
+    bodyHtml += `<span class="msg-content">${escapeHtml(msg.content)}${msg.edited ? '<span class="edited-tag"> (edited)</span>' : ''}</span>`;
+  }
+
+  let replyHtml = '';
+  if (msg.reply_to) {
+    const cached = renderedMsgCache[msg.reply_to];
+    replyHtml = `<div class="reply-quote" data-quote-for="${msg.reply_to}">↩ ${cached ? escapeHtml(quotePreviewText(cached)) : 'लोड होतंय...'}</div>`;
+    if (!cached) fetchAndFillQuote(msg.reply_to, msg.id);
+  }
+  let tickHtml = '';
+  if (mine && activeConvType === 'direct') {
+    tickHtml = `<span class="tick" data-created-at="${msg.created_at}">✓</span>`;
+  } else if (mine && (activeConvType === 'group' || activeConvType === 'channel')) {
+    const readCount = groupReadCount(msg.created_at);
+    tickHtml = readCount > 0 ? `<span class="tick read">✓✓ Read by ${readCount}</span>` : `<span class="tick">✓ Sent</span>`;
+  }
+  const actionsHtml = `<div class="bubble-actions">
+    <span class="act-reply" title="Reply">↩</span>
+    <span class="act-forward" title="Forward">↪</span>
+    <span class="act-star" title="Star">⭐</span>
+    <span class="act-react" title="React">😊</span>
+    ${mine && !msg.media_url ? '<span class="act-edit" title="Edit">✏️</span>' : ''}
+    <span class="act-delete" title="Delete">🗑</span>
+  </div>`;
+
+  div.innerHTML = `${senderLabel}${replyHtml}${bodyHtml}<div class="reaction-pills"></div><span class="time">${time}${tickHtml}</span>${actionsHtml}`;
+  div.querySelector('.act-reply').onclick = () => setReplyTarget(msg);
+  div.querySelector('.act-forward').onclick = () => openForwardPicker(msg);
+  div.querySelector('.act-star').onclick = () => toggleStar(msg.id, div);
+  div.querySelector('.act-react').onclick = (e) => toggleReactionPicker(msg.id, div);
+  div.querySelector('.act-delete').onclick = () => showDeleteChoice(msg);
+  const editBtn = div.querySelector('.act-edit');
+  if (editBtn) editBtn.onclick = () => startEditMessage(msg);
+
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  checkStarred(msg.id, div);
+  loadReactionsFor(msg.id);
+  refreshReadTicks();
+  refreshGroupReadTicks();
+
+  if (msg.media_type === 'poll') {
+    div.querySelectorAll('.poll-option').forEach(optEl => {
+      optEl.onclick = () => castPollVote(msg.id, parseInt(optEl.dataset.idx), msg.poll_multi);
+    });
+    refreshPollUI(msg.id);
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+// "@" काढतो, आणि जास्तीच्या/चुकीच्या स्पेसेस (उदा. डबल-स्पेस) एका स्पेसमध्ये एकत्र करतो —
+// यामुळे username मध्ये स्पेस असेल (उदा. "arham gandhi") तरी टायपिंग-चूक माफ केली जाते
+function normalizeUsername(s) {
+  return (s || '').trim().replace(/^@/, '').replace(/\s+/g, ' ').trim();
+}
+
+// ---------- PWA: service worker register करणे ----------
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {
+      // सायलेंटली स्किप — service worker नसला तरी app नेहमीसारखं चालेल
+    });
+  });
+}
+</script>
+</body>
+</html>
