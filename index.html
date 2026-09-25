@@ -8,74 +8,71 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
-        .card { max-width: 400px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-        .btn { padding: 10px 20px; font-size: 16px; background-color: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .card { max-width: 420px; margin: 40px auto; padding: 25px; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .btn { padding: 12px 24px; font-size: 16px; background-color: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 15px; }
+        .user-tag { background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>Weavo App</h2>
-        <div id="loading" style="display: none;">ऑटो-लॉगिन होत आहे, कृपया थांबा...</div>
+        <h2>Weavo Messaging</h2>
         
-        <div id="loginArea">
-            <p>थेट प्रवेशासाठी गुगल लॉगिन करा:</p>
+        <!-- लॉगिन नसताना दिसणारा बॉक्स -->
+        <div id="loginArea" style="display: none;">
+            <p>Weavo मध्ये थेट लॉगिन उपलब्ध आहे:</p>
             <button class="btn" onclick="signInGoogle()">Continue with Google</button>
         </div>
 
+        <!-- थेट लॉगिन झाल्यावर दिसणारा मुख्य ॲप विभाग -->
         <div id="appArea" style="display: none;">
-            <h3>स्वागत आहे!</h3>
-            <p>तुमचे खाते: <span id="weavoUser"></span></p>
+            <h3>प्रवेश यशस्वी! 🎉</h3>
+            <p>स्वागत आहे: <span id="weavoUser" class="user-tag"></span></p>
+            <p style="color: #4b5563; font-size: 14px;">(AllERP द्वारे स्वयंचलित जोडणी यशस्वी झाली)</p>
+            <br>
             <button class="btn" style="background-color: #dc2626;" onclick="logout()">लॉगआउट</button>
         </div>
     </div>
 
     <script>
         const WEAVO_SUPABASE_URL = 'https://xpsxbvmziibbrjnadrlm.supabase.co';
-        const WEAVO_SUPABASE_KEY = 'YOUR_WEAVO_ANON_KEY'; // हांगा तुमची Weavo anon key घाला
+        const WEAVO_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // तुमची Weavo ची anon key इथे ठेवा
         const supabaseClient = supabase.createClient(WEAVO_SUPABASE_URL, WEAVO_SUPABASE_KEY);
 
-        async function handleSSOAndAuth() {
-            // १. जर URL मदीं AllERP चे टोकन आयिल्लें आसा जाल्यार
-            if (window.location.hash.includes('access_token')) {
-                document.getElementById('loading').style.display = 'block';
-                document.getElementById('loginArea').style.display = 'none';
-
-                const hashParams = new URLSearchParams(window.location.hash.substring(1));
-                const access_token = hashParams.get('access_token');
-                const refresh_token = hashParams.get('refresh_token');
-
-                if (access_token && refresh_token) {
-                    const { data, error } = await supabaseClient.auth.setSession({
-                        access_token: access_token,
-                        refresh_token: refresh_token
-                    });
-
-                    // URL मदल्यान टोकन काडून उडोवप जेन्ना कन्सोल नितळ उरतले
-                    window.history.replaceState(null, null, window.location.pathname);
-
-                    if (!error && data.session) {
-                        showApp(data.session.user.email);
-                        return;
-                    }
-                }
-            }
-
-            // २. सामान्य चालू आशिल्लें सेशन तपासप
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                showApp(session.user.email);
-            } else {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('loginArea').style.display = 'block';
-            }
-        }
-
         function showApp(email) {
-            document.getElementById('loading').style.display = 'none';
             document.getElementById('loginArea').style.display = 'none';
             document.getElementById('appArea').style.display = 'block';
             document.getElementById('weavoUser').innerText = email;
+        }
+
+        async function handleSSOAndAuth() {
+            // १. जर AllERP वरून ईमेल आला असेल तर थेट आत घेणे
+            if (window.location.hash.includes('user_email')) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const userEmail = hashParams.get('user_email');
+                
+                if (userEmail) {
+                    localStorage.setItem('weavo_logged_email', userEmail);
+                    window.history.replaceState(null, null, window.location.pathname);
+                    showApp(userEmail);
+                    return;
+                }
+            }
+
+            // २. पूर्वी सेव्ह झालेला ईमेल तपासणे
+            const savedEmail = localStorage.getItem('weavo_logged_email');
+            if (savedEmail) {
+                showApp(savedEmail);
+                return;
+            }
+
+            // ३. सामान्य Supabase सेशन तपासणे
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session && session.user) {
+                showApp(session.user.email);
+            } else {
+                document.getElementById('loginArea').style.display = 'block';
+            }
         }
 
         async function signInGoogle() {
@@ -88,10 +85,12 @@
         }
 
         async function logout() {
+            localStorage.removeItem('weavo_logged_email');
             await supabaseClient.auth.signOut();
             window.location.reload();
         }
 
+        // पेज लोड होताच थेट तपासणी
         window.addEventListener('DOMContentLoaded', handleSSOAndAuth);
     </script>
 </body>
