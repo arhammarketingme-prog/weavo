@@ -78,7 +78,6 @@
       margin-top: 6px;
     }
     
-    /* मुख्य ॲप लेआउट */
     #app-container {
       display: none;
       flex: 1;
@@ -155,6 +154,7 @@
       font-size: 13.5px;
       line-height: 1.4;
       word-wrap: break-word;
+      white-space: pre-wrap;
     }
     .msg.in { align-self: flex-start; background: var(--incoming); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
     .msg.out { align-self: flex-end; background: var(--outgoing); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
@@ -162,7 +162,6 @@
 </head>
 <body>
 
-  <!-- ऑथेंटिकेशन / लॉगिन स्क्रीन -->
   <div id="auth-screen">
     <div class="auth-card">
       <img src="icon-192.png" alt="Weavo">
@@ -183,7 +182,6 @@
     </div>
   </div>
 
-  <!-- मुख्य चॅट स्क्रीन -->
   <div id="app-container">
     <header class="app-header">
       <h1><img src="icon-192.png" style="width:26px; height:26px; border-radius:50%; background:#fff; padding:1px;"> Weavo</h1>
@@ -222,7 +220,6 @@
   </div>
 
   <script>
-    // Supabase क्लायंट सुरू करणे
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // 🌟 AllERP Single Sign-On (SSO) आणि ऑटो-लॉगिन हँडलर
@@ -230,6 +227,7 @@
       const urlParams = new URLSearchParams(window.location.search);
       const ssoData = urlParams.get('sso_auth');
       const storeName = urlParams.get('store');
+      const orderData = urlParams.get('order');
 
       if (storeName) {
         const storeLabel = document.getElementById('active-store-label');
@@ -248,10 +246,20 @@
 
             if (!error && data?.session) {
               console.log("✅ AllERP द्वारे Weavo वर ऑटो-लॉगिन यशस्वी झाले!");
-              // URL स्वच्छ करणे
+              showAppScreen(data.session.user);
+
+              // जर AllERP मधून सामानाची ऑर्डर आली असेल तर चॅटमध्ये दाखवणे
+              if (orderData) {
+                const list = document.getElementById('messages-list');
+                const bubble = document.createElement('div');
+                bubble.className = 'msg out';
+                bubble.textContent = decodeURIComponent(orderData);
+                list.appendChild(bubble);
+                list.scrollTop = list.scrollHeight;
+              }
+
               const cleanUrl = window.location.origin + window.location.pathname + (storeName ? `?store=${encodeURIComponent(storeName)}` : '');
               window.history.replaceState({}, document.title, cleanUrl);
-              showAppScreen(data.session.user);
               return;
             }
           }
@@ -309,7 +317,6 @@
       list.scrollTop = list.scrollHeight;
     }
 
-    // ॲप सुरू करणे
     processAllERPAutoLogin();
   </script>
 </body>
