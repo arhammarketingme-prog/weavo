@@ -15,6 +15,7 @@
         .btn-logout { background-color: #ef4444; color: #ffffff; }
         .user-tag { background: #dbeafe; color: #1e40af; padding: 8px 12px; border-radius: 6px; font-weight: bold; display: inline-block; word-break: break-all; margin: 10px 0; border: 1px solid #bfdbfe; }
         .status-box { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 14px; }
+        .loading { font-size: 15px; color: #6b7280; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -22,15 +23,19 @@
     <div class="card">
         <h2>Weavo Messaging</h2>
         
-        <!-- लॉगिन नसतानाचा विभाग (थेट भेट दिल्यास) -->
+        <div id="loadingArea" class="loading">
+            सत्यापन सुरू आहे, कृपया थांबा...
+        </div>
+
+        <!-- जर ऑल ईआरपीमध्ये लॉगिन नसेल तरच हे दिसेल -->
         <div id="loginArea" style="display: none;">
-            <p>Weavo थेट उघडण्यासाठी लॉगिन करा:</p>
+            <p>थेट प्रवेशासाठी गुगल लॉगिन करा:</p>
             <button class="btn btn-google" onclick="signInWithGoogle()">Continue with Google</button>
         </div>
 
-        <!-- आपोआप लॉगिन झाल्यानंतरचा मुख्य विभाग -->
+        <!-- थेट लॉगिन झाल्यावर दिसणारा मुख्य विभाग -->
         <div id="appArea" style="display: none;">
-            <div class="status-box">ऑल ईआरपीवरून थेट प्रवेश यशस्वी झाला आहे!</div>
+            <div class="status-box">थेट प्रवेश यशस्वी झाला आहे!</div>
             <p>लॉगिन खाते:</p>
             <div id="weavoUser" class="user-tag"></div>
             <br>
@@ -39,43 +44,40 @@
     </div>
 
     <script>
-        const WEAVO_SUPABASE_URL = 'https://xpsxbvmziibbrjnadrlm.supabase.co';
-        const WEAVO_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A';
-        const supabaseClient = supabase.createClient(WEAVO_SUPABASE_URL, WEAVO_SUPABASE_KEY);
+        // AllERP चेच Supabase वापरल्यामुळे ब्राऊझरमधील लॉगिन थेट ओळखले जाईल
+        const SUPABASE_URL = 'https://flprhrbbllxfcdaornio.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHJocmJibGx4ZmNkYW9ybmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMDk1MzcsImV4cCI6MjEwMTU4NTUzN30._dxfJ8h50eNEIq89m3467Qr4p8Mw5OuqllwkJzSyTDw';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function showApp(email) {
+            document.getElementById('loadingArea').style.display = 'none';
             document.getElementById('loginArea').style.display = 'none';
             document.getElementById('appArea').style.display = 'block';
             document.getElementById('weavoUser').innerText = email;
         }
 
         async function initAuth() {
-            // १. AllERP मधून आलेला ईमेल तपासणे
-            if (window.location.hash.includes('user_email')) {
-                const params = new URLSearchParams(window.location.hash.substring(1));
-                const userEmail = params.get('user_email');
-                if (userEmail) {
-                    localStorage.setItem('weavo_active_user', userEmail);
-                    window.history.replaceState(null, null, window.location.pathname);
-                    showApp(userEmail);
-                    return;
-                }
-            }
-
-            // २. आधी सेव्ह असलेला युझर तपासणे
-            const savedEmail = localStorage.getItem('weavo_active_user');
-            if (savedEmail) {
-                showApp(savedEmail);
+            // १. AllERP मधील लॉगिन सेशन थेट तपासणे
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            
+            if (session && session.user) {
+                showApp(session.user.email);
                 return;
             }
 
-            // ३. Weavo चे स्वतःचे लॉगिन तपासणे
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session && session.user) {
-                showApp(session.user.email);
-            } else {
-                document.getElementById('loginArea').style.display = 'block';
+            // २. URL मध्ये आलेला युझर (Query किंवा Hash द्वारे)
+            const urlParams = new URLSearchParams(window.location.search);
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            const userEmail = urlParams.get('user_email') || hashParams.get('user_email') || localStorage.getItem('weavo_active_user');
+
+            if (userEmail) {
+                showApp(userEmail);
+                return;
             }
+
+            // ३. लॉगिन नसेल तर लॉगिन बटण दाखवा
+            document.getElementById('loadingArea').style.display = 'none';
+            document.getElementById('loginArea').style.display = 'block';
         }
 
         async function signInWithGoogle() {
