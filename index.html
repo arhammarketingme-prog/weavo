@@ -1,305 +1,98 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Weavo — Messaging & Calls</title>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#2563EB" />
-  <link rel="icon" href="icon-192.png" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
-  <style>
-    :root {
-      --primary: #2563EB;
-      --primary-dark: #1D4ED8;
-      --bg: #F8FAFC;
-      --surface: #FFFFFF;
-      --text: #0F172A;
-      --text-muted: #64748B;
-      --border: #E2E8F0;
-      --incoming: #FFFFFF;
-      --outgoing: #DCF8C6;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    #auth-screen {
-      position: fixed;
-      inset: 0;
-      background: var(--surface);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      z-index: 9999;
-    }
-    .auth-card {
-      width: 100%;
-      max-width: 380px;
-      background: #FFFFFF;
-      padding: 34px 24px;
-      border-radius: 16px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-      border: 1px solid var(--border);
-      text-align: center;
-    }
-    .auth-card img { width: 68px; height: 68px; margin-bottom: 12px; }
-    .auth-card h2 { font-size: 22px; color: var(--primary); margin-bottom: 6px; }
-    .auth-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
-    
-    /* गुगल थेट लॉगिन बटण */
-    .google-signin-btn {
-      width: 100%;
-      padding: 12px;
-      background: #FFFFFF;
-      color: #1e293b;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      font-size: 14.5px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.06);
-    }
-    .google-signin-btn:hover { background: #f8fafc; }
-    
-    #app-container {
-      display: none;
-      flex: 1;
-      height: 100vh;
-      overflow: hidden;
-      flex-direction: column;
-    }
-    .app-header {
-      background: var(--primary);
-      color: #FFFFFF;
-      padding: 12px 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    .app-header h1 { font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
-    .app-body {
-      flex: 1;
-      display: flex;
-      height: calc(100vh - 56px);
-      overflow: hidden;
-    }
-    .chat-sidebar {
-      width: 320px;
-      border-right: 1px solid var(--border);
-      background: #FFFFFF;
-      display: flex;
-      flex-direction: column;
-    }
-    .chat-area {
-      flex: 1;
-      background: #EFEAE2;
-      display: flex;
-      flex-direction: column;
-    }
-    .chat-messages {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .chat-footer {
-      background: #F0F2F5;
-      padding: 10px 14px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      border-top: 1px solid var(--border);
-    }
-    .chat-footer input {
-      flex: 1;
-      padding: 10px 16px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      outline: none;
-      font-size: 14px;
-    }
-    .send-btn {
-      background: var(--primary);
-      color: #fff;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 20px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .msg {
-      max-width: 75%;
-      padding: 8px 14px;
-      border-radius: 10px;
-      font-size: 13.5px;
-      line-height: 1.4;
-      word-wrap: break-word;
-    }
-    .msg.in { align-self: flex-start; background: var(--incoming); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
-    .msg.out { align-self: flex-end; background: var(--outgoing); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weavo Messaging</title>
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+        .card { max-width: 400px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .btn { padding: 10px 20px; font-size: 16px; background-color: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    </style>
 </head>
 <body>
 
-  <!-- ऑथेंटिकेशन / लॉगिन स्क्रीन -->
-  <div id="auth-screen">
-    <div class="auth-card">
-      <img src="icon-192.png" alt="Weavo">
-      <h2>Weavo Messaging</h2>
-      <p id="auth-status-desc">आपल्या गुगल खात्याद्वारे एका क्लिकवर चॅट सुरू करा</p>
-      
-      <!-- एका क्लिकचे गुगल बटण -->
-      <button type="button" class="google-signin-btn" onclick="handleWeavoGoogleSignIn()">
-        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-        Continue with Google
-      </button>
+    <div class="card">
+        <h2>Weavo App</h2>
+        <div id="loading" style="display: none;">ऑटो-लॉगिन होत आहे, कृपया थांबा...</div>
+        
+        <div id="loginArea">
+            <p>थेट प्रवेशासाठी गुगल लॉगिन करा:</p>
+            <button class="btn" onclick="signInGoogle()">Continue with Google</button>
+        </div>
+
+        <div id="appArea" style="display: none;">
+            <h3>स्वागत आहे!</h3>
+            <p>तुमचे खाते: <span id="weavoUser"></span></p>
+            <button class="btn" style="background-color: #dc2626;" onclick="logout()">लॉगआउट</button>
+        </div>
     </div>
-  </div>
 
-  <div id="app-container">
-    <header class="app-header">
-      <h1><img src="icon-192.png" style="width:26px; height:26px; border-radius:50%; background:#fff; padding:1px;"> Weavo</h1>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span id="user-display-badge" style="font-size:12px; background:rgba(255,255,255,0.2); padding:4px 8px; border-radius:4px;"></span>
-        <button onclick="handleLogout()" style="background:transparent; color:#fff; border:1px solid rgba(255,255,255,0.4); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px;">बाहेर पडा</button>
-      </div>
-    </header>
+    <script>
+        const WEAVO_SUPABASE_URL = 'https://xpsxbvmziibbrjnadrlm.supabase.co';
+        const WEAVO_SUPABASE_KEY = 'YOUR_WEAVO_ANON_KEY'; // हांगा तुमची Weavo anon key घाला
+        const supabaseClient = supabase.createClient(WEAVO_SUPABASE_URL, WEAVO_SUPABASE_KEY);
 
-    <div class="app-body">
-      <aside class="chat-sidebar">
-        <div style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; font-size:13px; color:var(--text-muted);">
-          💬 सक्रिय चॅट्स
-        </div>
-        <div id="chat-threads" style="flex:1; overflow-y:auto; padding:8px;">
-          <div style="padding:10px; border-radius:8px; background:#eff6ff; border:1px solid #bfdbfe; font-size:13px;">
-            <strong id="active-store-label">दुकानदार / ग्राहक चॅट</strong><br>
-            <span style="font-size:11px; color:#64748b;">थेट कनेक्टेड</span>
-          </div>
-        </div>
-      </aside>
+        async function handleSSOAndAuth() {
+            // १. जर URL मदीं AllERP चे टोकन आयिल्लें आसा जाल्यार
+            if (window.location.hash.includes('access_token')) {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('loginArea').style.display = 'none';
 
-      <main class="chat-area">
-        <div class="chat-messages" id="messages-list">
-          <div class="msg in">
-            नमस्कार! Weavo सुरक्षित चॅटमध्ये आपले स्वागत आहे. आपण येथून थेट सामानाची यादी पाठवू शकता किंवा संवाद साधू शकता.
-          </div>
-        </div>
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const access_token = hashParams.get('access_token');
+                const refresh_token = hashParams.get('refresh_token');
 
-        <div class="chat-footer">
-          <input type="text" id="chat-msg-input" placeholder="येथे मेसेज किंवा किराणा सामानाची यादी टाईप करा..." onkeypress="if(event.key==='Enter') sendChatMessage()">
-          <button type="button" class="send-btn" onclick="sendChatMessage()">पाठवा ➤</button>
-        </div>
-      </main>
-    </div>
-  </div>
+                if (access_token && refresh_token) {
+                    const { data, error } = await supabaseClient.auth.setSession({
+                        access_token: access_token,
+                        refresh_token: refresh_token
+                    });
 
-  <script>
-    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    // URL मदल्यान टोकन काडून उडोवप जेन्ना कन्सोल नितळ उरतले
+                    window.history.replaceState(null, null, window.location.pathname);
 
-    async function handleWeavoGoogleSignIn() {
-      const { data, error } = await sb.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.href
-        }
-      });
-      if (error) alert(error.message);
-    }
-
-    async function processAllERPAutoLogin() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const ssoData = urlParams.get('sso_auth');
-      const storeName = urlParams.get('store');
-      const orderData = urlParams.get('order');
-
-      if (storeName) {
-        const storeLabel = document.getElementById('active-store-label');
-        if (storeLabel) storeLabel.textContent = decodeURIComponent(storeName);
-      }
-
-      if (ssoData) {
-        document.getElementById('auth-status-desc').textContent = 'Google द्वारे कनेक्ट होत आहे...';
-        try {
-          const authPayload = JSON.parse(decodeURIComponent(ssoData));
-          if (authPayload.access_token && authPayload.refresh_token) {
-            const { data, error } = await sb.auth.setSession({
-              access_token: authPayload.access_token,
-              refresh_token: authPayload.refresh_token
-            });
-
-            if (!error && data?.session) {
-              showAppScreen(data.session.user);
-
-              if (orderData) {
-                const list = document.getElementById('messages-list');
-                const bubble = document.createElement('div');
-                bubble.className = 'msg out';
-                bubble.textContent = decodeURIComponent(orderData);
-                list.appendChild(bubble);
-                list.scrollTop = list.scrollHeight;
-              }
-
-              const cleanUrl = window.location.origin + window.location.pathname + (storeName ? `?store=${encodeURIComponent(storeName)}` : '');
-              window.history.replaceState({}, document.title, cleanUrl);
-              return;
+                    if (!error && data.session) {
+                        showApp(data.session.user.email);
+                        return;
+                    }
+                }
             }
-          }
-        } catch (err) {}
-      }
 
-      const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        showAppScreen(session.user);
-      } else {
-        document.getElementById('auth-screen').style.display = 'flex';
-      }
-    }
+            // २. सामान्य चालू आशिल्लें सेशन तपासप
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                showApp(session.user.email);
+            } else {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('loginArea').style.display = 'block';
+            }
+        }
 
-    function showAppScreen(user) {
-      document.getElementById('auth-screen').style.display = 'none';
-      document.getElementById('app-container').style.display = 'flex';
-      const badge = document.getElementById('user-display-badge');
-      if (badge) badge.textContent = user.user_metadata?.full_name || user.email || 'User';
-    }
+        function showApp(email) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('loginArea').style.display = 'none';
+            document.getElementById('appArea').style.display = 'block';
+            document.getElementById('weavoUser').innerText = email;
+        }
 
-    async function handleLogout() {
-      await sb.auth.signOut();
-      window.location.reload();
-    }
+        async function signInGoogle() {
+            await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname
+                }
+            });
+        }
 
-    function sendChatMessage() {
-      const input = document.getElementById('chat-msg-input');
-      const text = input.value.trim();
-      if (!text) return;
+        async function logout() {
+            await supabaseClient.auth.signOut();
+            window.location.reload();
+        }
 
-      const list = document.getElementById('messages-list');
-      const bubble = document.createElement('div');
-      bubble.className = 'msg out';
-      bubble.textContent = text;
-      list.appendChild(bubble);
-
-      input.value = '';
-      list.scrollTop = list.scrollHeight;
-    }
-
-    processAllERPAutoLogin();
-  </script>
+        window.addEventListener('DOMContentLoaded', handleSSOAndAuth);
+    </script>
 </body>
 </html>
