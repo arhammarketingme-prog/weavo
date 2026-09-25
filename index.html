@@ -15,6 +15,9 @@
         .btn-logout { background-color: #ef4444; color: #ffffff; }
         .user-tag { background: #dbeafe; color: #1e40af; padding: 8px 12px; border-radius: 6px; font-weight: bold; display: inline-block; word-break: break-all; margin: 10px 0; border: 1px solid #bfdbfe; }
         .status-box { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 14px; }
+        .badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: normal; margin-left: 5px; }
+        .badge-allerp { background-color: #fef3c7; color: #92400e; }
+        .badge-weavo { background-color: #e0e7ff; color: #3730a3; }
         .loading { font-size: 15px; color: #6b7280; margin-top: 20px; }
     </style>
 </head>
@@ -24,65 +27,96 @@
         <h2>Weavo Messaging</h2>
         
         <div id="loadingArea" class="loading">
-            सत्यापन सुरू आहे, कृपया थांबा...
+            पडताळणी सुरू आहे, कृपया थांबा...
         </div>
 
-        <!-- जर ऑल ईआरपीमध्ये लॉगिन नसेल तरच हे दिसेल -->
+        <!-- थेट Weavo वापरकर्त्यांसाठी लॉगिन विभाग -->
         <div id="loginArea" style="display: none;">
-            <p>थेट प्रवेशासाठी गुगल लॉगिन करा:</p>
-            <button class="btn btn-google" onclick="signInWithGoogle()">Continue with Google</button>
+            <p>Weavo थेट उघडण्यासाठी गुगलने लॉगिन करा:</p>
+            <button class="btn btn-google" onclick="signInWithWeavoGoogle()">Continue with Google</button>
         </div>
 
-        <!-- थेट लॉगिन झाल्यावर दिसणारा मुख्य विभाग -->
+        <!-- लॉगिन यशस्वी झाल्यानंतरचा मुख्य विभाग -->
         <div id="appArea" style="display: none;">
-            <div class="status-box">थेट प्रवेश यशस्वी झाला आहे!</div>
+            <div id="statusMessage" class="status-box">प्रवेश यशस्वी!</div>
             <p>लॉगिन खाते:</p>
             <div id="weavoUser" class="user-tag"></div>
             <br>
-            <button class="btn btn-logout" onclick="logout()">लॉगआउट</button>
+            <button class="btn btn-logout" onclick="logoutCurrentSession()">लॉगआउट</button>
         </div>
     </div>
 
     <script>
-        // AllERP चेच Supabase वापरल्यामुळे ब्राऊझरमधील लॉगिन थेट ओळखले जाईल
-        const SUPABASE_URL = 'https://flprhrbbllxfcdaornio.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHJocmJibGx4ZmNkYW9ybmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMDk1MzcsImV4cCI6MjEwMTU4NTUzN30._dxfJ8h50eNEIq89m3467Qr4p8Mw5OuqllwkJzSyTDw';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // १. AllERP चा Supabase क्लायंट (प्रोजेक्ट: flprhrbbllxfcdaornio)
+        const ALLERP_URL = 'https://flprhrbbllxfcdaornio.supabase.co';
+        const ALLERP_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHJocmJibGx4ZmNkYW9ybmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMDk1MzcsImV4cCI6MjEwMTU4NTUzN30._dxfJ8h50eNEIq89m3467Qr4p8Mw5OuqllwkJzSyTDw';
+        const allerpClient = supabase.createClient(ALLERP_URL, ALLERP_KEY);
 
-        function showApp(email) {
+        // २. Weavo चा Supabase क्लायंट (प्रोजेक्ट: xpsxbvmziibbrjnadrlm)
+        const WEAVO_URL = 'https://xpsxbvmziibbrjnadrlm.supabase.co';
+        const WEAVO_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A';
+        const weavoClient = supabase.createClient(WEAVO_URL, WEAVO_KEY);
+
+        // सक्रिय क्लायंट ट्रॅक करणे
+        let activeClient = null;
+
+        function showApp(email, source) {
             document.getElementById('loadingArea').style.display = 'none';
             document.getElementById('loginArea').style.display = 'none';
             document.getElementById('appArea').style.display = 'block';
-            document.getElementById('weavoUser').innerText = email;
+            
+            const badgeClass = source === 'AllERP' ? 'badge-allerp' : 'badge-weavo';
+            document.getElementById('weavoUser').innerHTML = `${email} <span class="badge ${badgeClass}">${source} द्वारे जोडलेले</span>`;
+            
+            document.getElementById('statusMessage').innerText = source === 'AllERP' 
+                ? 'AllERP द्वारे अखंड ऑटो-प्रवेश यशस्वी!' 
+                : 'Weavo खात्याद्वारे थेट प्रवेश यशस्वी!';
         }
 
         async function initAuth() {
-            // १. AllERP मधील लॉगिन सेशन थेट तपासणे
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            
-            if (session && session.user) {
-                showApp(session.user.email);
-                return;
-            }
-
-            // २. URL मध्ये आलेला युझर (Query किंवा Hash द्वारे)
+            // पायरी १: AllERP वरून थेट आलेला युझर तपासणे (URL मधील user_email)
             const urlParams = new URLSearchParams(window.location.search);
-            const hashParams = new URLSearchParams(window.location.hash.substring(1));
-            const userEmail = urlParams.get('user_email') || hashParams.get('user_email') || localStorage.getItem('weavo_active_user');
+            const userEmailFromUrl = urlParams.get('user_email');
 
-            if (userEmail) {
-                showApp(userEmail);
+            if (userEmailFromUrl) {
+                localStorage.setItem('active_session_type', 'allerp');
+                localStorage.setItem('allerp_saved_user', userEmailFromUrl);
+                // URL स्वच्छ करणे
+                window.history.replaceState(null, null, window.location.pathname);
+                activeClient = allerpClient;
+                showApp(userEmailFromUrl, 'AllERP');
                 return;
             }
 
-            // ३. लॉगिन नसेल तर लॉगिन बटण दाखवा
+            // पायरी २: आधीचे AllERP सेशन साठवलेले आहे का तपासणे
+            const savedSessionType = localStorage.getItem('active_session_type');
+            if (savedSessionType === 'allerp') {
+                const savedAllERPUser = localStorage.getItem('allerp_saved_user');
+                if (savedAllERPUser) {
+                    activeClient = allerpClient;
+                    showApp(savedAllERPUser, 'AllERP');
+                    return;
+                }
+            }
+
+            // पायरी ३: Weavo चे स्वतःचे स्वतंत्र लॉगिन (Google OAuth) तपासणे
+            const { data: { session } } = await weavoClient.auth.getSession();
+            if (session && session.user) {
+                localStorage.setItem('active_session_type', 'weavo');
+                activeClient = weavoClient;
+                showApp(session.user.email, 'Weavo');
+                return;
+            }
+
+            // जर दोन्हीपैकी कशानेही लॉगिन नसेल तर Weavo चे गुगल लॉगिन बटण दाखवा
             document.getElementById('loadingArea').style.display = 'none';
             document.getElementById('loginArea').style.display = 'block';
         }
 
-        async function signInWithGoogle() {
+        // थेट Weavo ग्राहकांसाठी स्वतंत्र गुगल लॉगिन
+        async function signInWithWeavoGoogle() {
             const cleanUrl = window.location.origin + window.location.pathname;
-            await supabaseClient.auth.signInWithOAuth({
+            await weavoClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: cleanUrl
@@ -90,9 +124,18 @@
             });
         }
 
-        async function logout() {
-            localStorage.removeItem('weavo_active_user');
-            await supabaseClient.auth.signOut();
+        // लॉगआउट हाताळणी
+        async function logoutCurrentSession() {
+            const sessionType = localStorage.getItem('active_session_type');
+            
+            if (sessionType === 'weavo') {
+                await weavoClient.auth.signOut();
+            } else if (sessionType === 'allerp') {
+                await allerpClient.auth.signOut();
+            }
+            
+            localStorage.removeItem('active_session_type');
+            localStorage.removeItem('allerp_saved_user');
             window.location.reload();
         }
 
