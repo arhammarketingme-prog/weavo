@@ -435,7 +435,6 @@
   <div class="landing-nav">
     <div class="landing-logo"><span class="landing-logo-mark">W</span> Weavo</div>
     <div class="landing-nav-actions">
-      <!-- 🌟 थेट onclick फंक्शन जोडले आहे -->
       <button id="landing-login-btn" class="landing-btn-ghost" onclick="showAuthFromLanding()">Login</button>
       <button id="landing-getstarted-btn" class="landing-btn-primary" onclick="showAuthFromLanding()">Get Started</button>
     </div>
@@ -527,6 +526,16 @@
     </div>
     <input type="file" id="avatar-input" accept="image/*" style="display:none" />
     <div id="settings-panel">
+      <!-- 🌟 Username बदलण्यासाठी नवीन इनपुट आणि बटण -->
+      <div class="settings-row" style="border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:12px;">
+        <label class="settings-label">👤 माझं Username बदला:</label>
+        <div style="display:flex; gap:6px; margin-top:4px;">
+          <input id="edit-username-input" placeholder="नवीन username टाका..." style="margin:0; flex:1;" />
+          <button id="save-username-btn" style="width:auto; padding:8px 14px; margin:0;">Save</button>
+        </div>
+        <span id="username-change-status" style="font-size:12px; margin-top:2px;"></span>
+      </div>
+
       <label><input type="checkbox" id="hide-last-seen-toggle" /> माझं last-seen लपवा (मग तुम्हालाही इतरांचं दिसणार नाही)</label>
       <label><input type="checkbox" id="hide-read-receipts-toggle" /> माझ्या Read Receipts (✓✓) लपवा (मग तुम्हालाही इतरांचं दिसणार नाही)</label>
       <div class="settings-row">
@@ -634,7 +643,6 @@
 </div>
 
 <script>
-// 🌟 १. Landing Page बंद करून Auth स्क्रीन दाखवणे
 window.showAuthFromLanding = function() {
   const landing = document.getElementById('landing');
   const auth = document.getElementById('auth-screen');
@@ -644,7 +652,6 @@ window.showAuthFromLanding = function() {
 
 if (localStorage.getItem('weavo_theme') === 'light') document.body.classList.add('light');
 
-// 🌟 २. Weavo चा अचूक Supabase URL आणि खरी Anon Key
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
@@ -680,7 +687,6 @@ if (backLandingBtn) {
   };
 }
 
-// ---------- Google OAuth स्वतंत्र लॉगिन ----------
 async function signInWithGoogle() {
   const errEl = $('error');
   if (errEl) errEl.textContent = '';
@@ -810,22 +816,31 @@ if ($('logout-btn')) {
   };
 }
 
-// 🌟 संपूर्ण क्रॅश-प्रूफ सेशन मॅनेजमेंट (ब्लँक स्क्रीन टाळणारे लॉजिक)
+// 🌟 गुगल प्रोफाईलवरून नाव घेणे + क्रॅश-फ्री सेशन व्यवस्थापन
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
 
-  let baseName = user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() || 
-                 user.email?.split('@')[0]?.toLowerCase() || 'user';
+  // १. गुगलने दिलेले नाव शोधणे (full_name / name / email)
+  let googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+  let baseName = '';
+  
+  if (googleName) {
+    baseName = googleName.trim().replace(/\s+/g, '_').toLowerCase();
+  } else {
+    baseName = user.email?.split('@')[0]?.toLowerCase() || 'user';
+  }
+
   me = { id: user.id, username: baseName };
 
   if (window.location.hash && window.location.hash.includes('access_token')) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
   }
 
-  // थेट ॲप उघडा (ब्लँक स्क्रीन होणारच नाही!)
+  // २. थेट मुख्य ॲप उघडणे
   enterApp();
 
+  // ३. पार्श्वभूमीत प्रोफाईल तपासणे व युनिक नाव सेव्ह करणे
   try {
     const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
     if (profile?.username) {
@@ -848,7 +863,6 @@ async function setupUserSession(user) {
   }
 }
 
-// ऑटो-सेशन श्रोता (लॉगिन झाल्यावर थेट उघडण्यासाठी)
 if (sb) {
   (async () => {
     const { data: { session } } = await sb.auth.getSession();
@@ -909,10 +923,55 @@ async function enterApp() {
   updateLastSeen();
   heartbeatTimer = setInterval(updateLastSeen, 60000);
 
+  // 🌟 Settings उघडणे आणि सध्याचे नाव दाखवणे
   $('settings-btn').onclick = () => {
     const panel = $('settings-panel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    const willOpen = panel.style.display === 'none';
+    panel.style.display = willOpen ? 'block' : 'none';
+    if (willOpen) {
+      $('edit-username-input').value = me.username;
+      $('username-change-status').textContent = '';
+    }
   };
+
+  // 🌟 नाव बदलण्याचे लॉजिक
+  $('save-username-btn').onclick = async () => {
+    const newName = normalizeUsername($('edit-username-input').value);
+    const statusEl = $('username-change-status');
+    
+    if (!newName) {
+      statusEl.textContent = 'नाव रिकामे ठेवता येणार नाही.';
+      statusEl.style.color = '#ef4444';
+      return;
+    }
+    if (newName === me.username) {
+      statusEl.textContent = 'हेच नाव आधीपासून आहे.';
+      statusEl.style.color = '#8b8fa3';
+      return;
+    }
+
+    statusEl.textContent = 'तपासत आहे...';
+    statusEl.style.color = '#6366f1';
+
+    const { data: exists } = await sb.from('profiles').select('id').eq('username', newName).maybeSingle();
+    if (exists) {
+      statusEl.textContent = 'हे नाव आधीच वापरात आहे, दुसरे नाव निवडा.';
+      statusEl.style.color = '#ef4444';
+      return;
+    }
+
+    const { error } = await sb.from('profiles').update({ username: newName }).eq('id', me.id);
+    if (error) {
+      statusEl.textContent = 'त्रुटी: ' + error.message;
+      statusEl.style.color = '#ef4444';
+    } else {
+      me.username = newName;
+      $('me-name').textContent = '@' + me.username;
+      statusEl.textContent = 'नाव यशस्वीपणे बदलले! ✓';
+      statusEl.style.color = '#22c55e';
+    }
+  };
+
   $('hide-last-seen-toggle').onchange = async (e) => {
     await sb.from('profiles').update({ hide_last_seen: e.target.checked }).eq('id', me.id);
     myProfile.hide_last_seen = e.target.checked;
@@ -3203,7 +3262,7 @@ function renderIncoming(msg) {
     if (msg.content) bodyHtml += `<div class="caption">${escapeHtml(msg.content)}</div>`;
   } else if (msg.media_url && msg.media_type === 'audio') {
     bodyHtml += `<audio controls src="${msg.media_url}" class="msg-audio"></audio>`;
-  } else if (msg.media_type === 'location') {
+  } else if (msg.media_url && msg.media_type === 'location') {
     const [lat, lng] = msg.content.split(',');
     const delta = 0.01;
     const bbox = `${parseFloat(lng) - delta},${parseFloat(lat) - delta},${parseFloat(lng) + delta},${parseFloat(lat) + delta}`;
@@ -3283,7 +3342,7 @@ function escapeHtml(s) {
 }
 
 function normalizeUsername(s) {
-  return (s || '').trim().replace(/^@/, '').replace(/\s+/g, ' ').trim();
+  return (s || '').trim().replace(/^@/, '').replace(/\s+/g, '_').toLowerCase();
 }
 
 if ('serviceWorker' in navigator) {
