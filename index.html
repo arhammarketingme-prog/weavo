@@ -12,7 +12,6 @@
 <meta name="theme-color" content="#6366f1" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<script src="config.js"></script>
 <style>
   :root {
     --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
@@ -40,7 +39,7 @@
   .auth-or:before,.auth-or:after { content:""; flex:1; height:1px; background:var(--border); }
   .passkey-btn { background: var(--input-bg); color: var(--accent); border:1px solid var(--accent-soft); }
   .passkey-btn:hover { background:var(--accent-soft); }
-  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; }
+  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; cursor:pointer; }
   .google-auth-btn:hover { background:#f8fafc; }
   #auth-screen .secondary { margin-top:10px; }
 
@@ -636,6 +635,10 @@
 <script>
 if (localStorage.getItem('weavo_theme') === 'light') document.body.classList.add('light');
 
+// 🌟 WEAVO चा स्वतंत्र Supabase प्रोजेक्ट (xpsxbvmziibbrjnadrlm)
+const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAwMzg4ODEsImV4cCI6MjA1NTYxNDg4MX0.O8w6sZ5lJd2y8iP5w5rE9r4r0jX1n3m8q7z4x1y6a2b";
+
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { experimental: { passkey: true }, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
@@ -663,7 +666,7 @@ $('back-to-landing-btn').onclick = () => {
   $('landing').style.display = 'block';
 };
 
-// ---------- Google OAuth स्वतंत्र लॉगिन ----------
+// ---------- Google OAuth लॉगिन ----------
 async function signInWithGoogle() {
   const errEl = $('error');
   if (errEl) errEl.textContent = '';
@@ -671,10 +674,9 @@ async function signInWithGoogle() {
   const gBtn = $('google-login-btn');
   if (gBtn) {
     gBtn.disabled = true;
-    gBtn.innerHTML = `<span>पडताळणी सुरू आहे, कृपया थांबा...</span>`;
+    gBtn.innerHTML = `<span>पडताळणी सुरू आहे...</span>`;
   }
 
-  // Weavo साठी स्वतंत्र Redirect URL (कोणताही पॅरामिटर न ठेवता थेट Weavo)
   const cleanUrl = window.location.origin + window.location.pathname;
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
@@ -781,17 +783,17 @@ $('logout-btn').onclick = async () => {
   $('landing').style.display = 'block';
 };
 
-// 🌟 ब्लँक स्क्रीन रोखणारे क्रॅश-प्रूफ सेशन मॅनेजमेंट
+// 🌟 संपूर्ण क्रॅश-प्रूफ सेशन मॅनेजमेंट (नवीन आणि जुन्या ईमेलसाठी)
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
 
-  // १. त्वरित प्राथमिक ओळख तयार करणे (डेटाबेसच्या उत्तराची अजिबात वाट न पाहता)
+  // १. त्वरित प्राथमिक नाव तयार करणे
   let baseName = user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() || 
                  user.email?.split('@')[0]?.toLowerCase() || 'user';
   me = { id: user.id, username: baseName };
 
-  // २. URL मधील टोकन क्लीन करणे
+  // २. URL मधील हॅश स्वच्छ करणे
   if (window.location.hash && window.location.hash.includes('access_token')) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
   }
@@ -799,7 +801,7 @@ async function setupUserSession(user) {
   // ३. थेट ॲप उघडा (ब्लँक स्क्रीन होणारच नाही!)
   enterApp();
 
-  // ४. बॅकग्राउंडमध्ये प्रोफाईल सिंक करणे (डेटाबेस एरर आला तरी चालणारा ॲप थांबणार नाही)
+  // ४. पार्श्वभूमीत प्रोफाईल सिंक करणे (डेटाबेस एरर आला तरी चालणारा ॲप अडकणार नाही)
   try {
     const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
     if (profile?.username) {
@@ -822,7 +824,7 @@ async function setupUserSession(user) {
   }
 }
 
-// ऑटो-सेशन श्रोता (लॉगिन झाल्यावर त्वरित उघडण्यासाठी)
+// ऑटो-सेशन श्रोता
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user && !me) {
@@ -841,7 +843,6 @@ let myProfile = { avatar_url: null, hide_last_seen: false, hide_read_receipts: f
 let heartbeatTimer = null;
 
 async function enterApp() {
-  // लँडिंग व ऑथ स्क्रीन १००% बंद करून थेट मुख्य ॲप उघडणे
   const landing = $('landing');
   const auth = $('auth-screen');
   const app = $('app');
@@ -3182,7 +3183,7 @@ function renderIncoming(msg) {
     const bbox = `${parseFloat(lng) - delta},${parseFloat(lat) - delta},${parseFloat(lng) + delta},${parseFloat(lat) + delta}`;
     bodyHtml += `<iframe class="location-preview" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${lat},${lng}" loading="lazy"></iframe>
     <a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}" target="_blank" class="msg-file">📍 पूर्ण नकाशा उघडा</a>`;
-  } else if (msg.media_type === 'contact') {
+  } else if (msg.media_url && msg.media_type === 'contact') {
     bodyHtml += `<div class="contact-card">👤 <b>@${escapeHtml(msg.content)}</b></div>`;
   } else if (msg.media_type === 'poll') {
     let poll = { question: '', options: [] };
