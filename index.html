@@ -636,7 +636,7 @@
 <script>
 if (localStorage.getItem('weavo_theme') === 'light') document.body.classList.add('light');
 
-// 🌟 गुगल लॉगिनवरून (OAuth access_token घेऊन) आल्यास लँडिंग व ऑथ स्क्रीन त्वरित बंद करा
+// OAuth हॅश असल्यास लँडिंग स्क्रीन त्वरित लपवा
 if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('error'))) {
   const lEl = document.getElementById('landing');
   const aEl = document.getElementById('auth-screen');
@@ -671,7 +671,7 @@ $('back-to-landing-btn').onclick = () => {
   $('landing').style.display = 'block';
 };
 
-// ---------- जलद Google OAuth लॉगिन ----------
+// ---------- Google OAuth लॉगिन ----------
 async function signInWithGoogle() {
   const errEl = $('error');
   if (errEl) errEl.textContent = '';
@@ -784,41 +784,59 @@ $('logout-btn').onclick = async () => {
   if (heartbeatTimer) clearInterval(heartbeatTimer);
   me = null; activeConv = null;
   $('app').classList.remove('active');
-  $('auth-screen').style.display = 'block';
+  $('auth-screen').style.display = 'none';
+  $('landing').style.display = 'block';
 };
 
-// 🌟 ऑप्टिमाइझ केलेले हाय-स्पीड सेशन व्यवस्थापन
+// 🌟 संपूर्ण सुरक्षित आणि क्रॅश-प्रूफ सेशन मॅनेजमेंट (नवीन आणि जुन्या ईमेलसाठी)
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
 
-  let initialUsername = user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() || 
-                        user.email?.split('@')[0] || 'user';
-  me = { id: user.id, username: initialUsername };
-
-  if (window.location.hash && window.location.hash.includes('access_token')) {
-    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-  }
-
-  // मुख्य ॲप उघडा
-  enterApp();
-
   try {
+    let baseName = user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() || 
+                   user.email?.split('@')[0]?.toLowerCase() || 'user';
+    
+    // १. डेटाबेसमध्ये प्रोफाइल शोधणे
     const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
-    if (profile?.username) {
-      me.username = profile.username;
-      if ($('me-name')) $('me-name').textContent = '@' + me.username;
-    } else {
-      await sb.from('profiles').upsert({ id: user.id, username: initialUsername });
+    let finalUsername = profile?.username;
+
+    // २. प्रोफाईल नसेल तर युनिक नाव देऊन सेव्ह करणे
+    if (!finalUsername) {
+      finalUsername = baseName;
+      const { data: exists } = await sb.from('profiles').select('id').eq('username', finalUsername).maybeSingle();
+      if (exists) {
+        finalUsername = `${baseName}_${Math.floor(100 + Math.random() * 900)}`;
+      }
+      await sb.from('profiles').upsert({ id: user.id, username: finalUsername });
     }
-  } catch (e) {
-    console.warn("Background profile sync:", e);
+
+    me = { id: user.id, username: finalUsername };
+
+    // ३. URL मधील हॅश स्वच्छ करणे
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    }
+
+    // ४. मुख्य ॲप उघडणे
+    enterApp();
+
+  } catch (err) {
+    console.error("Session Setup Error:", err);
+    // एरर आला तरी स्क्रीन ब्लँक न ठेवता सुरक्षितपणे ऑथ स्क्रीन दाखवणे
+    const landing = $('landing');
+    const auth = $('auth-screen');
+    const app = $('app');
+    if (app) app.classList.remove('active');
+    if (auth) auth.style.display = 'block';
+    if (landing) landing.style.display = 'none';
+    if ($('error')) $('error').textContent = 'लॉगिन करताना अडचण आली, कृपया पुन्हा प्रयत्न करा.';
   } finally {
     isAuthProcessing = false;
   }
 }
 
-// 🌟 ऑटो-सेशन ट्रिगर आणि OAuth तपासणी
+// ऑटो-सेशन श्रोता
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user && !me) {
@@ -837,7 +855,6 @@ let myProfile = { avatar_url: null, hide_last_seen: false, hide_read_receipts: f
 let heartbeatTimer = null;
 
 async function enterApp() {
-  // लँडिंग व ऑथ स्क्रीन १००% लपवून मुख्य ॲप दृश्यमान करणे
   const landing = $('landing');
   const auth = $('auth-screen');
   const app = $('app');
