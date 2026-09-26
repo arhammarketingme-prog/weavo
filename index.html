@@ -636,6 +636,14 @@
 <script>
 if (localStorage.getItem('weavo_theme') === 'light') document.body.classList.add('light');
 
+// 🌟 गुगल लॉगिनवरून (OAuth access_token घेऊन) आल्यास लँडिंग व ऑथ स्क्रीन त्वरित बंद करा
+if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('error'))) {
+  const lEl = document.getElementById('landing');
+  const aEl = document.getElementById('auth-screen');
+  if (lEl) lEl.style.display = 'none';
+  if (aEl) aEl.style.display = 'none';
+}
+
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { experimental: { passkey: true }, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
@@ -779,25 +787,22 @@ $('logout-btn').onclick = async () => {
   $('auth-screen').style.display = 'block';
 };
 
-// 🌟 ऑप्टिमाइझ केलेले हाय-स्पीड सेशन व्यवस्थापन (Instant UI Render)
+// 🌟 ऑप्टिमाइझ केलेले हाय-स्पीड सेशन व्यवस्थापन
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
 
-  // १. त्वरित प्राथमिक ओळख तयार करा (डेटाबेसच्या लेटन्सीची वाट न पाहता)
   let initialUsername = user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() || 
                         user.email?.split('@')[0] || 'user';
   me = { id: user.id, username: initialUsername };
 
-  // २. URL मधील टोकन क्लीन करा
   if (window.location.hash && window.location.hash.includes('access_token')) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
   }
 
-  // ३. थेट ॲप उघडा (१ सेकंदाच्या आत)
+  // मुख्य ॲप उघडा
   enterApp();
 
-  // ४. पार्श्वभूमीत प्रोफाईल तपासा आणि सिंक करा
   try {
     const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
     if (profile?.username) {
@@ -813,7 +818,7 @@ async function setupUserSession(user) {
   }
 }
 
-// ऑटो-सेशन ट्रिगर
+// 🌟 ऑटो-सेशन ट्रिगर आणि OAuth तपासणी
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user && !me) {
@@ -832,9 +837,15 @@ let myProfile = { avatar_url: null, hide_last_seen: false, hide_read_receipts: f
 let heartbeatTimer = null;
 
 async function enterApp() {
-  $('landing').style.display = 'none';
-  $('auth-screen').style.display = 'none';
-  $('app').classList.add('active');
+  // लँडिंग व ऑथ स्क्रीन १००% लपवून मुख्य ॲप दृश्यमान करणे
+  const landing = $('landing');
+  const auth = $('auth-screen');
+  const app = $('app');
+
+  if (landing) landing.style.display = 'none';
+  if (auth) auth.style.display = 'none';
+  if (app) app.classList.add('active');
+
   $('me-name').textContent = '@' + me.username;
   subscribeRealtime();
   loadConversations();
