@@ -687,7 +687,7 @@ if (backLandingBtn) {
   };
 }
 
-// 🌟 URL मधून स्टोअर सुरक्षितपणे वाचणारा फंक्शन
+// 🌟 URL मधून स्टोअर (दुकानदार) सुरक्षितपणे वाचणारा फंक्शन
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -697,18 +697,26 @@ function getBridgeParams() {
   const store = params.get('store') || params.get('merchant');
   const customerEmail = params.get('customer_email') || params.get('email');
   const customerName = params.get('customer_name') || params.get('name');
-  return { store, customerEmail, customerName };
+  const merchantMode = params.get('merchant_mode');
+  return { store, customerEmail, customerName, merchantMode };
 }
 
-// 🌟 जुन्या आणि नवीन दोन्ही दुकानदारांना शोधून आपोआप चॅट जोडणारा आणि नसेल तर युझर तयार करणारा स्मार्ट ब्रिज
+// 🌟 मर्चंट आणि ग्राहक ओळखणारा अचूक स्टोअर ब्रिज
 async function handleStoreBridge(storeUsername) {
   if (!storeUsername || !me) return;
+  const bridge = getBridgeParams();
+  
+  // जर मर्चंट (दुकानदार) स्वतः डॅशबोर्डवरून आला असेल, तर त्याला त्याचे स्वतःचे डॅशबोर्ड चॅट्स दाखवा, वेगळा ग्राहक म्हणून ब्रिज करू नका
+  if (bridge.merchantMode === 'true') {
+    return;
+  }
+
   const cleanStoreName = storeUsername.replace(/_/g, ' ').trim();
   
   try {
     let storeUserId = null;
 
-    // 1. प्रथम businesses टेबलमधून owner_id शोधणे (नाव किंवा युझरनेम जुळवून)
+    // 1. businesses टेबलमधून owner_id शोधणे
     const { data: storeInfo } = await sb.from('businesses').select('owner_id, name').ilike('name', cleanStoreName).maybeSingle();
     if (storeInfo && storeInfo.owner_id) {
       storeUserId = storeInfo.owner_id;
@@ -720,17 +728,7 @@ async function handleStoreBridge(storeUsername) {
       }
     }
 
-    // 3. समजा जुना दुकानदार वीव्होवर अजून रजिस्टर नसेल (profiles मध्ये रेकॉर्ड नाही), तर त्याचा fallback किंवा auto profile तयार करणे
-    if (!storeUserId && storeInfo && storeInfo.name) {
-      const dummyEmail = storeUsername.toLowerCase() + '@store.allerp';
-      const { data: newProfile } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
-      if (newProfile) {
-        storeUserId = newProfile.id;
-      }
-    }
-
     if (!storeUserId || storeUserId === me.id) {
-      console.warn("दुकानदार डेटाबेसमध्ये सापडला नाही:", storeUsername);
       return;
     }
 
@@ -746,7 +744,6 @@ async function handleStoreBridge(storeUsername) {
 
     let targetConvId = existingConvId;
     if (!targetConvId) {
-      // नसेल तर नवीन डायरेक्ट चॅट तयार करणे
       const { data: newConv, error: convErr } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
       if (!convErr && newConv) {
         targetConvId = newConv.id;
@@ -897,7 +894,6 @@ if ($('logout-btn')) {
   };
 }
 
-// 🌟 युझर सेशन सेट अप आणि स्टोअर ब्रिज ट्रिगर करणारा मजबूत फंक्शन
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
@@ -922,11 +918,9 @@ async function setupUserSession(user) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
   }
 
-  // ॲप मध्ये प्रवेश करणे
   enterApp();
 
-  // 🌟 जर ऑल ईआरपी मधून दुकानाची लिंक आली असेल, तर काही सेकंदात थेट त्या दुकानदाराशी चॅट उघडणे
-  if (bridge.store) {
+  if (bridge.store && bridge.merchantMode !== 'true') {
     setTimeout(() => handleStoreBridge(bridge.store), 1000);
   }
 
@@ -956,8 +950,7 @@ if (sb) {
   (async () => {
     const bridge = getBridgeParams();
     
-    // जर लिंक AllERP ची असेल आणि युझर लॉगिन नसेल तर थेट Auth स्क्रीन दाखवा
-    if (bridge.store) {
+    if (bridge.store && bridge.merchantMode !== 'true') {
       const { data: { session } } = await sb.auth.getSession();
       if (!session?.user) {
         showAuthFromLanding();
