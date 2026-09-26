@@ -435,8 +435,9 @@
   <div class="landing-nav">
     <div class="landing-logo"><span class="landing-logo-mark">W</span> Weavo</div>
     <div class="landing-nav-actions">
-      <button id="landing-login-btn" class="landing-btn-ghost">Login</button>
-      <button id="landing-getstarted-btn" class="landing-btn-primary">Get Started</button>
+      <!-- 🌟 थेट onclick फंक्शन जोडले आहे -->
+      <button id="landing-login-btn" class="landing-btn-ghost" onclick="showAuthFromLanding()">Login</button>
+      <button id="landing-getstarted-btn" class="landing-btn-primary" onclick="showAuthFromLanding()">Get Started</button>
     </div>
   </div>
 
@@ -445,8 +446,8 @@
     <h1 class="landing-h1">One World.<br />One Communication Layer.</h1>
     <p class="landing-sub">Chat. Call. Create Communities. Share Stories &amp; Reels. All in one fast, private platform — built for everyone, everywhere.</p>
     <div class="landing-cta-row">
-      <button id="landing-hero-getstarted" class="landing-btn-primary landing-btn-lg">Get Started — It's Free</button>
-      <button id="landing-hero-login" class="landing-btn-ghost landing-btn-lg">I already have an account</button>
+      <button id="landing-hero-getstarted" class="landing-btn-primary landing-btn-lg" onclick="showAuthFromLanding()">Get Started — It's Free</button>
+      <button id="landing-hero-login" class="landing-btn-ghost landing-btn-lg" onclick="showAuthFromLanding()">I already have an account</button>
     </div>
   </div>
 
@@ -485,7 +486,7 @@
 
   <div class="landing-footer-cta">
     <h2 class="landing-h2">Ready to join?</h2>
-    <button id="landing-footer-getstarted" class="landing-btn-primary landing-btn-lg">Create your free account</button>
+    <button id="landing-footer-getstarted" class="landing-btn-primary landing-btn-lg" onclick="showAuthFromLanding()">Create your free account</button>
   </div>
 </div>
 
@@ -502,7 +503,7 @@
   <input id="reg-password" type="password" placeholder="Password (किमान 6 अक्षरं)" autocomplete="current-password" />
   <button id="login-btn">Continue to Weavo</button>
   <div class="auth-or"><span>OR</span></div>
-  <button id="google-login-btn" class="google-auth-btn" type="button">
+  <button id="google-login-btn" class="google-auth-btn" type="button" onclick="signInWithGoogle()">
     <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
     <span>Continue with Google</span>
   </button>
@@ -633,38 +634,51 @@
 </div>
 
 <script>
+// 🌟 १. Landing Page बंद करून Auth स्क्रीन दाखवणे
+window.showAuthFromLanding = function() {
+  const landing = document.getElementById('landing');
+  const auth = document.getElementById('auth-screen');
+  if (landing) landing.style.display = 'none';
+  if (auth) auth.style.display = 'block';
+};
+
 if (localStorage.getItem('weavo_theme') === 'light') document.body.classList.add('light');
 
-// 🌟 Weavo चा स्वतःचा स्वतंत्र Supabase प्रोजेक्ट (xpsxbvmziibbrjnadrlm)
+// 🌟 २. Weavo चा अचूक Supabase URL आणि खरी Anon Key
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAwMzg4ODEsImV4cCI6MjA1NTYxNDg4MX0.O8w6sZ5lJd2y8iP5w5rE9r4r0jX1n3m8q7z4x1y6a2b";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { experimental: { passkey: true }, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-});
+let sb = null;
+try {
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { experimental: { passkey: true }, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  });
+} catch(e) {
+  console.error("Supabase client init error:", e);
+}
+
 let me = null;
 let activeConv = null;
 let messagesChannel = null;
 let isAuthProcessing = false;
 
 const $ = (id) => document.getElementById(id);
-$('theme-toggle-btn').onclick = () => {
-  document.body.classList.toggle('light');
-  localStorage.setItem('weavo_theme', document.body.classList.contains('light') ? 'light' : 'dark');
-};
 
-function showAuthFromLanding() {
-  $('landing').style.display = 'none';
-  $('auth-screen').style.display = 'block';
+const themeBtn = $('theme-toggle-btn');
+if (themeBtn) {
+  themeBtn.onclick = () => {
+    document.body.classList.toggle('light');
+    localStorage.setItem('weavo_theme', document.body.classList.contains('light') ? 'light' : 'dark');
+  };
 }
-['landing-login-btn', 'landing-getstarted-btn', 'landing-hero-getstarted', 'landing-hero-login', 'landing-footer-getstarted'].forEach(id => {
-  const el = $(id);
-  if (el) el.onclick = showAuthFromLanding;
-});
-$('back-to-landing-btn').onclick = () => {
-  $('auth-screen').style.display = 'none';
-  $('landing').style.display = 'block';
-};
+
+const backLandingBtn = $('back-to-landing-btn');
+if (backLandingBtn) {
+  backLandingBtn.onclick = () => {
+    $('auth-screen').style.display = 'none';
+    $('landing').style.display = 'block';
+  };
+}
 
 // ---------- Google OAuth स्वतंत्र लॉगिन ----------
 async function signInWithGoogle() {
@@ -678,6 +692,11 @@ async function signInWithGoogle() {
   }
 
   const cleanUrl = window.location.origin + window.location.pathname;
+  if (!sb) {
+    alert("Supabase कनेक्ट होऊ शकले नाही.");
+    return;
+  }
+
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -694,7 +713,6 @@ async function signInWithGoogle() {
     }
   }
 }
-if ($('google-login-btn')) $('google-login-btn').onclick = signInWithGoogle;
 
 let authMode = 'email';
 function setAuthMode(mode) {
@@ -705,8 +723,8 @@ function setAuthMode(mode) {
   $('reg-email').inputMode = mode === 'email' ? 'email' : 'tel';
   $('reg-email').autocomplete = mode === 'email' ? 'username' : 'tel';
 }
-$('auth-email-tab').onclick = () => setAuthMode('email');
-$('auth-mobile-tab').onclick = () => setAuthMode('mobile');
+if ($('auth-email-tab')) $('auth-email-tab').onclick = () => setAuthMode('email');
+if ($('auth-mobile-tab')) $('auth-mobile-tab').onclick = () => setAuthMode('mobile');
 
 async function signInWithRealPasskey() {
   $('error').textContent = '';
@@ -724,7 +742,7 @@ async function signInWithRealPasskey() {
     $('error').textContent = err?.message || 'Passkey login पूर्ण झाला नाही.';
   }
 }
-$('passkey-login-btn').onclick = signInWithRealPasskey;
+if ($('passkey-login-btn')) $('passkey-login-btn').onclick = signInWithRealPasskey;
 
 async function registerRealPasskey() {
   $('error').textContent = '';
@@ -741,70 +759,73 @@ async function registerRealPasskey() {
     $('error').textContent = err?.message || 'Passkey registration पूर्ण झाला नाही.';
   }
 }
-$('register-passkey-btn').onclick = registerRealPasskey;
+if ($('register-passkey-btn')) $('register-passkey-btn').onclick = registerRealPasskey;
 
-$('register-btn').onclick = async () => {
-  $('error').textContent = '';
-  const username = normalizeUsername($('reg-username').value);
-  const identifier = $('reg-email').value.trim();
-  const password = $('reg-password').value;
-  if (!username || !identifier || !password) { $('error').textContent = 'सगळे field भरा'; return; }
-  if (authMode !== 'email') { $('error').textContent = 'नवीन account तयार करण्यासाठी सध्या Email वापरा.'; return; }
+if ($('register-btn')) {
+  $('register-btn').onclick = async () => {
+    $('error').textContent = '';
+    const username = normalizeUsername($('reg-username').value);
+    const identifier = $('reg-email').value.trim();
+    const password = $('reg-password').value;
+    if (!username || !identifier || !password) { $('error').textContent = 'सगळे field भरा'; return; }
+    if (authMode !== 'email') { $('error').textContent = 'नवीन account तयार करण्यासाठी सध्या Email वापरा.'; return; }
 
-  const { data: existing } = await sb.from('profiles').select('id').ilike('username', username).maybeSingle();
-  if (existing) { $('error').textContent = 'हे username आधीच वापरात आहे'; return; }
+    const { data: existing } = await sb.from('profiles').select('id').ilike('username', username).maybeSingle();
+    if (existing) { $('error').textContent = 'हे username आधीच वापरात आहे'; return; }
 
-  const { data, error } = await sb.auth.signUp({
-    email: identifier, password,
-    options: { data: { username } }
-  });
-  if (error) { $('error').textContent = error.message; return; }
-  if (data.user) {
+    const { data, error } = await sb.auth.signUp({
+      email: identifier, password,
+      options: { data: { username } }
+    });
+    if (error) { $('error').textContent = error.message; return; }
+    if (data.user) {
+      await setupUserSession(data.user);
+    }
+  };
+}
+
+if ($('login-btn')) {
+  $('login-btn').onclick = async () => {
+    $('error').textContent = '';
+    const identifier = $('reg-email').value.trim();
+    const password = $('reg-password').value;
+    if (!identifier || !password) { $('error').textContent = 'Email/Mobile आणि password भरा.'; return; }
+    const payload = authMode === 'email' ? { email: identifier, password } : { phone: identifier.startsWith('+') ? identifier : '+91' + identifier.replace(/\D/g,'').replace(/^91/, ''), password };
+    const { data, error } = await sb.auth.signInWithPassword(payload);
+    if (error) { $('error').textContent = error.message; return; }
     await setupUserSession(data.user);
-  }
-};
+  };
+}
 
-$('login-btn').onclick = async () => {
-  $('error').textContent = '';
-  const identifier = $('reg-email').value.trim();
-  const password = $('reg-password').value;
-  if (!identifier || !password) { $('error').textContent = 'Email/Mobile आणि password भरा.'; return; }
-  const payload = authMode === 'email' ? { email: identifier, password } : { phone: identifier.startsWith('+') ? identifier : '+91' + identifier.replace(/\D/g,'').replace(/^91/, ''), password };
-  const { data, error } = await sb.auth.signInWithPassword(payload);
-  if (error) { $('error').textContent = error.message; return; }
-  await setupUserSession(data.user);
-};
+if ($('logout-btn')) {
+  $('logout-btn').onclick = async () => {
+    if (amIInCall) endCall(true);
+    await sb.auth.signOut();
+    if (messagesChannel) sb.removeChannel(messagesChannel);
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    me = null; activeConv = null;
+    $('app').classList.remove('active');
+    $('auth-screen').style.display = 'none';
+    $('landing').style.display = 'block';
+  };
+}
 
-$('logout-btn').onclick = async () => {
-  if (amIInCall) endCall(true);
-  await sb.auth.signOut();
-  if (messagesChannel) sb.removeChannel(messagesChannel);
-  if (heartbeatTimer) clearInterval(heartbeatTimer);
-  me = null; activeConv = null;
-  $('app').classList.remove('active');
-  $('auth-screen').style.display = 'none';
-  $('landing').style.display = 'block';
-};
-
-// 🌟 संपूर्ण क्रॅश-प्रूफ सेशन मॅनेजमेंट (नवीन आणि जुन्या ईमेलसाठी ब्लँक स्क्रीन टाळणारे लॉजिक)
+// 🌟 संपूर्ण क्रॅश-प्रूफ सेशन मॅनेजमेंट (ब्लँक स्क्रीन टाळणारे लॉजिक)
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
 
-  // १. गुगल माहितीवरून प्राथमिक नाव तयार करणे
   let baseName = user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() || 
                  user.email?.split('@')[0]?.toLowerCase() || 'user';
   me = { id: user.id, username: baseName };
 
-  // २. URL मधील हॅश स्वच्छ करणे
   if (window.location.hash && window.location.hash.includes('access_token')) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
   }
 
-  // ३. थेट मुख्य ॲप उघडा (ब्लँक स्क्रीन होणारच नाही!)
+  // थेट ॲप उघडा (ब्लँक स्क्रीन होणारच नाही!)
   enterApp();
 
-  // ४. पार्श्वभूमीत प्रोफाईल सिंक करणे (डेटाबेस एरर आला तरी ॲप चालूच राहील)
   try {
     const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
     if (profile?.username) {
@@ -827,19 +848,21 @@ async function setupUserSession(user) {
   }
 }
 
-// ऑटो-सेशन श्रोता (लॉगिन झाल्यावर त्वरित उघडण्यासाठी)
-(async () => {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user && !me) {
-    await setupUserSession(session.user);
-  }
-
-  sb.auth.onAuthStateChange(async (event, session) => {
+// ऑटो-सेशन श्रोता (लॉगिन झाल्यावर थेट उघडण्यासाठी)
+if (sb) {
+  (async () => {
+    const { data: { session } } = await sb.auth.getSession();
     if (session?.user && !me) {
       await setupUserSession(session.user);
     }
-  });
-})();
+
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user && !me) {
+        await setupUserSession(session.user);
+      }
+    });
+  })();
+}
 
 // ---------- APP ----------
 let myProfile = { avatar_url: null, hide_last_seen: false, hide_read_receipts: false };
@@ -1938,8 +1961,8 @@ function endCall(notifyPeer) {
   pendingCallInfo = null;
 }
 
-$('accept-call-btn').onclick = acceptCall;
-$('decline-call-btn').onclick = declineCall;
+if ($('accept-call-btn')) $('accept-call-btn').onclick = acceptCall;
+if ($('decline-call-btn')) $('decline-call-btn').onclick = declineCall;
 
 let activeMemberRoles = {};
 let activeMemberLastRead = {};
@@ -2492,7 +2515,7 @@ async function openStarredPanel() {
   }).join('');
 }
 
-$('tab-toggle-stories').onclick = () => openStoriesPanel();
+if ($('tab-toggle-stories')) $('tab-toggle-stories').onclick = () => openStoriesPanel();
 
 async function openStoriesPanel() {
   const overlay = document.createElement('div');
@@ -2701,7 +2724,7 @@ async function openQrScanner() {
   requestAnimationFrame(tick);
 }
 
-$('tab-toggle-discover-hub').onclick = () => openDiscoverHub();
+if ($('tab-toggle-discover-hub')) $('tab-toggle-discover-hub').onclick = () => openDiscoverHub();
 
 async function openDiscoverHub() {
   const overlay = document.createElement('div');
@@ -2803,11 +2826,11 @@ async function loadDiscoverHubTab(tab, container, overlay) {
     container.innerHTML = `<div class="discover-why">ⓘ नोंदणी केलेले local businesses.</div>` +
       ((businesses && businesses.length) ? businesses.map(b => `
         <div class="admin-row"><span>${escapeHtml(b.name)}${b.category ? ' (' + escapeHtml(b.category) + ')' : ''}${b.location ? ' — 📍 ' + escapeHtml(b.location) : ''}</span></div>
-      `).join('') : '<div class="disc-empty">अजून कोणतेही businesses नाहीत</div>';
+      `).join('') : '<div class="disc-empty">अजून कोणतेही businesses नाहीत</div>');
   }
 }
 
-$('tab-toggle-reels').onclick = () => openReelsFeed();
+if ($('tab-toggle-reels')) $('tab-toggle-reels').onclick = () => openReelsFeed();
 
 async function openReelsFeed() {
   const overlay = document.createElement('div');
