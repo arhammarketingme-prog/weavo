@@ -24,19 +24,11 @@
     --input-bg: #f0f1f4; --border: #e5e7eb;
   }
   body.light .bubble.them { color: #14161c; }
-  body.light .call-box, body.light #group-info-panel, body.light #discover-panel, body.light #discover-business-panel,
-  body.light #new-group, body.light #new-channel, body.light #settings-panel, body.light #direct-info-panel,
-  body.light #disappear-panel, body.light .archived-toggle, body.light .reaction-picker { background: var(--panel); }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
   #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
   .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; box-shadow: 0 14px 34px rgba(32,201,189,.28); }
   #auth-screen h1 { text-align:center; font-size:25px; margin: 0 0 5px; }
-  .auth-switch { display:flex; gap:4px; padding:4px; margin: 2px 0 12px; border:1px solid var(--border); border-radius:14px; background:var(--input-bg); }
-  .auth-tab { flex:1; width:auto; margin:0; padding:10px; border-radius:10px; background:transparent; color:var(--muted); }
-  .auth-tab.active { background:var(--accent); color:#fff; }
-  .auth-or { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px; }
-  .auth-or:before,.auth-or:after { content:""; flex:1; height:1px; background:var(--border); }
   .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; cursor:pointer; width:100%; padding:12px; border-radius:10px; }
   .google-auth-btn:hover { background:#f8fafc; }
 
@@ -60,54 +52,31 @@
   #me-bar { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   #me-bar .left { display: flex; align-items: center; gap: 10px; }
   #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; overflow: hidden; flex-shrink: 0; }
-  #me-avatar img { width: 100%; height: 100%; object-fit: cover; }
   #me-bar .name { font-weight: 600; }
-  #me-bar .right { display: flex; align-items: center; gap: 4px; }
   #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; }
-  #settings-panel { display: none; padding: 14px 16px; background: #14161c; border-bottom: 1px solid var(--border); }
-  #settings-panel label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
-  .settings-row { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-  
-  #global-search-wrap { padding: 10px 16px; border-bottom: 1px solid var(--border); position: relative; }
-  #global-search-input { width: 100%; margin: 0; }
-  #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
-  #new-chat input { margin: 0; }
-  #new-chat button { width: auto; padding: 10px 14px; }
-  #tab-row { padding: 8px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; }
-  .link-btn { width: auto; background: transparent; color: var(--accent); padding: 4px 0; font-size: 12px; text-align: left; margin: 0; cursor: pointer; }
   
   #conv-list { flex: 1; overflow-y: auto; }
   .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
   .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
   .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; overflow: hidden; flex-shrink: 0; }
-  .conv-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .conv-text { flex: 1; min-width: 0; }
   .conv-item .who { font-weight: 600; font-size: 14px; }
-  .conv-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   #chat-area { flex: 1; display: flex; flex-direction: column; }
   #chat-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .header-title-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .header-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   
   #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
   .bubble { max-width: 60%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
   .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
   .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
-  .bubble .time { display: block; font-size: 10px; opacity: 0.6; margin-top: 4px; }
   
   #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; position: relative; }
   #composer input { margin: 0; flex: 1; }
   #composer button { width: auto; padding: 12px 20px; }
   #empty-state { margin: auto; color: var(--muted); text-align: center; }
 
-  /* WEAVO 2026 PREMIUM UI */
   :root {
-    --bg:#f3f6f8; --panel:#ffffff; --accent:#0b8f87; --accent-2:#16b8a9;
-    --accent-soft:rgba(11,143,135,.10); --text:#172126; --muted:#738188;
-    --bubble-me:#0b8f87; --bubble-them:#ffffff; --input-bg:#f2f5f6; --border:#e4eaed;
-  }
-  body:not(.light){
     --bg:#081214; --panel:#101b1e; --accent:#22c7b7; --accent-2:#4be0d1;
     --accent-soft:rgba(34,199,183,.11); --text:#edf7f6; --muted:#91a7a8;
     --bubble-me:#0c827b; --bubble-them:#172326; --input-bg:#0d181b; --border:#223336;
@@ -123,7 +92,7 @@
   <input id="reg-email" placeholder="Email address" autocomplete="username" />
   <input id="reg-password" type="password" placeholder="Password" autocomplete="current-password" />
   <button id="login-btn">Continue to Weavo</button>
-  <div class="auth-or"><span>OR</span></div>
+  <div class="auth-or" style="display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px;"><span>OR</span></div>
   <button id="google-login-btn" class="google-auth-btn" type="button" onclick="signInWithGoogle()">
     <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
     <span>Continue with Google</span>
@@ -166,17 +135,28 @@ let messagesChannel = null;
 
 const $ = (id) => document.getElementById(id);
 
-// डमी फंक्शन एरर टाळण्यासाठी
 function showMyQrCode() {
   alert('QR कोड फिचर सक्रिय आहे.');
 }
 
 function getBridgeParams() {
-  const params = new URLSearchParams(window.location.search);
-  return {
-    store: params.get('store'),
-    prefill: params.get('prefill')
-  };
+  const urlParams = new URLSearchParams(window.location.search);
+  let store = urlParams.get('store');
+  let prefill = urlParams.get('prefill');
+
+  if (!store && window.location.hash.includes('store=')) {
+    const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || window.location.hash.replace('#',''));
+    store = hashParams.get('store');
+    prefill = hashParams.get('prefill');
+  }
+
+  if (!store) {
+    store = localStorage.getItem('weavo_target_store');
+  } else {
+    localStorage.setItem('weavo_target_store', store);
+  }
+
+  return { store, prefill };
 }
 
 async function signInWithGoogle() {
@@ -212,7 +192,6 @@ async function setupUserSession(user) {
   subscribeRealtime();
   await loadConversations();
 
-  // URL मधील स्टोअर आणि प्रीफिल्ड ऑर्डर मजकूर तपासणे
   const bridge = getBridgeParams();
   if (bridge.store) {
     await handleStoreBridge(bridge.store, bridge.prefill);
@@ -234,7 +213,6 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
 
     if (!storeUserId || storeUserId === me.id) return;
 
-    // कन्वर्सेशन शोधणे किंवा तयार करणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let targetConvId = null;
@@ -259,7 +237,6 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
       await loadConversations();
       openConversation(targetConvId, '@' + storeUsername);
 
-      // जर प्रीफिल्ड ऑर्डर मजकूर असेल, तर तो आपोआप चॅटमध्ये पाठवणे
       if (prefillMsg) {
         setTimeout(async () => {
           await sb.from('messages').insert({
