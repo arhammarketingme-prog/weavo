@@ -526,7 +526,7 @@
     </div>
     <input type="file" id="avatar-input" accept="image/*" style="display:none" />
     <div id="settings-panel">
-      <!-- 🌟 Username बदलण्यासाठी नवीन इनपुट आणि बटण -->
+      <!-- Username बदलण्याचा पर्याय -->
       <div class="settings-row" style="border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:12px;">
         <label class="settings-label">👤 माझं Username बदला:</label>
         <div style="display:flex; gap:6px; margin-top:4px;">
@@ -687,6 +687,58 @@ if (backLandingBtn) {
   };
 }
 
+// 🌟 URL मधून AllERP Bridge पॅरामिटर्स तपासणे
+function getBridgeParams() {
+  const params = new URLSearchParams(window.location.search);
+  const store = params.get('store') || params.get('merchant');
+  const customerEmail = params.get('customer_email') || params.get('email');
+  const customerName = params.get('customer_name') || params.get('name');
+  return { store, customerEmail, customerName };
+}
+
+// 🌟 AllERP ते Weavo थेट चॅट सुरू करणारा ब्रिज हँडलर
+async function handleStoreBridge(storeUsername) {
+  if (!storeUsername || !me) return;
+  const cleanStoreName = normalizeUsername(storeUsername);
+  
+  try {
+    const { data: storeUser } = await sb.from('profiles').select('id, username').ilike('username', cleanStoreName).maybeSingle();
+    if (!storeUser) {
+      console.warn("दुकानदाराचे युझरनेम Weavo वर सापडले नाही:", cleanStoreName);
+      return;
+    }
+    if (storeUser.id === me.id) return;
+
+    const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+    const myIds = (myConvs || []).map(r => r.conversation_id);
+    let existingConvId = null;
+
+    if (myIds.length) {
+      const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUser.id).in('conversation_id', myIds);
+      if (theirConvs && theirConvs.length) existingConvId = theirConvs[0].conversation_id;
+    }
+
+    let targetConvId = existingConvId;
+    if (!targetConvId) {
+      const { data: newConv, error: convErr } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+      if (!convErr && newConv) {
+        targetConvId = newConv.id;
+        await sb.from('conversation_members').insert([
+          { conversation_id: targetConvId, user_id: me.id },
+          { conversation_id: targetConvId, user_id: storeUser.id },
+        ]);
+      }
+    }
+
+    if (targetConvId) {
+      await loadConversations();
+      openConversation(targetConvId, '@' + storeUser.username, 'direct');
+    }
+  } catch(err) {
+    console.error("Bridge chat open error:", err);
+  }
+}
+
 async function signInWithGoogle() {
   const errEl = $('error');
   if (errEl) errEl.textContent = '';
@@ -697,7 +749,8 @@ async function signInWithGoogle() {
     gBtn.innerHTML = `<span>पडताळणी सुरू आहे...</span>`;
   }
 
-  const cleanUrl = window.location.origin + window.location.pathname;
+  // मूळ URL सोबत क्विरी पॅरामिटर्स जपून ठेवणे
+  const cleanUrl = window.location.origin + window.location.pathname + window.location.search;
   if (!sb) {
     alert("Supabase कनेक्ट होऊ शकले नाही.");
     return;
@@ -715,7 +768,7 @@ async function signInWithGoogle() {
     if (errEl) errEl.textContent = error.message;
     if (gBtn) {
       gBtn.disabled = false;
-      gBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg><span>Continue with Google</span>`;
+      gBtn.innerHTML = `<span>Continue with Google</span>`;
     }
   }
 }
@@ -821,14 +874,18 @@ async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
 
-  // १. गुगलने दिलेले नाव शोधणे (full_name / name / email)
-  let googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+  const bridge = getBridgeParams();
   let baseName = '';
-  
-  if (googleName) {
-    baseName = googleName.trim().replace(/\s+/g, '_').toLowerCase();
+
+  if (bridge.customerName) {
+    baseName = bridge.customerName.trim().replace(/\s+/g, '_').toLowerCase();
   } else {
-    baseName = user.email?.split('@')[0]?.toLowerCase() || 'user';
+    let googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+    if (googleName) {
+      baseName = googleName.trim().replace(/\s+/g, '_').toLowerCase();
+    } else {
+      baseName = user.email?.split('@')[0]?.toLowerCase() || 'user';
+    }
   }
 
   me = { id: user.id, username: baseName };
@@ -837,10 +894,14 @@ async function setupUserSession(user) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
   }
 
-  // २. थेट मुख्य ॲप उघडणे
+  // मुख्य ॲप उघडणे
   enterApp();
 
-  // ३. पार्श्वभूमीत प्रोफाईल तपासणे व युनिक नाव सेव्ह करणे
+  // जर ऑल ईआरपी मधून दुकानाची लिंक आली असेल तर थेट चॅट उघडणे
+  if (bridge.store) {
+    setTimeout(() => handleStoreBridge(bridge.store), 800);
+  }
+
   try {
     const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
     if (profile?.username) {
@@ -865,6 +926,16 @@ async function setupUserSession(user) {
 
 if (sb) {
   (async () => {
+    const bridge = getBridgeParams();
+    
+    // जर लिंक AllERP ची असेल आणि युझर अजून लॉगिन नसेल तर थेट Auth स्क्रीन दाखवा
+    if (bridge.store) {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session?.user) {
+        showAuthFromLanding();
+      }
+    }
+
     const { data: { session } } = await sb.auth.getSession();
     if (session?.user && !me) {
       await setupUserSession(session.user);
@@ -923,7 +994,6 @@ async function enterApp() {
   updateLastSeen();
   heartbeatTimer = setInterval(updateLastSeen, 60000);
 
-  // 🌟 Settings उघडणे आणि सध्याचे नाव दाखवणे
   $('settings-btn').onclick = () => {
     const panel = $('settings-panel');
     const willOpen = panel.style.display === 'none';
@@ -934,7 +1004,6 @@ async function enterApp() {
     }
   };
 
-  // 🌟 नाव बदलण्याचे लॉजिक
   $('save-username-btn').onclick = async () => {
     const newName = normalizeUsername($('edit-username-input').value);
     const statusEl = $('username-change-status');
@@ -3262,13 +3331,13 @@ function renderIncoming(msg) {
     if (msg.content) bodyHtml += `<div class="caption">${escapeHtml(msg.content)}</div>`;
   } else if (msg.media_url && msg.media_type === 'audio') {
     bodyHtml += `<audio controls src="${msg.media_url}" class="msg-audio"></audio>`;
-  } else if (msg.media_url && msg.media_type === 'location') {
+  } else if (msg.media_type === 'location') {
     const [lat, lng] = msg.content.split(',');
     const delta = 0.01;
     const bbox = `${parseFloat(lng) - delta},${parseFloat(lat) - delta},${parseFloat(lng) + delta},${parseFloat(lat) + delta}`;
     bodyHtml += `<iframe class="location-preview" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${lat},${lng}" loading="lazy"></iframe>
     <a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}" target="_blank" class="msg-file">📍 पूर्ण नकाशा उघडा</a>`;
-  } else if (msg.media_type === 'contact') {
+  } else if (msg.media_url && msg.media_type === 'contact') {
     bodyHtml += `<div class="contact-card">👤 <b>@${escapeHtml(msg.content)}</b></div>`;
   } else if (msg.media_type === 'poll') {
     let poll = { question: '', options: [] };
