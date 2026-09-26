@@ -5,82 +5,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Weavo — One World. One Communication Layer.</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
-<link rel="manifest" href="manifest.json" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <meta name="theme-color" content="#6366f1" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
-  :root {
-    --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
-    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f; --radius: 16px;
-    --input-bg: #10121a; --border: #22252e;
-  }
-  body.light {
-    --bg: #f4f5f7; --panel: #ffffff; --accent: #6366f1; --accent-soft: #6366f11a;
-    --text: #14161c; --muted: #6b7280; --bubble-me: #6366f1; --bubble-them: #eceef2;
-    --input-bg: #f0f1f4; --border: #e5e7eb;
-  }
-  body.light .bubble.them { color: #14161c; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
-  #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
-  .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; box-shadow: 0 14px 34px rgba(32,201,189,.28); }
+  body { margin: 0; font-family: Inter, sans-serif; background: #081214; color: #edf7f6; height: 100vh; display: flex; }
+  #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: #101b1e; padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid #223336; }
+  .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #22c7b7, #159d96); color:#fff; font-size:30px; font-weight:850; }
   #auth-screen h1 { text-align:center; font-size:25px; margin: 0 0 5px; }
-  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; cursor:pointer; width:100%; padding:12px; border-radius:10px; }
-  .google-auth-btn:hover { background:#f8fafc; }
-
-  input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
-  input:focus { outline: none; border-color: var(--accent); }
-  button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
-  button.secondary { background: transparent; color: var(--accent); margin-top: 8px; }
+  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid #223336; margin-top:8px; font-weight:600; cursor:pointer; width:100%; padding:12px; border-radius:10px; }
+  
+  input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid #223336; background: #0d181b; color: #edf7f6; font-size: 14px; }
+  button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: #22c7b7; color: #081214; font-weight: 700; font-size: 14px; margin-top: 4px; }
   #error { color: #f87171; font-size: 13px; min-height: 16px; margin-top: 8px; }
+  
   #app { display: none; width: 100%; height: 100vh; }
   #app.active { display: flex; }
-  #sidebar { width: 280px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-  #back-btn { display: none; }
-
-  @media (max-width: 768px) {
-    #sidebar { width: 100%; }
-    #chat-area { width: 100%; }
-    #app.chat-open #sidebar { display: none; }
-    #app:not(.chat-open) #chat-area { display: none; }
-    #back-btn { display: inline-flex !important; }
-  }
-  #me-bar { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  #me-bar .left { display: flex; align-items: center; gap: 10px; }
-  #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; overflow: hidden; flex-shrink: 0; }
-  #me-bar .name { font-weight: 600; }
-  #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; }
+  #sidebar { width: 320px; background: #101b1e; border-right: 1px solid #223336; display: flex; flex-direction: column; }
   
+  #me-bar { padding: 16px; border-bottom: 1px solid #223336; display: flex; justify-content: space-between; align-items: center; }
+  #me-avatar { width: 38px; height: 38px; border-radius: 50%; background: #22c7b7; color: #081214; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  button.logout { width: auto; background: transparent; color: #91a7a8; padding: 4px 8px; font-size: 12px; }
+
+  #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid #223336; }
+  #new-chat input { margin: 0; }
+  #new-chat button { width: auto; padding: 10px 14px; margin: 0; }
+
   #conv-list { flex: 1; overflow-y: auto; }
-  .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
-  .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
-  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; overflow: hidden; flex-shrink: 0; }
+  .conv-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #223336; display: flex; align-items: center; gap: 12px; }
+  .conv-item:hover, .conv-item.active { background: rgba(34,199,183,.11); }
+  .conv-avatar { width: 42px; height: 42px; border-radius: 50%; background: #22c7b7; color: #081214; display: flex; align-items: center; justify-content: center; font-weight: 700; }
   .conv-text { flex: 1; min-width: 0; }
   .conv-item .who { font-weight: 600; font-size: 14px; }
 
-  #chat-area { flex: 1; display: flex; flex-direction: column; }
-  #chat-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .header-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  
+  #chat-area { flex: 1; display: flex; flex-direction: column; background: #081214; }
+  #chat-header { padding: 16px; border-bottom: 1px solid #223336; font-weight: 600; font-size: 16px; background: #101b1e; }
   #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
   .bubble { max-width: 60%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
-  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
-  .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
+  .bubble.me { align-self: flex-end; background: #0c827b; color: white; border-bottom-right-radius: 4px; }
+  .bubble.them { align-self: flex-start; background: #172326; border-bottom-left-radius: 4px; }
   
-  #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; position: relative; }
+  #composer { padding: 16px; border-top: 1px solid #223336; display: flex; gap: 8px; background: #101b1e; }
   #composer input { margin: 0; flex: 1; }
-  #composer button { width: auto; padding: 12px 20px; }
-  #empty-state { margin: auto; color: var(--muted); text-align: center; }
-
-  :root {
-    --bg:#081214; --panel:#101b1e; --accent:#22c7b7; --accent-2:#4be0d1;
-    --accent-soft:rgba(34,199,183,.11); --text:#edf7f6; --muted:#91a7a8;
-    --bubble-me:#0c827b; --bubble-them:#172326; --input-bg:#0d181b; --border:#223336;
-  }
+  #composer button { width: auto; padding: 12px 20px; margin: 0; }
+  #empty-state { margin: auto; color: #91a7a8; text-align: center; }
 </style>
 </head>
 <body>
@@ -88,11 +59,11 @@
 <div id="auth-screen">
   <div class="auth-logo">W</div>
   <h1>Welcome to Weavo</h1>
-  <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">One World. One Communication Layer.</p>
+  <p style="color:#91a7a8; font-size:13px; margin-bottom:20px; text-align:center;">One World. One Communication Layer.</p>
   <input id="reg-email" placeholder="Email address" autocomplete="username" />
   <input id="reg-password" type="password" placeholder="Password" autocomplete="current-password" />
   <button id="login-btn">Continue to Weavo</button>
-  <div class="auth-or" style="display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px;"><span>OR</span></div>
+  <div style="text-align:center; color:#91a7a8; font-size:11px; margin:10px 0;">OR</div>
   <button id="google-login-btn" class="google-auth-btn" type="button" onclick="signInWithGoogle()">
     <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
     <span>Continue with Google</span>
@@ -103,98 +74,68 @@
 <div id="app">
   <div id="sidebar">
     <div id="me-bar">
-      <div class="left">
+      <div style="display:flex; align-items:center; gap:10px;">
         <div id="me-avatar">?</div>
-        <span class="name" id="me-name"></span>
+        <span class="name" id="me-name" style="font-weight:600;"></span>
       </div>
-      <div class="right">
-        <button class="logout" id="logout-btn">Logout</button>
-      </div>
+      <button class="logout" id="logout-btn">Logout</button>
     </div>
+    
+    <!-- नवीन चॅट शोधण्यासाठी सर्च/युझरनेम बॉक्स -->
+    <div id="new-chat">
+      <input id="new-chat-username" placeholder="दुकानदाराचे username टाका..." />
+      <button id="new-chat-btn">Chat</button>
+    </div>
+
     <div id="conv-list"></div>
   </div>
-  <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
+  <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन चॅट सुरू करा</div></div>
 </div>
 
 <script>
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
-let sb = null;
-try {
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-  });
-} catch(e) {
-  console.error("Supabase init error:", e);
-}
+let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
 
 let me = null;
 let activeConv = null;
 let messagesChannel = null;
-
 const $ = (id) => document.getElementById(id);
 
-function showMyQrCode() {
-  alert('QR कोड फिचर सक्रिय आहे.');
-}
-
-function getBridgeParams() {
-  const urlParams = new URLSearchParams(window.location.search);
-  let store = urlParams.get('store');
-  let prefill = urlParams.get('prefill');
-
-  if (!store && window.location.hash.includes('store=')) {
-    const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || window.location.hash.replace('#',''));
-    store = hashParams.get('store');
-    prefill = hashParams.get('prefill');
-  }
-
-  if (!store) {
-    store = localStorage.getItem('weavo_target_store');
-  } else {
-    localStorage.setItem('weavo_target_store', store);
-  }
-
-  return { store, prefill };
-}
-
 async function signInWithGoogle() {
-  const cleanUrl = window.location.origin + window.location.pathname;
-  await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: cleanUrl }
-  });
+  await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
 }
 
-if ($('login-btn')) {$('login-btn').onclick = async () => {
-    const email = $('reg-email').value.trim();
-    const password = $('reg-password').value;
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) { $('error').textContent = error.message; return; }
-    await setupUserSession(data.user);
-  };
-}
+$('login-btn').onclick = async () => {
+  const { data, error } = await sb.auth.signInWithPassword({ email: $('reg-email').value.trim(), password: $('reg-password').value });
+  if (error) { $('error').textContent = error.message; return; }
+  await setupUserSession(data.user);
+};
 
-if ($('logout-btn')) {$('logout-btn').onclick = async () => {
-    await sb.auth.signOut();
-    location.reload();
-  };
-}
+$('logout-btn').onclick = async () => { await sb.auth.signOut(); location.reload(); };
 
 async function setupUserSession(user) {
   if (!user) return;
   me = { id: user.id, username: user.email.split('@')[0] };
   
   $('auth-screen').style.display = 'none';
-  $('app').classList.add('active');$('me-name').textContent = '@' + me.username;
+  $('app').classList.add('active');
+  $('me-name').textContent = '@' + me.username;
+  $('me-avatar').textContent = me.username[0].toUpperCase();
   
   subscribeRealtime();
   await loadConversations();
 
-  const bridge = getBridgeParams();
-  if (bridge.store) {
-    await handleStoreBridge(bridge.store, bridge.prefill);
+  // URL किंवा Storage मधून स्टोअर ब्रिज तपासणे
+  const params = new URLSearchParams(window.location.search);
+  let store = params.get('store') || localStorage.getItem('weavo_target_store');
+  let prefill = params.get('prefill');
+
+  if (store) {
+    await handleStoreBridge(store, prefill);
   }
 }
 
@@ -252,6 +193,40 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
   }
 }
 
+// नवीन युझरनेम सर्च करून चॅट उघडणे
+$('new-chat-btn').onclick = async () => {
+  let uname = $('new-chat-username').value.trim().replace(/^@/, '').toLowerCase();
+  if (!uname) return;
+
+  const { data: other } = await sb.from('profiles').select('id, username').ilike('username', uname).maybeSingle();
+  if (!other) { alert('तो वापरकर्ता सापडला नाही'); return; }
+  if (other.id === me.id) { alert('स्वतःशी चॅट करता येत नाही'); return; }
+
+  const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  const myIds = (myConvs || []).map(r => r.conversation_id);
+  let existingId = null;
+  if (myIds.length) {
+    const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
+    if (theirConvs && theirConvs.length) existingId = theirConvs[0].conversation_id;
+  }
+
+  let convId = existingId;
+  if (!convId) {
+    const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+    if (newConv) {
+      convId = newConv.id;
+      await sb.from('conversation_members').insert([
+        { conversation_id: convId, user_id: me.id },
+        { conversation_id: convId, user_id: other.id },
+      ]);
+    }
+  }
+
+  $('new-chat-username').value = '';
+  await loadConversations();
+  openConversation(convId, '@' + other.username);
+};
+
 async function loadConversations() {
   const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
   const ids = (memberRows || []).map(r => r.conversation_id);
@@ -259,12 +234,20 @@ async function loadConversations() {
   list.innerHTML = '';
   if (!ids.length) return;
 
-  const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
+  const { data: convs } = await sb.from('conversations').select('id, type, name').in('id, id', ids);
+  const directIds = (convs || []).filter(c => c.type === 'direct').map(c => c.id);
+  const otherInfo = {};
+  if (directIds.length) {
+    const { data: otherMembers } = await sb.from('conversation_members').select('conversation_id, profiles(username)').in('conversation_id', directIds).neq('user_id', me.id);
+    (otherMembers || []).forEach(r => { otherInfo[r.conversation_id] = r.profiles?.username || 'Chat'; });
+  }
+
   for (const c of convs || []) {
+    const title = c.type === 'direct' ? '@' + (otherInfo[c.id] || 'Chat') : (c.name || 'Group');
     const div = document.createElement('div');
     div.className = 'conv-item';
-    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${c.name || 'Direct Chat'}</div></div>`;
-    div.onclick = () => openConversation(c.id, c.name || 'Chat');
+    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div></div>`;
+    div.onclick = () => openConversation(c.id, title);
     list.appendChild(div);
   }
 }
@@ -273,7 +256,7 @@ async function openConversation(id, title) {
   activeConv = id;
   const area = $('chat-area');
   area.innerHTML = `
-    <div id="chat-header"><span class="header-title">${title}</span></div>
+    <div id="chat-header">${title}</div>
     <div id="messages"></div>
     <div id="composer">
       <input id="msg-input" placeholder="मेसेज लिहा..." />
@@ -323,12 +306,9 @@ function escapeHtml(s) {
 }
 
 if (sb) {
-  (async () => {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session?.user) {
-      await setupUserSession(session.user);
-    }
-  })();
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) setupUserSession(session.user);
+  });
 }
 </script>
 </body>
