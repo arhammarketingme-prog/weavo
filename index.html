@@ -687,7 +687,7 @@ if (backLandingBtn) {
   };
 }
 
-// 🌟 हॅश (#) आणि प्रश्नचिन्ह (?) दोन्हीकडून Bridge पॅरामिटर्स सुरक्षितपणे वाचणारा फंक्शन
+// 🌟 URL मधून स्टोअर (दुकानदार) सुरक्षितपणे वाचणारा फंक्शन
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -700,43 +700,56 @@ function getBridgeParams() {
   return { store, customerEmail, customerName };
 }
 
-// 🌟 AllERP ते Weavo थेट चॅट सुरू करणारा ब्रिज हँडलर
+// 🌟 AllERP मधून आल्यावर दुकानदाराला शोधून आपोआप चॅट विंडो उघडणारा ब्रिज
 async function handleStoreBridge(storeUsername) {
   if (!storeUsername || !me) return;
-  const cleanStoreName = normalizeUsername(storeUsername);
+  const cleanStoreName = storeUsername.replace(/_/g, ' ').trim();
   
   try {
-    const { data: storeUser } = await sb.from('profiles').select('id, username').ilike('username', cleanStoreName).maybeSingle();
-    if (!storeUser) {
-      console.warn("दुकानदाराचे युझरनेम Weavo वर सापडले नाही:", cleanStoreName);
+    // Supabase मधੋਂ businesses टेबलमधून दुकानदाराचा owner_id शोधणे
+    let storeUserId = null;
+    const { data: storeInfo } = await sb.from('businesses').select('owner_id, name').ilike('name', cleanStoreName).maybeSingle();
+    if (storeInfo && storeInfo.owner_id) {
+      storeUserId = storeInfo.owner_id;
+    } else {
+      // profiles टेबलमध्ये username तपापणे
+      const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
+      if (storeUser) storeUserId = storeUser.id;
+    }
+
+    if (!storeUserId || storeUserId === me.id) {
+      console.warn("दुकानदार वीव्होवर सापडला नाही:", storeUsername);
       return;
     }
-    if (storeUser.id === me.id) return;
 
+    // ग्राहक आणि दुकानदारामध्ये आधीपासून conversation आहे का ते तपासणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let existingConvId = null;
 
     if (myIds.length) {
-      const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUser.id).in('conversation_id', myIds);
+      const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
       if (theirConvs && theirConvs.length) existingConvId = theirConvs[0].conversation_id;
     }
 
     let targetConvId = existingConvId;
     if (!targetConvId) {
+      // नसेल तर नवीन डायरेक्ट चॅट तयार करणे
       const { data: newConv, error: convErr } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
       if (!convErr && newConv) {
         targetConvId = newConv.id;
         await sb.from('conversation_members').insert([
           { conversation_id: targetConvId, user_id: me.id },
-          { conversation_id: targetConvId, user_id: storeUser.id },
+          { conversation_id: targetConvId, user_id: storeUserId },
         ]);
       }
     }
 
     if (targetConvId) {
       await loadConversations();
-      openConversation(targetConvId, '@' + storeUser.username, 'direct');
+      const { data: storeProfile } = await sb.from('profiles').select('username').eq('id', storeUserId).single();
+      const storeNameDisplay = storeProfile ? '@' + storeProfile.username : '@store';
+      openConversation(targetConvId, storeNameDisplay, 'direct');
     }
   } catch(err) {
     console.error("Bridge chat open error:", err);
@@ -872,7 +885,7 @@ if ($('logout-btn')) {
   };
 }
 
-// 🌟 गुगल प्रोफाईलवरून नाव घेणे + क्रॅश-फ्री सेशन व्यवस्थापन
+// 🌟 युझर सेशन सेट अप आणि स्टोअर ब्रिज ट्रिगर करणारा मजबूत फंक्शन
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
@@ -897,12 +910,12 @@ async function setupUserSession(user) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
   }
 
-  // मुख्य ॲप उघडणे
+  // ॲप मध्ये प्रवेश करणे
   enterApp();
 
-  // जर ऑल ईआरपी मधून दुकानाची लिंक आली असेल तर थेट चॅट उघडणे
+  // 🌟 जर ऑल ईआरपी मधून दुकानाची लिंक आली असेल, तर काही सेकंदात थेट त्या दुकानदाराशी चॅट उघडणे
   if (bridge.store) {
-    setTimeout(() => handleStoreBridge(bridge.store), 800);
+    setTimeout(() => handleStoreBridge(bridge.store), 1000);
   }
 
   try {
@@ -931,7 +944,7 @@ if (sb) {
   (async () => {
     const bridge = getBridgeParams();
     
-    // जर लिंक AllERP ची असेल आणि युझर अजून लॉगिन नसेल तर थेट Auth स्क्रीन दाखवा
+    // जर लिंक AllERP ची असेल आणि युझर लॉगिन नसेल तर थेट Auth स्क्रीन दाखवा
     if (bridge.store) {
       const { data: { session } } = await sb.auth.getSession();
       if (!session?.user) {
