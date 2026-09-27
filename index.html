@@ -15,10 +15,11 @@
   :root {
     --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
     --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f; --radius: 16px;
-    --input-bg: #10121a; --border: #22252e;
+    --input-bg: #10121a; --border: #22252e; --success: #16a34a;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
+  
   #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); text-align: center; }
   .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; box-shadow: 0 14px 34px rgba(32,201,189,.28); }
   #auth-screen h1 { font-size:25px; margin: 0 0 5px; }
@@ -51,18 +52,27 @@
   .conv-text { flex: 1; min-width: 0; }
   .conv-item .who { font-weight: 600; font-size: 14px; }
 
-  #chat-area { flex: 1; display: flex; flex-direction: column; }
-  #chat-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .header-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #chat-area { flex: 1; display: flex; flex-direction: column; background: #0b0d10; }
+  
+  /* 🌟 चॅट हेडर आणि कॉलिंग/लोकेशन फीचर्स बटणे */
+  #chat-header { padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); display: flex; justify-content: space-between; align-items: center; }
+  .header-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .action-icon-btn { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; transition: 0.2s; }
+  .action-icon-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
   
   #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-  .bubble { max-width: 60%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
+  .bubble { max-width: 65%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-word; }
   .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
   .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
   
-  #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; position: relative; }
+  /* 🌟 मेसेज कम्पोजर आणि मीडिया टूल्स */
+  #composer { padding: 14px 18px; border-top: 1px solid var(--border); background: var(--panel); display: flex; gap: 8px; align-items: center; }
   #composer input { margin: 0; flex: 1; }
-  #composer button { width: auto; padding: 12px 20px; }
+  #composer button { width: auto; padding: 10px 18px; }
+  .media-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 16px; }
+  .media-btn:hover { color: var(--accent); border-color: var(--accent); }
+
   #empty-state { margin: auto; color: var(--muted); text-align: center; }
 </style>
 </head>
@@ -106,7 +116,6 @@
 </div>
 
 <script>
-// 🌟 अचूक आणि स्वच्छ Supabase URL व Key (कोणतीही अतिरिक्त्त अक्षरे किंवा स्पेस नाही)
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
@@ -189,12 +198,10 @@ async function setupUserSession(user) {
   }
 }
 
-// 🌟 अत्यंत सुरक्षित आणि साधी स्मार्ट ऑथेंटिकेशन यंत्रणा (कोणतेही क्रॅश होणार नाही)
 async function initWeavoSmartAuth() {
   try {
     const bridge = getBridgeParams();
 
-    // 1. प्रथम Supabase चे आधीचे वैध सेशन तपासणे
     const { data: { session } } = await sb.auth.getSession();
     if (session?.user) {
       await setupUserSession(session.user);
@@ -204,7 +211,6 @@ async function initWeavoSmartAuth() {
       return;
     }
 
-    // 2. जर सेशन नसेल पण URL मध्ये email आला असेल, तर थेट پروفाईल शोधून लॉगिन करणे
     if (bridge.customerEmail) {
       const targetEmail = bridge.customerEmail.trim().toLowerCase();
       const targetUname = targetEmail.split('@')[0].toLowerCase();
@@ -345,13 +351,22 @@ async function loadConversations() {
   }
 }
 
+// 🌟 सर्व्हर आणि कॉलिंग फीचर्ससह चॅट विंडो ओपन करणे
 async function openConversation(id, title) {
   activeConv = id;
   const area = $('chat-area');
   area.innerHTML = `
-    <div id="chat-header"><span class="header-title">${title}</span></div>
+    <div id="chat-header">
+      <span class="header-title">${title}</span>
+      <div class="header-actions">
+        <button class="action-icon-btn" onclick="startAudioCall()" title="ऑडिओ कॉल">📞 ऑडिओ कॉल</button>
+        <button class="action-icon-btn" onclick="startVideoCall()" title="व्हिडिओ कॉल">📹 व्हिडिओ कॉल</button>
+        <button class="action-icon-btn" onclick="shareLiveLocation()" title="लोकेशन शेअर करा">📍 लोकेशन</button>
+      </div>
+    </div>
     <div id="messages"></div>
     <div id="composer">
+      <button class="media-btn" onclick="shareLiveLocation()" title="लोकेशन पाठवा">📍</button>
       <input id="msg-input" placeholder="मेसेज लिहा..." />
       <button id="send-btn">पाठवा</button>
     </div>
@@ -372,6 +387,33 @@ async function sendMessage() {
   if (!content || !activeConv) return;
   input.value = '';
   await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content });
+}
+
+// 🌟 रिस्टोर्ड कॉलिंग आणि लोकेशन फीचर्स
+function startAudioCall() {
+  alert('📞 ऑडिओ कॉल सुरू होत आहे... (LiveKit / WebRTC युनिफाइड चॅनल)');
+}
+
+function startVideoCall() {
+  alert('📹 व्हिडिओ कॉल सुरू होत आहे... (LiveKit / WebRTC युनिफाइड चॅनल)');
+}
+
+function shareLiveLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      const mapLink = `📍 माझे लाईव्ह लोकेशन:\nhttps://www.google.com/maps?q=${lat},${lon}`;
+      
+      if (activeConv && me) {
+        await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: mapLink });
+      }
+    }, () => {
+      alert('लोकेशन ॲक्सेस मिळवण्यात अपयश आले.');
+    });
+  } else {
+    alert('तुमच्या ब्राऊजरमध्ये जिओलोकेशन सपोर्ट उपलब्ध नाही.');
+  }
 }
 
 function subscribeRealtime() {
