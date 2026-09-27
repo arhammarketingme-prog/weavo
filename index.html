@@ -26,8 +26,6 @@
 
   .google-btn { background: #fff; color: #1e293b; border: 1px solid #cbd5e1; font-weight: 700; }
   .google-btn:hover { background: #f8fafc; }
-  .passkey-btn { background: #1e222b; color: #38bdf8; border: 1px solid #334155; font-weight: 700; }
-  .passkey-btn:hover { background: #272c38; }
 
   #app { display: none; width: 100%; height: 100vh; }
   #app.active { display: flex; }
@@ -51,41 +49,24 @@
   #chat-area { flex: 1; display: flex; flex-direction: column; background: var(--bg); position: relative; }
   #chat-header { padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--panel); display: flex; justify-content: space-between; align-items: center; }
   .header-title { font-weight: 700; font-size: 16px; color: #fff; }
-  
-  .call-actions { display: flex; gap: 8px; }
-  .call-btn { background: #222733; color: #38bdf8; border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; width: auto; margin: 0; display: inline-flex; align-items: center; gap: 6px; }
-  .call-btn:hover { background: #2d3446; }
 
   #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
   .bubble { max-width: 65%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.45; word-break: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
   .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
   .bubble.them { align-self: flex-start; background: var(--bubble-them); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
   
-  #composer { padding: 14px 20px; border-top: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
-  .composer-tools { display: flex; gap: 8px; align-items: center; }
-  .tool-btn { background: #222733; color: #cbd5e1; border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; width: auto; margin: 0; }
-  .tool-btn:hover { background: #334155; color: #fff; }
-  
-  .composer-main { display: flex; gap: 8px; align-items: center; }
+  #composer { padding: 14px 20px; border-top: 1px solid var(--border); background: var(--panel); display: flex; gap: 8px; align-items: center; }
   #composer input { margin: 0; flex: 1; padding: 10px 14px; }
-  #composer button.send-main { width: auto; padding: 10px 20px; margin: 0; }
+  #composer button { width: auto; padding: 10px 20px; margin: 0; }
   #empty-state { margin: auto; color: var(--muted); text-align: center; font-size: 15px; }
-
-  #poll-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 99999; align-items: center; justify-content: center; }
-  .poll-box { background: var(--panel); border: 1px solid var(--border); padding: 24px; border-radius: 16px; width: 90%; max-width: 400px; }
-
-  #call-modal { display: none; position: fixed; inset: 0; background: rgba(11,13,16,0.95); z-index: 99999; flex-direction: column; align-items: center; justify-content: center; }
-  .call-screen-box { text-align: center; max-width: 500px; width: 90%; }
-  .calling-avatar { width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #047857); color: #fff; font-size: 36px; font-weight: bold; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 0 30px rgba(16,185,129,0.5); }
-  video { width: 100%; max-height: 380px; border-radius: 14px; background: #000; margin-bottom: 20px; border: 2px solid var(--border); }
 </style>
 </head>
 <body>
 
 <div id="auth-screen">
   <div class="auth-logo">W</div>
-  <h1 id="store-title-header">Weavo Chat</h1>
-  <p style="color:var(--muted); font-size:13.5px; margin-bottom:24px;" id="store-subtitle">One World. One Communication Layer.</p>
+  <h1>Weavo Chat</h1>
+  <p style="color:var(--muted); font-size:13.5px; margin-bottom:24px;">One World. One Communication Layer.</p>
   
   <input id="reg-email" placeholder="ईमेल पत्ता" autocomplete="username" />
   <input id="reg-password" type="password" placeholder="पासवर्ड" autocomplete="current-password" />
@@ -99,8 +80,6 @@
     <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
     Google ने लॉगिन करा
   </button>
-  
-  <button class="passkey-btn" onclick="loginWithPasskey()">🔑 पासकी (Passkey) लॉगिन</button>
   <div id="error" style="color:var(--danger); font-size:13px; margin-top:10px;"></div>
 </div>
 
@@ -118,7 +97,7 @@
     </div>
     
     <div id="new-chat">
-      <input id="new-chat-username" placeholder="युजरनेम किंवा ईमेल..." />
+      <input id="new-chat-username" placeholder="युजरनेम टाка..." />
       <button id="new-chat-btn" onclick="startNewChat()">चॅट</button>
     </div>
     <div id="conv-list"></div>
@@ -129,60 +108,22 @@
   </div>
 </div>
 
-<div id="poll-modal">
-  <div class="poll-box">
-    <h3 style="margin-top:0; color:#fff;">📊 नवीन पोल (Poll) तयार करा</h3>
-    <input id="poll-question" placeholder="प्रश्न विचार करा..." style="margin-bottom:8px;" />
-    <input id="poll-opt1" placeholder="पर्याय १" style="margin-bottom:8px;" />
-    <input id="poll-opt2" placeholder="पर्याय २" style="margin-bottom:8px;" />
-    <button onclick="submitPoll()" style="margin-bottom:6px;">✅ पोल पाठवा</button>
-    <button onclick="$('poll-modal').style.display='none'" style="background:#64748b;">✕ रद्द करा</button>
-  </div>
-</div>
-
-<div id="call-modal">
-  <div class="call-screen-box">
-    <div class="calling-avatar">📞</div>
-    <h2 id="call-status-text" style="margin:0 0 8px; color:#fff;">कॉल चालू आहे...</h2>
-    <video id="localVideo" autoplay playsinline muted style="display:none;"></video>
-    <video id="remoteVideo" autoplay playsinline style="display:none;"></video>
-    <button onclick="endActiveCall()" style="background:var(--danger); width:140px; margin:20px auto 0; padding:12px; border-radius:30px; font-weight:bold;">कॉल कट करा</button>
-  </div>
-</div>
-
 <script>
-// 🌟 अचूक Supabase URL आणि Anon Key (विना ओव्हरराईप केलेले स्टेबल क्लायंट)
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { 
-    persistSession: true, 
-    autoRefreshToken: true, 
-    detectSessionInUrl: true,
-    storage: window.localStorage
-  }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage }
 });
 
 let me = null;
 let activeConv = null;
 let messagesChannel = null;
-let localStream = null;
 
 const $ = function(id) { return document.getElementById(id); };
 
-function getBridgeParams() {
-  const urlParams = new URLSearchParams(window.location.search);
-  return {
-    store: urlParams.get('store') || localStorage.getItem('weavo_target_store'),
-    prefill: urlParams.get('prefill') || localStorage.getItem('weavo_prefill_msg'),
-    customerEmail: urlParams.get('customer_email') || localStorage.getItem('global_unified_email')
-  };
-}
-
-async function initWeavoSmartAuth() {
+async function initWeavoStandalone() {
   try {
-    // 🌟 Google OAuth हॅश टोकन हाताने कॅच करून सेशन सेट करणे (401 एरर पूर्णपणे रोखणे)
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
@@ -190,123 +131,30 @@ async function initWeavoSmartAuth() {
       const refreshToken = params.get('refresh_token');
       if (accessToken) {
         await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        window.location.hash = '';
+        window.history.replaceState(null, '', window.location.pathname);
       }
-    }
-
-    const bridge = getBridgeParams();
-    if (bridge.store) {
-      localStorage.setItem('weavo_target_store', bridge.store);
-      let clean = bridge.store.replace(/[_]/g, ' ').trim();
-      $('store-title-header').textContent = clean.charAt(0).toUpperCase() + clean.slice(1) + " स्टोअर्स";
-      $('store-subtitle').textContent = 'अधिकृत ग्राहक संवाद व सपोर्ट मंच';
     }
 
     const sessionRes = await sb.auth.getSession();
     if (sessionRes.data && sessionRes.data.session && sessionRes.data.session.user) {
       await setupUserSession(sessionRes.data.session.user);
-      return;
-    }
-
-    if (bridge.customerEmail) {
-      const targetEmail = bridge.customerEmail.trim().toLowerCase();
-      try {
-        const { data: profile } = await sb.from('profiles').select('*').ilike('email', targetEmail).maybeSingle();
-        if (profile) {
-          me = { id: profile.id, username: profile.username || targetEmail.split('@')[0], email: targetEmail };
-          startAppUI(targetEmail);
-          return;
-        }
-      } catch(e) {}
-      me = { id: 'fallback-customer', username: targetEmail.split('@')[0], email: targetEmail };
-      startAppUI(targetEmail);
-      return;
     }
   } catch (err) {
-    console.error("Auth error:", err);
+    console.error("Standalone init error:", err);
   }
 }
 
 async function setupUserSession(user) {
   if (!user) return;
   let username = user.email ? user.email.split('@')[0] : 'user';
-  try {
-    const { data: prof } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
-    if (prof && prof.username) username = prof.username;
-  } catch (e) {}
-
   me = { id: user.id, username: username, email: user.email };
-  startAppUI('@' + username);
-}
-
-function startAppUI(displayIdentifier) {
+  
   $('auth-screen').style.display = 'none';
-  $('app').classList.add('active');$('me-name').textContent = displayIdentifier;
-  $('me-avatar').textContent = displayIdentifier.replace('@', '')[0].toUpperCase();
+  $('app').classList.add('active');$('me-name').textContent = '@' + username;
+  $('me-avatar').textContent = username[0].toUpperCase();
   
   subscribeRealtime();
-  loadConversations().then(() => {
-    const bridge = getBridgeParams();
-    if (bridge.store) {
-      handleStoreBridge(bridge.store, bridge.prefill);
-    }
-  });
-}
-
-async function handleStoreBridge(storeUsername, prefillMsg) {
-  try {
-    if (!storeUsername || !me) return;
-    let storeUserId = null;
-
-    try {
-      const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
-      if (storeUser) storeUserId = storeUser.id;
-    } catch(e) {}
-
-    if (!storeUserId) return;
-
-    let targetConvId = null;
-    try {
-      const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-      const myIds = (myConvs || []).map(r => r.conversation_id);
-      if (myIds.length) {
-        const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
-        if (theirConvs && theirConvs.length) targetConvId = theirConvs[0].conversation_id;
-      }
-    } catch(e) {}
-
-    if (!targetConvId) {
-      try {
-        const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
-        if (newConv) {
-          targetConvId = newConv.id;
-          await sb.from('conversation_members').insert([
-            { conversation_id: targetConvId, user_id: me.id },
-            { conversation_id: targetConvId, user_id: storeUserId },
-          ]);
-        }
-      } catch(e) {}
-    }
-
-    if (targetConvId) {
-      await loadConversations();
-      openConversation(targetConvId, '@' + storeUsername);
-
-      if (prefillMsg) {
-        const decodedMsg = decodeURIComponent(prefillMsg);
-        localStorage.removeItem('weavo_prefill_msg');
-        try {
-          await sb.from('messages').insert({
-            conversation_id: targetConvId,
-            sender_id: me.id,
-            content: decodedMsg
-          });
-        } catch(e) {}
-      }
-    }
-  } catch (err) {
-    console.log("Bridge handled safely.");
-  }
+  loadConversations();
 }
 
 async function loginWithGoogle() {
@@ -314,10 +162,6 @@ async function loginWithGoogle() {
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname }
   });
-}
-
-async function loginWithPasskey() {
-  alert('🔐 पासकी (Passkey) बायोमेट्रिक लॉगिन सक्रिय आहे.');
 }
 
 $('login-btn').onclick = async function() {
@@ -344,28 +188,16 @@ async function loadConversations() {
     if (!ids.length) return;
 
     const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
-    const directIds = (convs || []).filter(c => c.type === 'direct').map(c => c.id);
-    let otherInfo = {};
-    
-    if (directIds.length) {
-      try {
-        const { data: otherMembers } = await sb.from('conversation_members').select('conversation_id, profiles(username)').in('conversation_id', directIds).neq('user_id', me.id);
-        (otherMembers || []).forEach(r => { 
-          otherInfo[r.conversation_id] = (r.profiles && r.profiles.username) ? r.profiles.username : 'Chat'; 
-        });
-      } catch(e) {}
-    }
-
     (convs || []).forEach(c => {
-      const title = c.type === 'direct' ? ('@' + (otherInfo[c.id] || 'Chat')) : (c.name || 'Group');
+      const title = c.name || 'चॅट रूम';
       const div = document.createElement('div');
       div.className = 'conv-item';
-      div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div><div class="preview">संवाद सुरू आहे</div></div>`;
+      div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div><div class="preview">संवाद सुरू करा</div></div>`;
       div.onclick = () => openConversation(c.id, title);
       list.appendChild(div);
     });
   } catch(e) {
-    console.log("Conversations load note:", e);
+    console.log("Convs load note:", e);
   }
 }
 
@@ -373,23 +205,11 @@ async function openConversation(id, title) {
   activeConv = id;
   const area = $('chat-area');
   area.innerHTML = `
-    <div id="chat-header">
-      <span class="header-title">${title}</span>
-      <div class="call-actions">
-        <button class="call-btn" onclick="startAudioCall()">📞 ऑडिओ</button>
-        <button class="call-btn" onclick="startVideoCall()">📹 व्हिडिओ</button>
-      </div>
-    </div>
+    <div id="chat-header"><span class="header-title">${title}</span></div>
     <div id="messages"></div>
     <div id="composer">
-      <div class="composer-tools">
-        <button class="tool-btn" onclick="shareLocation()">📍 लोकेशन शेअर</button>
-        <button class="tool-btn" onclick="$('poll-modal').style.display='flex'">📊 पोल (Poll)</button>
-      </div>
-      <div class="composer-main">
-        <input id="msg-input" placeholder="मेसेज लिहा..." />
-        <button id="send-btn" class="send-main">पाठवा</button>
-      </div>
+      <input id="msg-input" placeholder="मेसेज लिहा..." />
+      <button id="send-btn">पाठवा</button>
     </div>
   `;
 
@@ -414,70 +234,20 @@ async function sendMessage() {
   } catch(e) {}
 }
 
-function shareLocation() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const lat = position.coords.latitude;
-      const lon = position.coords.longitude;
-      const mapLink = `📍 माझी लाईव्ह लोकेशन:\nhttps://maps.google.com/?q=${lat},${lon}`;
-      try {
-        await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: mapLink });
-      } catch(e) {}
-    }, () => { alert('लोकेशन मिळवण्यात अपयश आले.'); });
-  } else {
-    alert('तुमचा ब्राउझर लोकेशन सपोर्ट करत नाही.');
-  }
-}
-
-async function submitPoll() {
-  const q = $('poll-question').value.trim();
-  const o1 = $('poll-opt1').value.trim();
-  const o2 = $('poll-opt2').value.trim();
-  if (!q || !o1 || !o2) { alert('कृपया प्रश्न आणि दोन्ही पर्याय भरा!'); return; }
-  
-  const pollText = `📊 **नवीन पोल:**\n❓ ${q}\n1️⃣ ${o1}\n2️⃣ ${o2}`;
-  try {
-    await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: pollText });
-  } catch(e) {}
-  $('poll-question').value = '';$('poll-opt1').value = ''; $('poll-opt2').value = '';$('poll-modal').style.display = 'none';
-}
-
-async function startAudioCall() {
-  $('call-modal').style.display = 'flex';$('call-status-text').textContent = 'ऑडिओ कॉल चालू आहे...';
-  try { localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); } catch(e) {}
-}
-
-async function startVideoCall() {
-  $('call-modal').style.display = 'flex';$('call-status-text').textContent = 'व्हिडिओ कॉल चालू आहे...';
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-    $('localVideo').style.display = 'block';$('localVideo').srcObject = localStream;
-  } catch(e) {}
-}
-
-function endActiveCall() {
-  if (localStream) localStream.getTracks().forEach(t => t.stop());
-  $('call-modal').style.display = 'none';$('localVideo').style.display = 'none';
-}
-
 async function startNewChat() {
-  const targetName = $('new-chat-username').value.trim().replace('@', '');
-  if (!targetName || !me) return;
+  const targetEmail = $('new-chat-username').value.trim();
+  if (!targetEmail || !me) return;
   try {
-    const { data: targetUser } = await sb.from('profiles').select('id').ilike('username', targetName).maybeSingle();
-    if (!targetUser) { alert('युजर सापडला नाही.'); return; }
-    
     const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
     if (newConv) {
       await sb.from('conversation_members').insert([
-        { conversation_id: newConv.id, user_id: me.id },
-        { conversation_id: newConv.id, user_id: targetUser.id }
+        { conversation_id: newConv.id, user_id: me.id }
       ]);
       $('new-chat-username').value = '';
       loadConversations();
     }
   } catch(e) {
-    alert('नवीन चॅट सुरू करण्यात त्रुटी.');
+    alert('चॅट सुरू करताना त्रुटी आली.');
   }
 }
 
@@ -508,7 +278,7 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-initWeavoSmartAuth();
+initWeavoStandalone();
 </script>
 </body>
 </html>
