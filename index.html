@@ -24,9 +24,6 @@
     --input-bg: #f0f1f4; --border: #e5e7eb;
   }
   body.light .bubble.them { color: #14161c; }
-  body.light .call-box, body.light #group-info-panel, body.light #discover-panel, body.light #discover-business-panel,
-  body.light #new-group, body.light #new-channel, body.light #settings-panel, body.light #direct-info-panel,
-  body.light #disappear-panel, body.light .archived-toggle, body.light .reaction-picker { background: var(--panel); }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
   #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
@@ -37,12 +34,8 @@
   .auth-tab.active { background:var(--accent); color:#fff; }
   .auth-or { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px; }
   .auth-or:before,.auth-or:after { content:""; flex:1; height:1px; background:var(--border); }
-  .passkey-btn { background: var(--input-bg); color: var(--accent); border:1px solid var(--accent-soft); }
-  .passkey-btn:hover { background:var(--accent-soft); }
   .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; cursor:pointer; }
   .google-auth-btn:hover { background:#f8fafc; }
-  #auth-screen .secondary { margin-top:10px; }
-
   input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
   input:focus { outline: none; border-color: var(--accent); }
   button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
@@ -67,101 +60,30 @@
   #me-bar .name { font-weight: 600; }
   #me-bar .right { display: flex; align-items: center; gap: 4px; }
   #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; }
-  #settings-panel { display: none; padding: 14px 16px; background: #14161c; border-bottom: 1px solid var(--border); }
-  #settings-panel label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
-  .settings-row { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-  .settings-label { font-size: 12px; color: var(--muted); }
-  #settings-panel select, #settings-panel textarea, #business-fields input, #business-fields textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 13px; }
-  #settings-panel button, #business-fields button { width: auto; padding: 8px 14px; margin-top: 6px; align-self: flex-start; }
-  #business-fields { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 12px; }
-  .typing-indicator { padding: 4px 20px; font-size: 12px; color: var(--muted); font-style: italic; }
-  .last-seen { font-size: 11px; color: var(--muted); font-weight: 400; }
-  #global-search-wrap { padding: 10px 16px; border-bottom: 1px solid var(--border); position: relative; }
-  #global-search-input { width: 100%; margin: 0; }
-  #global-search-results { position: absolute; left: 16px; right: 16px; top: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-top: 4px; max-height: 300px; overflow-y: auto; z-index: 10; box-shadow: 0 10px 30px #0006; }
-  .gs-section { padding: 6px 12px; font-size: 11px; color: var(--muted); text-transform: uppercase; }
-  .gs-item { padding: 8px 12px; cursor: pointer; font-size: 13px; }
-  .gs-item:hover { background: var(--accent-soft); }
   #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
   #new-chat input { margin: 0; }
   #new-chat button { width: auto; padding: 10px 14px; }
-  #tab-row { padding: 8px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; }
-  .link-btn { width: auto; background: transparent; color: var(--accent); padding: 4px 0; font-size: 12px; text-align: left; margin: 0; }
-  #new-group, #new-channel { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
-  #new-group input, #new-channel input { margin: 0; }
-  #new-group button, #new-channel button { width: auto; padding: 8px 14px; align-self: flex-start; }
-  #discover-panel { padding: 12px 16px; border-bottom: 1px solid var(--border); max-height: 220px; overflow-y: auto; }
-  .disc-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
-  .disc-item button { width: auto; padding: 5px 10px; font-size: 12px; margin: 0; }
-  .disc-empty { font-size: 12px; color: var(--muted); }
-  .biz-card { border-bottom: 1px solid var(--border); padding: 10px 0; font-size: 13px; }
-  .biz-name { font-weight: 600; }
-  .biz-cat { font-weight: 400; color: var(--muted); font-size: 12px; }
-  .biz-line { color: var(--muted); font-size: 12px; margin-top: 2px; }
-  .biz-desc { margin-top: 4px; font-size: 12px; }
-  .biz-chat { width: auto; padding: 6px 12px; font-size: 12px; margin-top: 8px; }
-  .biz-photo { width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 6px; }
-  .biz-payment { color: #22c55e; font-weight: 600; }
-  .banned-banner { position: fixed; top: 0; left: 0; right: 0; background: #ef4444; color: white; text-align: center; padding: 8px; font-size: 13px; z-index: 2000; }
-
-  .call-overlay { position: fixed; inset: 0; background: rgba(10,11,15,0.92); display: flex; align-items: center; justify-content: center; z-index: 999; }
-  .call-box { background: var(--panel); padding: 32px; border-radius: 20px; text-align: center; width: 300px; box-shadow: 0 20px 60px #0008; }
-  .call-box.wide { width: min(90vw, 480px); }
-  .call-avatar { font-size: 48px; margin-bottom: 12px; }
-  .call-name { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
-  .call-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
-  .call-btn-row { display: flex; gap: 16px; justify-content: center; }
-  .call-btn { width: auto; padding: 12px 24px; border-radius: 24px; font-weight: 600; }
-  .call-btn.accept { background: #22c55e; }
-  .call-btn.decline { background: #ef4444; }
-  .video-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; justify-content: center; }
-  .video-tile { position: relative; width: 160px; }
-  .video-tile video { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 10px; object-fit: cover; }
-  .call-icon-btn { width: 52px; height: 52px; border-radius: 50%; font-size: 20px; background: var(--border); margin: 0; padding: 0; }
-  .call-icon-btn.hangup { background: #ef4444; }
-  .call-icon-btn.muted { background: #ef4444; }
-
-  .edit-input { background: #0d0f14; border: 1px solid var(--accent); color: white; border-radius: 6px; padding: 4px 8px; font-size: 14px; width: 160px; }
-  .edit-save { width: auto; padding: 4px 10px; font-size: 12px; margin-left: 4px; }
-  .edited-tag { font-size: 11px; opacity: 0.6; font-style: italic; }
-  .tick { font-size: 11px; margin-left: 4px; opacity: 0.7; }
-  .tick.read { color: #60a5fa; opacity: 1; }
-  .reaction-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
-  .pill { background: var(--bubble-them); border-radius: 10px; padding: 1px 7px; font-size: 12px; cursor: pointer; }
-  .pill.mine { background: var(--accent); }
-  .reaction-picker { position: absolute; bottom: 100%; right: 0; background: var(--bubble-them); border-radius: 20px; padding: 6px 10px; display: flex; gap: 6px; box-shadow: 0 8px 24px #0008; margin-bottom: 4px; z-index: 5; }
-  .pick-emoji { cursor: pointer; font-size: 18px; }
-  .pick-emoji:hover { transform: scale(1.2); }
   #conv-list { flex: 1; overflow-y: auto; }
   .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
   .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
   .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; overflow: hidden; flex-shrink: 0; }
-  .conv-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .conv-text { flex: 1; min-width: 0; }
   .conv-item .who { font-weight: 600; font-size: 14px; }
   .conv-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .unread-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-  .archived-toggle { padding: 10px 16px; font-size: 12px; color: var(--muted); cursor: pointer; border-top: 1px solid var(--border); }
-  .archived-toggle:hover { background: var(--accent-soft); }
   #chat-area { flex: 1; display: flex; flex-direction: column; }
   #chat-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; align-items: center; gap: 8px; }
   .header-title-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .header-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .header-actions { display: flex; gap: 4px; }
-  .icon-btn { width: auto; background: transparent; padding: 6px 10px; font-size: 16px; margin: 0; }
-  .icon-btn.active-toggle { background: var(--accent-soft); border-radius: 8px; }
   #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
   .bubble { max-width: 60%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; position: relative; }
   .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
   .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
   .bubble .time { display: block; font-size: 10px; opacity: 0.6; margin-top: 4px; }
-  .bubble .sender { display: block; font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 3px; }
   #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; position: relative; }
   #composer input { margin: 0; flex: 1; }
   #composer button { width: auto; padding: 12px 20px; }
   #empty-state { margin: auto; color: var(--muted); text-align: center; }
 
-  /* 2026 Theme Polish */
   :root {
     --bg:#f3f6f8; --panel:#ffffff; --accent:#0b8f87; --accent-2:#16b8a9;
     --accent-soft:rgba(11,143,135,.10); --accent-glow:rgba(22,184,169,.22);
@@ -195,7 +117,7 @@
   </div>
   <div class="landing-hero">
     <h1 class="landing-h1">One World.<br />One Communication Layer.</h1>
-    <p class="landing-sub">Chat. Call. Business Directing &amp; AllERP Order Sync.</p>
+    <p class="landing-sub">Chat &amp; AllERP Order Sync.</p>
     <button class="landing-btn-primary" onclick="showAuthFromLanding()">Get Started — It's Free</button>
   </div>
 </div>
@@ -238,7 +160,7 @@ window.showAuthFromLanding = function() {
 };
 
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
@@ -246,7 +168,6 @@ let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 let me = null;
 let activeConv = null;
-let messagesChannel = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -265,28 +186,39 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, orderDetails, merchantMode };
 }
 
-// 🌟 मर्चंट आणि ग्राहक ओळखणारा तसेच पेंडिंग ऑर्डर कंपल्सरी पुढाकार घेऊन पाठवणारा अचूक ब्रिज
-async function handleStoreBridge(storeUsername, pendingOrderText = null) {
-  if (!storeUsername || !me) return;
+// 🌟 डेटाबेसवरून दुकानदाराचे अस्सल नाव/युजरनेम ऑटो-फेच करून अचूक मर्चंट ब्रिज जोडणारा फंक्शन
+async function handleStoreBridge(storeParam, pendingOrderText = null) {
+  if (!storeParam || !me) return;
   const bridge = getBridgeParams();
-  
   if (bridge.merchantMode === 'true') return;
 
-  const cleanStoreName = storeUsername.replace(/_/g, ' ').trim();
-  
   try {
     let storeUserId = null;
+    let storeNameDisplay = '@' + storeParam;
 
-    const { data: storeInfo } = await sb.from('businesses').select('owner_id, name').ilike('name', cleanStoreName).maybeSingle();
-    if (storeInfo && storeInfo.owner_id) {
-      storeUserId = storeInfo.owner_id;
+    // 1. प्रथम business_profiles किंवा businesses टेबलमधून store चे नाव किंवा ID तपणे
+    const cleanQuery = storeParam.replace(/[_ ]/g, ' ').trim();
+    const { data: bizData } = await sb.from('business_profiles').select('owner_id, name').ilike('name', cleanQuery).maybeSingle();
+    
+    if (bizData && bizData.owner_id) {
+      storeUserId = bizData.owner_id;
+      // दुकानदाराचे profiles मधील खरे युजरनेम मिळवणे
+      const { data: ownerProf } = await sb.from('profiles').select('username').eq('id', storeUserId).maybeSingle();
+      if (ownerProf && ownerProf.username) {
+        storeNameDisplay = '@' + ownerProf.username;
+      }
     } else {
-      const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
-      if (storeUser) storeUserId = storeUser.id;
+      // 2. जर थेट युजरनेम दिले असेल तर profiles टेबल तपणे
+      const { data: userProf } = await sb.from('profiles').select('id, username').ilike('username', storeParam).maybeSingle();
+      if (userProf) {
+        storeUserId = userProf.id;
+        storeNameDisplay = '@' + userProf.username;
+      }
     }
 
     if (!storeUserId || storeUserId === me.id) return;
 
+    // ग्राहक आणि दुकानदारामध्ये आधीपासून conversation आहे का ते तपासणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let existingConvId = null;
@@ -310,13 +242,9 @@ async function handleStoreBridge(storeUsername, pendingOrderText = null) {
 
     if (targetConvId) {
       await loadConversations();
-      const { data: storeProfile } = await sb.from('profiles').select('username').eq('id', storeUserId).single();
-      const storeNameDisplay = storeProfile ? '@' + storeProfile.username : '@' + storeUsername;
-      
-      // चॅट उघडणे
       openConversation(targetConvId, storeNameDisplay, 'direct');
 
-      // जर URL मध्ये किंवा localStorage मध्ये ऑलईआरपीची ऑर्डर असेल, तर ती कंपल्सरी चॅटमध्ये मेसेज म्हणून पाठवणे
+      // पेंडिंग ऑर्डर किंवा ऑलईआरपीची ऑर्डर चॅटमध्ये पाठवणे
       const textToSend = pendingOrderText || bridge.orderDetails || (bridge.customerName ? `📦 नवीन ऑर्डर: ग्राहक - ${bridge.customerName}` : null);
       if (textToSend) {
         setTimeout(async () => {
@@ -329,7 +257,7 @@ async function handleStoreBridge(storeUsername, pendingOrderText = null) {
       }
     }
   } catch(err) {
-    console.error("Bridge chat open error:", err);
+    console.error("Auto-fetch store bridge error:", err);
   }
 }
 
@@ -337,7 +265,6 @@ async function handleStoreBridge(storeUsername, pendingOrderText = null) {
 async function checkAndProcessPendingOrder() {
   const bridge = getBridgeParams();
   if (bridge.store) {
-    // URL मध्ये ऑर्डर किंवा स्टोअर असल्यास localStorage मध्ये सुरक्षित ठेवणे
     const orderObj = {
       store: bridge.store,
       details: bridge.orderDetails || (bridge.customerName ? `📦 नवीन ऑर्डर: ग्राहक - ${bridge.customerName} (${bridge.customerEmail || ''})` : 'दुकानदार पोर्टलवरून आलेली ऑर्डर')
@@ -375,7 +302,6 @@ async function setupUserSession(user) {
 
   enterApp();
 
-  // पेंडिंग ऑर्डर किंवा स्टोअर ब्रिज तपासून मर्चंटपर्यंत ऑर्डर पोहोचवणे
   try {
     const saved = localStorage.getItem('weavo_pending_order');
     if (saved) {
