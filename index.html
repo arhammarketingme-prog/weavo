@@ -114,8 +114,9 @@
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
+// detectSessionInUrl: false ठेवून सर्व कॉन्फ्लिक्ट पूर्णपणे टाळणे
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: window.localStorage, storageKey: 'weavo-auth-token-v11' }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: window.localStorage, storageKey: 'weavo-auth-token-v12' }
 });
 
 let me = null;
@@ -134,8 +135,7 @@ async function initWeavoStandalone() {
       if (accessToken) {
         const { data, error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
         if (data && data.session && data.session.user) {
-          window.history.replaceState(null, '', window.location.pathname);
-          await setupUserSession(data.session.user);
+          window.location.replace(window.location.pathname);
           return;
         }
       }
@@ -164,7 +164,6 @@ async function setupUserSession(user) {
 }
 
 async function loginWithGoogle() {
-  localStorage.clear();
   await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname }
