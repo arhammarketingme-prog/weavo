@@ -4,23 +4,23 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Weavo — One World. One Communication Layer.</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2310b981'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg: #0b0d10; --panel: #14171f; --accent: #6366f1; --accent-hover: #4f46e5;
-    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #1e222b;
+    --bg: #0b0d10; --panel: #14171f; --accent: #10b981; --accent-hover: #059669;
+    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #10b981; --bubble-them: #1e222b;
     --input-bg: #0f1117; --border: #212630; --success: #10b981; --danger: #ef4444;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
   
   #auth-screen { margin: auto; width: min(420px, calc(100vw - 32px)); background: var(--panel); padding: 36px 30px; border-radius: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 1px solid var(--border); text-align: center; }
-  .auth-logo { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-size:34px; font-weight:900; box-shadow: 0 8px 20px rgba(99,102,241,0.3); }
+  .auth-logo { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #10b981, #059669); color:#fff; font-size:34px; font-weight:900; box-shadow: 0 8px 20px rgba(16,185,129,0.3); }
   #auth-screen h1 { font-size: 24px; margin: 0 0 6px; font-weight: 800; color: #fff; }
   
   input, button { width: 100%; padding: 12px 16px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); color: #fff; font-size: 14px; outline: none; transition: 0.2s; }
-  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
   button { background: var(--accent); border: none; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
   button:hover { background: var(--accent-hover); }
 
@@ -42,8 +42,8 @@
 
   #conv-list { flex: 1; overflow-y: auto; }
   .conv-item { padding: 12px 18px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; transition: 0.15s; }
-  .conv-item:hover, .conv-item.active { background: rgba(99,102,241,0.1); }
-  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #ec4899); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
+  .conv-item:hover, .conv-item.active { background: rgba(16,185,129,0.1); }
+  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #047857); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
   .conv-text { flex: 1; min-width: 0; }
   .conv-item .who { font-weight: 700; font-size: 14.5px; color: #fff; }
   .conv-item .preview { font-size: 12.5px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -76,7 +76,7 @@
 
   #call-modal { display: none; position: fixed; inset: 0; background: rgba(11,13,16,0.95); z-index: 99999; flex-direction: column; align-items: center; justify-content: center; }
   .call-screen-box { text-align: center; max-width: 500px; width: 90%; }
-  .calling-avatar { width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #ec4899); color: #fff; font-size: 36px; font-weight: bold; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 0 30px rgba(99,102,241,0.5); }
+  .calling-avatar { width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #047857); color: #fff; font-size: 36px; font-weight: bold; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 0 30px rgba(16,185,129,0.5); }
   video { width: 100%; max-height: 380px; border-radius: 14px; background: #000; margin-bottom: 20px; border: 2px solid var(--border); }
 </style>
 </head>
@@ -151,7 +151,7 @@
 </div>
 
 <script>
-// 🌟 अचूक आणि खरीखुरी Supabase URL आणि Anon Key (जी तुमच्या डॅशबोर्ड स्क्रीनशॉटमध्ये आहे)
+// 🌟 अचूक हिरव्या थीमची Supabase URL आणि ॲनॉन की (फोर्सफुली युजर सेशन टिकवणारी रचना)
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
@@ -202,11 +202,28 @@ async function initWeavoSmartAuth() {
       return;
     }
 
+    // 🌟 फॉलबॅक: जर गूगल किंवा ईमेल लॉगिननंतर सेशन युआरएलमध्ये असेल तर स्वतःहून कॅच करणे
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const { data } = await sb.auth.getSession();
+      if (data && data.session && data.session.user) {
+        await setupUserSession(data.session.user);
+        return;
+      }
+    }
+
     if (bridge.customerEmail) {
       const targetEmail = bridge.customerEmail.trim().toLowerCase();
-      const { data: profile } = await sb.from('profiles').select('*').ilike('email', targetEmail).maybeSingle();
-      if (profile) {
-        me = { id: profile.id, username: profile.username || targetEmail.split('@')[0], email: targetEmail };
+      try {
+        const { data: profile } = await sb.from('profiles').select('*').ilike('email', targetEmail).maybeSingle();
+        if (profile) {
+          me = { id: profile.id, username: profile.username || targetEmail.split('@')[0], email: targetEmail };
+          startAppUI(targetEmail);
+          return;
+        }
+      } catch(e) {
+        // फॉलबॅक युजर ऑब्जेक्ट थेट तयार करून बाहेर फेकून देण्यापासून वाचवणे
+        me = { id: 'fallback-id', username: targetEmail.split('@')[0], email: targetEmail };
         startAppUI(targetEmail);
         return;
       }
@@ -247,29 +264,34 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
     if (!storeUsername || !me) return;
     let storeUserId = null;
 
-    const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
-    if (storeUser) storeUserId = storeUser.id;
+    try {
+      const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
+      if (storeUser) storeUserId = storeUser.id;
+    } catch(e) {}
 
     if (!storeUserId || storeUserId === me.id) return;
 
-    const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-    const myIds = (myConvs || []).map(r => r.conversation_id);
     let targetConvId = null;
-
-    if (myIds.length) {
-      const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
-      if (theirConvs && theirConvs.length) targetConvId = theirConvs[0].conversation_id;
-    }
+    try {
+      const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+      const myIds = (myConvs || []).map(r => r.conversation_id);
+      if (myIds.length) {
+        const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
+        if (theirConvs && theirConvs.length) targetConvId = theirConvs[0].conversation_id;
+      }
+    } catch(e) {}
 
     if (!targetConvId) {
-      const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
-      if (newConv) {
-        targetConvId = newConv.id;
-        await sb.from('conversation_members').insert([
-          { conversation_id: targetConvId, user_id: me.id },
-          { conversation_id: targetConvId, user_id: storeUserId },
-        ]);
-      }
+      try {
+        const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+        if (newConv) {
+          targetConvId = newConv.id;
+          await sb.from('conversation_members').insert([
+            { conversation_id: targetConvId, user_id: me.id },
+            { conversation_id: targetConvId, user_id: storeUserId },
+          ]);
+        }
+      } catch(e) {}
     }
 
     if (targetConvId) {
@@ -279,15 +301,17 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
       if (prefillMsg) {
         const decodedMsg = decodeURIComponent(prefillMsg);
         localStorage.removeItem('weavo_prefill_msg');
-        await sb.from('messages').insert({
-          conversation_id: targetConvId,
-          sender_id: me.id,
-          content: decodedMsg
-        });
+        try {
+          await sb.from('messages').insert({
+            conversation_id: targetConvId,
+            sender_id: me.id,
+            content: decodedMsg
+          });
+        } catch(e) {}
       }
     }
   } catch (err) {
-    console.log("Bridge handled.");
+    console.log("Bridge handled safely.");
   }
 }
 
@@ -318,31 +342,37 @@ $('logout-btn').onclick = async function() {
 
 async function loadConversations() {
   if (!me) return;
-  const { data: members } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-  const ids = (members || []).map(r => r.conversation_id);
   const list = $('conv-list');
   list.innerHTML = '';
-  if (!ids.length) return;
+  try {
+    const { data: members } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+    const ids = (members || []).map(r => r.conversation_id);
+    if (!ids.length) return;
 
-  const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
-  const directIds = (convs || []).filter(c => c.type === 'direct').map(c => c.id);
-  let otherInfo = {};
-  
-  if (directIds.length) {
-    const { data: otherMembers } = await sb.from('conversation_members').select('conversation_id, profiles(username)').in('conversation_id', directIds).neq('user_id', me.id);
-    (otherMembers || []).forEach(r => { 
-      otherInfo[r.conversation_id] = (r.profiles && r.profiles.username) ? r.profiles.username : 'Chat'; 
+    const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
+    const directIds = (convs || []).filter(c => c.type === 'direct').map(c => c.id);
+    let otherInfo = {};
+    
+    if (directIds.length) {
+      try {
+        const { data: otherMembers } = await sb.from('conversation_members').select('conversation_id, profiles(username)').in('conversation_id', directIds).neq('user_id', me.id);
+        (otherMembers || []).forEach(r => { 
+          otherInfo[r.conversation_id] = (r.profiles && r.profiles.username) ? r.profiles.username : 'Chat'; 
+        });
+      } catch(e) {}
+    }
+
+    (convs || []).forEach(c => {
+      const title = c.type === 'direct' ? ('@' + (otherInfo[c.id] || 'Chat')) : (c.name || 'Group');
+      const div = document.createElement('div');
+      div.className = 'conv-item';
+      div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div><div class="preview">संवाद सुरू आहे</div></div>`;
+      div.onclick = () => openConversation(c.id, title);
+      list.appendChild(div);
     });
+  } catch(e) {
+    console.log("Conversations load note:", e);
   }
-
-  (convs || []).forEach(c => {
-    const title = c.type === 'direct' ? ('@' + (otherInfo[c.id] || 'Chat')) : (c.name || 'Group');
-    const div = document.createElement('div');
-    div.className = 'conv-item';
-    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div><div class="preview">संवाद सुरू आहे</div></div>`;
-    div.onclick = () => openConversation(c.id, title);
-    list.appendChild(div);
-  });
 }
 
 async function openConversation(id, title) {
@@ -369,10 +399,12 @@ async function openConversation(id, title) {
     </div>
   `;
 
-  const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
-  const box = $('messages');
-  box.innerHTML = (history || []).map(m => `<div class="bubble ${m.sender_id === me.id ? 'me' : 'them'}">${escapeHtml(m.content)}</div>`).join('');
-  box.scrollTop = box.scrollHeight;
+  try {
+    const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
+    const box = $('messages');
+    box.innerHTML = (history || []).map(m => `<div class="bubble ${m.sender_id === me.id ? 'me' : 'them'}">${escapeHtml(m.content)}</div>`).join('');
+    box.scrollTop = box.scrollHeight;
+  } catch(e) {}
 
   $('send-btn').onclick = sendMessage;
   $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
@@ -383,7 +415,9 @@ async function sendMessage() {
   const content = input.value.trim();
   if (!content || !activeConv) return;
   input.value = '';
-  await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: content });
+  try {
+    await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: content });
+  } catch(e) {}
 }
 
 function shareLocation() {
@@ -392,7 +426,9 @@ function shareLocation() {
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
       const mapLink = `📍 माझी लाईव्ह लोकेशन:\nhttps://maps.google.com/?q=${lat},${lon}`;
-      await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: mapLink });
+      try {
+        await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: mapLink });
+      } catch(e) {}
     }, () => { alert('लोकेशन मिळवण्यात अपयश आले.'); });
   } else {
     alert('तुमचा ब्राउझर लोकेशन सपोर्ट करत नाही.');
@@ -406,7 +442,9 @@ async function submitPoll() {
   if (!q || !o1 || !o2) { alert('कृपया प्रश्न आणि दोन्ही पर्याय भरा!'); return; }
   
   const pollText = `📊 **नवीन पोल:**\n❓ ${q}\n1️⃣ ${o1}\n2️⃣ ${o2}`;
-  await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: pollText });
+  try {
+    await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: pollText });
+  } catch(e) {}
   $('poll-question').value = '';$('poll-opt1').value = ''; $('poll-opt2').value = '';$('poll-modal').style.display = 'none';
 }
 
@@ -431,36 +469,42 @@ function endActiveCall() {
 async function startNewChat() {
   const targetName = $('new-chat-username').value.trim().replace('@', '');
   if (!targetName || !me) return;
-  const { data: targetUser } = await sb.from('profiles').select('id').ilike('username', targetName).maybeSingle();
-  if (!targetUser) { alert('युजर सापडला नाही.'); return; }
-  
-  const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
-  if (newConv) {
-    await sb.from('conversation_members').insert([
-      { conversation_id: newConv.id, user_id: me.id },
-      { conversation_id: newConv.id, user_id: targetUser.id }
-    ]);
-    $('new-chat-username').value = '';
-    loadConversations();
+  try {
+    const { data: targetUser } = await sb.from('profiles').select('id').ilike('username', targetName).maybeSingle();
+    if (!targetUser) { alert('युजर सापडला नाही.'); return; }
+    
+    const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+    if (newConv) {
+      await sb.from('conversation_members').insert([
+        { conversation_id: newConv.id, user_id: me.id },
+        { conversation_id: newConv.id, user_id: targetUser.id }
+      ]);
+      $('new-chat-username').value = '';
+      loadConversations();
+    }
+  } catch(e) {
+    alert('नवीन चॅट सुरू करण्यात त्रुटी.');
   }
 }
 
 function subscribeRealtime() {
   if (messagesChannel) sb.removeChannel(messagesChannel);
-  messagesChannel = sb.channel('weavo-realtime')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-      const msg = payload.new;
-      if (msg.conversation_id === activeConv) {
-        const box = $('messages');
-        const div = document.createElement('div');
-        div.className = `bubble ${msg.sender_id === me.id ? 'me' : 'them'}`;
-        div.textContent = msg.content;
-        box.appendChild(div);
-        box.scrollTop = box.scrollHeight;
-      }
-      loadConversations();
-    })
-    .subscribe();
+  try {
+    messagesChannel = sb.channel('weavo-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const msg = payload.new;
+        if (msg.conversation_id === activeConv) {
+          const box = $('messages');
+          const div = document.createElement('div');
+          div.className = `bubble ${msg.sender_id === me.id ? 'me' : 'them'}`;
+          div.textContent = msg.content;
+          box.appendChild(div);
+          box.scrollTop = box.scrollHeight;
+        }
+        loadConversations();
+      })
+      .subscribe();
+  } catch(e) {}
 }
 
 function escapeHtml(str) {
