@@ -51,7 +51,6 @@
 </head>
 <body>
 
-<!-- सरळ लॉगिन स्क्रीन (कोणतेही लँडिंग पेज नाही) -->
 <div id="auth-screen">
   <div class="auth-logo">W</div>
   <h1>Weavo Chat</h1>
@@ -66,7 +65,6 @@
   <div id="error" aria-live="polite"></div>
 </div>
 
-<!-- मुख्य डॅशबोर्ड -->
 <div id="app">
   <div id="sidebar">
     <div id="me-bar">
@@ -112,6 +110,18 @@ function getBridgeParams() {
   const orderDetails = params.get('order') || params.get('details');
   const merchantMode = params.get('merchant_mode');
   return { store, customerEmail, customerName, orderDetails, merchantMode };
+}
+
+// 🌟 URL madhun order data localStorage madhe secure thevne
+function checkAndProcessPendingOrder() {
+  const bridge = getBridgeParams();
+  if (bridge.store) {
+    const orderObj = {
+      store: bridge.store,
+      details: bridge.orderDetails || (bridge.customerName ? `📦 नवीन ऑर्डर: ग्राहक - ${bridge.customerName}` : 'दुकानदार पोर्टलवरून आलेली ऑर्डर')
+    };
+    localStorage.setItem('weavo_pending_order', JSON.stringify(orderObj));
+  }
 }
 
 async function handleStoreBridge(storeParam, pendingOrderText = null) {
@@ -173,22 +183,15 @@ async function handleStoreBridge(storeParam, pendingOrderText = null) {
             sender_id: me.id,
             content: textToSend
           });
+          // Order send zhalyanantar URL clean karne
+          if (window.location.search || window.location.hash.includes('?')) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
         }, 800);
       }
     }
   } catch(err) {
     console.error("Store bridge error:", err);
-  }
-}
-
-async function checkAndProcessPendingOrder() {
-  const bridge = getBridgeParams();
-  if (bridge.store) {
-    const orderObj = {
-      store: bridge.store,
-      details: bridge.orderDetails || (bridge.customerName ? `📦 नवीन ऑर्डर: ग्राहक - ${bridge.customerName}` : 'दुकानदार पोर्टलवरून आलेली ऑर्डर')
-    };
-    localStorage.setItem('weavo_pending_order', JSON.stringify(orderObj));
   }
 }
 
@@ -221,6 +224,7 @@ async function setupUserSession(user) {
 
   enterApp();
 
+  // 🌟 Login nantar localStorage madhli pending order check karun merchant la pathavne
   try {
     const saved = localStorage.getItem('weavo_pending_order');
     if (saved) {
@@ -229,7 +233,7 @@ async function setupUserSession(user) {
       setTimeout(() => handleStoreBridge(parsed.store, parsed.details), 600);
     } else {
       const bridge = getBridgeParams();
-      if (bridge.store && bridge.merchantMode !== 'true') {
+      if (bridge.store) {
         setTimeout(() => handleStoreBridge(bridge.store), 600);
       }
     }
