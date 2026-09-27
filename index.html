@@ -6,34 +6,17 @@
 <title>Weavo — One World. One Communication Layer.</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
 <link rel="manifest" href="manifest.json" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<meta name="theme-color" content="#6366f1" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0"></script>
 <style>
   :root {
     --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
-    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f; --radius: 16px;
+    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f;
     --input-bg: #10121a; --border: #22252e;
-  }
-  body.light {
-    --bg: #f4f5f7; --panel: #ffffff; --accent: #6366f1; --accent-soft: #6366f11a;
-    --text: #14161c; --muted: #6b7280; --bubble-me: #6366f1; --bubble-them: #eceef2;
-    --input-bg: #f0f1f4; --border: #e5e7eb;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
   
-  #landing { width: 100%; height: 100vh; overflow-y: auto; background: var(--bg); display: none; }
-  .landing-nav { display: flex; align-items: center; justify-content: space-between; padding: 20px clamp(20px, 6vw, 64px); position: sticky; top: 0; background: var(--bg); z-index: 10; border-bottom: 1px solid var(--border); }
-  .landing-logo { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; color: var(--text); }
-  .landing-logo-mark { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #16b8a9); color: white; display: inline-flex; align-items: center; justify-content: center; }
-  .landing-hero { max-width: 760px; margin: 0 auto; text-align: center; padding: clamp(50px, 10vh, 110px) 20px 60px; }
-  .landing-h1 { font-size: clamp(32px, 6vw, 56px); font-weight: 800; line-height: 1.08; margin: 0 0 18px; color: var(--text); }
-  .landing-sub { font-size: clamp(15px, 2vw, 18px); color: var(--muted); margin: 0 auto 34px; }
-  
-  #auth-screen { display: none; margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
+  #auth-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
   .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; }
   #auth-screen h1 { text-align:center; font-size:25px; margin: 0 0 5px; }
   .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; cursor:pointer; width: 100%; padding: 12px; border-radius: 10px; }
@@ -41,7 +24,6 @@
   input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
   input:focus { outline: none; border-color: var(--accent); }
   button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
-  .landing-btn-primary { background: linear-gradient(120deg, var(--accent), #16b8a9); color: white; border: none; padding: 15px 28px; font-weight: 700; border-radius: 16px; cursor: pointer; }
   
   #error { color: #f87171; font-size: 13px; min-height: 16px; margin-top: 8px; }
   #app { display: none; width: 100%; height: 100vh; }
@@ -69,23 +51,10 @@
 </head>
 <body>
 
-<!-- लँडिंग पेज -->
-<div id="landing">
-  <div class="landing-nav">
-    <div class="landing-logo"><span class="landing-logo-mark">W</span> Weavo</div>
-    <div><button class="landing-btn-primary" onclick="showAuthScreen()">Get Started</button></div>
-  </div>
-  <div class="landing-hero">
-    <h1 class="landing-h1">One World.<br />One Communication Layer.</h1>
-    <p class="landing-sub">Chat &amp; AllERP Order Sync.</p>
-    <button class="landing-btn-primary" onclick="showAuthScreen()">Get Started — It's Free</button>
-  </div>
-</div>
-
-<!-- लॉगिन स्क्रीन -->
+<!-- सरळ लॉगिन स्क्रीन (कोणतेही लँडिंग पेज नाही) -->
 <div id="auth-screen">
   <div class="auth-logo">W</div>
-  <h1>Welcome to Weavo</h1>
+  <h1>Weavo Chat</h1>
   <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">One World. One Communication Layer.</p>
   <input id="reg-email" placeholder="Email address" autocomplete="username" />
   <input id="reg-password" type="password" placeholder="Password" autocomplete="current-password" />
@@ -125,18 +94,8 @@ let me = null;
 let activeConv = null;
 const $ = (id) => document.getElementById(id);
 
-function showLanding() {
-  $('landing').style.display = 'block';
-  $('auth-screen').style.display = 'none';$('app').classList.remove('active');
-}
-
-function showAuthScreen() {
-  $('landing').style.display = 'none';
-  $('auth-screen').style.display = 'block';$('app').classList.remove('active');
-}
-
 function enterApp() {
-  $('landing').style.display = 'none';$('auth-screen').style.display = 'none';
+  $('auth-screen').style.display = 'none';
   $('app').classList.add('active');$('me-name').textContent = '@' + me.username;
   loadConversations();
 }
@@ -284,13 +243,6 @@ if (sb) {
     
     if (session?.user) {
       await setupUserSession(session.user);
-    } else {
-      const bridge = getBridgeParams();
-      if (bridge.store) {
-        showAuthScreen(); 
-      } else {
-        showLanding();    
-      }
     }
 
     sb.auth.onAuthStateChange(async (event, session) => {
@@ -351,7 +303,7 @@ async function sendMessage() {
 if ($('logout-btn')) {$('logout-btn').onclick = async () => {
     await sb.auth.signOut();
     me = null; activeConv = null;
-    showLanding();
+    location.reload();
   };
 }
 </script>
