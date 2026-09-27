@@ -1,500 +1,825 @@
 <!DOCTYPE html>
 <html lang="mr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Weavo — One World. One Communication Layer.</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
-<link rel="manifest" href="manifest.json" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<meta name="theme-color" content="#6366f1" />
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1D4E89">
+<title>ALL ERP — Universal Business Operating System</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <style>
-  :root {
-    --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
-    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f; --radius: 16px;
-    --input-bg: #10121a; --border: #22252e; --success: #16a34a;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
-  
-  #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); text-align: center; }
-  .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; box-shadow: 0 14px 34px rgba(32,201,189,.28); }
-  #auth-screen h1 { font-size:25px; margin: 0 0 5px; }
-  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:12px; font-weight:600; cursor:pointer; width:100%; padding:12px; border-radius:10px; }
-  .google-auth-btn:hover { background:#f8fafc; }
+:root {
+  --primary: #1D4E89; --primary-hover: #153e72; --success: #16a34a;
+  --bg-color: #f8fafc; --card-bg: #ffffff; --text-main: #1e293b;
+  --text-muted: #64748b; --border-color: #cbd5e1;
+}
+body { background-color: var(--bg-color); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
+body.store-locked-mode #app-nav { display: none !important; }
+.dashboard-main-frame { width: 98%; max-width: 1450px; margin: 10px auto; padding: 0 6px; }
 
-  input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
-  input:focus { outline: none; border-color: var(--accent); }
-  button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
-  #error { color: #f87171; font-size: 13px; min-height: 16px; margin-top: 8px; }
-  
-  #app { display: none; width: 100%; height: 100vh; }
-  #app.active { display: flex; }
-  #sidebar { width: 280px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-  
-  #me-bar { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  #me-bar .left { display: flex; align-items: center; gap: 10px; }
-  #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
-  #me-bar .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-  #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; cursor: pointer; }
-  
-  #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
-  #new-chat input { margin: 0; }
-  #new-chat button { width: auto; padding: 10px 14px; }
+.erp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; background: var(--card-bg); padding: 12px 18px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.erp-header h1 { color: var(--primary); margin: 0; font-size: 22px; font-weight: 800; }
+.muted { color: var(--text-muted); font-size: 13px; }
 
-  #conv-list { flex: 1; overflow-y: auto; }
-  .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
-  .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
-  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
-  .conv-text { flex: 1; min-width: 0; }
-  .conv-item .who { font-weight: 600; font-size: 14px; }
+.weavo-header-btn { background: linear-gradient(135deg, #0b8f87, #16b8a9); color: #fff; padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
+.whatsapp-share-btn { background: #25D366; color: #fff; padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
+.google-login-customer-btn { background: #ffffff; color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12.5px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.ai-assistant-btn { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: #fff; padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px; }
+.primary-action-btn { background: var(--primary); color: #fff; padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px; }
 
-  #chat-area { flex: 1; display: flex; flex-direction: column; background: #0b0d10; }
-  
-  #chat-header { padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); display: flex; justify-content: space-between; align-items: center; }
-  .header-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .header-actions { display: flex; gap: 8px; align-items: center; }
-  .action-icon-btn { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
-  .action-icon-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-  
-  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-  .bubble { max-width: 65%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-word; }
-  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
-  .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
-  
-  #composer { padding: 14px 18px; border-top: 1px solid var(--border); background: var(--panel); display: flex; gap: 8px; align-items: center; }
-  #composer input { margin: 0; flex: 1; }
-  #composer button { width: auto; padding: 10px 18px; }
-  .media-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 16px; }
-  .media-btn:hover { color: var(--accent); border-color: var(--accent); }
+.customer-action-bar { display: none; gap: 8px; overflow-x: auto; padding: 10px 14px; margin-bottom: 14px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+.cust-nav-btn { background: #ffffff; color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: 6px; font-weight: 700; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; text-decoration: none; }
+.cust-nav-btn:hover { background: #f1f5f9; }
+.cust-nav-btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.cust-nav-btn.success { background: var(--success); color: #fff; border-color: var(--success); }
 
-  #empty-state { margin: auto; color: var(--muted); text-align: center; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99999 !important; align-items: center; justify-content: center; }
+.modal-content { background: var(--card-bg); border-radius: 10px; width: 95%; max-width: 520px; padding: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.25); border: 1px solid var(--border-color); max-height: 90vh; overflow-y: auto; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+.kpi-title { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+.kpi-value { font-size: 20px; font-weight: 800; color: var(--primary); margin-top: 4px; }
+
+.erp-tabs-bar { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; border-bottom: 2px solid var(--border-color); }
+.erp-tab-btn { background: transparent; color: var(--text-main); border: none; border-bottom: 3px solid transparent; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.erp-tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.erp-tab-pane { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+
+.badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.badge.live { background: var(--success); color: #fff; }
+.badge.pending { background: #f59e0b; color: #fff; }
+
+#merchant-alert-banner { display: none; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; padding: 12px 18px; border-radius: 8px; margin-bottom: 14px; font-weight: bold; font-size: 14px; text-align: center; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
 </style>
 </head>
 <body>
+<nav id="app-nav"></nav>
 
-<div id="auth-screen">
-  <div class="auth-logo">W</div>
-  <h1>Welcome to Weavo</h1>
-  <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">One World. One Communication Layer.</p>
-  <input id="reg-email" placeholder="Email address" autocomplete="username" />
-  <input id="reg-password" type="password" placeholder="Password" autocomplete="current-password" />
-  <button id="login-btn">Continue to Weavo</button>
-  <div style="display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px;"><span>OR</span></div>
-  <button id="google-login-btn" class="google-auth-btn" type="button" onclick="signInWithGoogle()">
-    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.होय, नक्कीच! आपण Weavo मधील कन्सोलमधील ते सर्व `401 Unauthorized` आणि `WebSocket` चे एरर्स एका झटक्यात पूर्णपणे काढून टाकत आहोत.
-
-याचे कारण म्हणजे आपण AllERP डॅशबोर्डमध्ये जी Supabase की वापरली आहे आणि Weavo मध्ये जी की वापरली आहे, त्यांच्यात किंचित फरक पडल्यामुळे किंवा एनॉन की (Anon Key) जुनी असल्यामुळे वीव्होचा डेटाबेस आणि रिअल-टाइम चॅनल ऑथेंटिकेट होऊ शकत नाहीये.
-
-### Weavo (`index.html`) मधील Supabase कॉन्फिगरेशन १००% एरर-फ्री करणारी अचूक फाईल:
-तुमच्या वीव्होच्या (`index.html`) फाईलमध्ये जिथे `SUPABASE_URL` आणि `SUPABASE_ANON_KEY` दिली आहे, तिथे खालील अचूक आणि वेगाने काम करणारा कोड जसाच्या तसा रिप्लेस करा:
-
-```html
-<!DOCTYPE html>
-<html lang="mr">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Weavo — One World. One Communication Layer.</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
-<link rel="manifest" href="manifest.json" />
-<link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)" />
-<link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin />
-<link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap)" rel="stylesheet" />
-<meta name="theme-color" content="#6366f1" />
-<script src="[https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0](https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0)"></script>
-<style>
-  :root {
-    --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
-    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f; --radius: 16px;
-    --input-bg: #10121a; --border: #22252e; --success: #16a34a;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
-  
-  #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); text-align: center; }
-  .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; box-shadow: 0 14px 34px rgba(32,201,189,.28); }
-  #auth-screen h1 { font-size:25px; margin: 0 0 5px; }
-  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:12px; font-weight:600; cursor:pointer; width:100%; padding:12px; border-radius:10px; }
-  .google-auth-btn:hover { background:#f8fafc; }
-
-  input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
-  input:focus { outline: none; border-color: var(--accent); }
-  button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
-  #error { color: #f87171; font-size: 13px; min-height: 16px; margin-top: 8px; }
-  
-  #app { display: none; width: 100%; height: 100vh; }
-  #app.active { display: flex; }
-  #sidebar { width: 280px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-  
-  #me-bar { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  #me-bar .left { display: flex; align-items: center; gap: 10px; }
-  #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
-  #me-bar .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-  #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; cursor: pointer; }
-  
-  #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
-  #new-chat input { margin: 0; }
-  #new-chat button { width: auto; padding: 10px 14px; }
-
-  #conv-list { flex: 1; overflow-y: auto; }
-  .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
-  .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
-  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
-  .conv-text { flex: 1; min-width: 0; }
-  .conv-item .who { font-weight: 600; font-size: 14px; }
-
-  #chat-area { flex: 1; display: flex; flex-direction: column; background: #0b0d10; }
-  
-  #chat-header { padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); display: flex; justify-content: space-between; align-items: center; }
-  .header-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .header-actions { display: flex; gap: 8px; align-items: center; }
-  .action-icon-btn { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
-  .action-icon-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-  
-  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-  .bubble { max-width: 65%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-word; }
-  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
-  .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
-  
-  #composer { padding: 14px 18px; border-top: 1px solid var(--border); background: var(--panel); display: flex; gap: 8px; align-items: center; }
-  #composer input { margin: 0; flex: 1; }
-  #composer button { width: auto; padding: 10px 18px; }
-  .media-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 16px; }
-  .media-btn:hover { color: var(--accent); border-color: var(--accent); }
-
-  #empty-state { margin: auto; color: var(--muted); text-align: center; }
-</style>
-</head>
-<body>
-
-<div id="auth-screen">
-  <div class="auth-logo">W</div>
-  <h1>Welcome to Weavo</h1>
-  <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">One World. One Communication Layer.</p>
-  <input id="reg-email" placeholder="Email address" autocomplete="username" />
-  <input id="reg-password" type="password" placeholder="Password" autocomplete="current-password" />
-  <button id="login-btn">Continue to Weavo</button>
-  <div style="display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px;"><span>OR</span></div>
-  <button id="google-login-btn" class="google-auth-btn" type="button" onclick="signInWithGoogle()">
-    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-    <span>Continue with Google</span>
-  </button>
-  <div id="error"></div>
-</div>
-
-<div id="app">
-  <div id="sidebar">
-    <div id="me-bar">
-      <div class="left">
-        <div id="me-avatar">?</div>
-        <span class="name" id="me-name"></span>
+<div class="dashboard-main-frame">
+  <div class="erp-header">
+    <div>
+      <h1 id="business-display-name">ALL ERP Dashboard</h1>
+      <span class="muted" id="header-sub-text">Universal Business Operating System & Local Marketplace</span>
+      <div style="margin-top:4px; font-size:13px; font-weight:700; color:var(--primary);" id="merchant-username-badge">
+        👤 युझरनेम: <span id="display-merchant-handle">@abhinay_gandhi</span>
       </div>
-      <div class="right">
-        <button class="logout" id="logout-btn">Logout</button>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <button type="button" class="ai-assistant-btn" onclick="openAiAssistantModal()">✨ AI असिस्टंट</button>
+      <button type="button" id="customer-google-login-btn" onclick="loginCustomerWithGoogle()" class="google-login-customer-btn" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        <span id="google-login-btn-text">Google ने लॉगिन करा</span>
+      </button>
+      <button type="button" id="whatsapp-share-btn" onclick="shareStoreOnWhatsApp()" class="whatsapp-share-btn">📢 WhatsApp शेअर</button>
+      <button type="button" id="weavo-chat-btn" onclick="openWeavoChat()" class="weavo-header-btn">💬 Weavo चॅट</button>
+    </div>
+  </div>
+
+  <div id="merchant-alert-banner">
+    🔔 नवीन ऑनलाईन ऑर्डर आली आहे! कृपया "ऑनलाईन ऑर्डर्स" टॅब तपासा.
+  </div>
+
+  <!-- CUSTOMER ACTION BAR -->
+  <div class="customer-action-bar" id="customer-action-bar">
+    <button type="button" class="cust-nav-btn success" onclick="openCustomerCartModal()">🛒 कार्ट (<span id="bar-cart-count">0</span>)</button>
+    <button type="button" class="cust-nav-btn primary" onclick="switchTab('tab-my-orders')">🛍️ माझ्या ऑर्डर्स</button>
+    <button type="button" class="cust-nav-btn" onclick="openWeavoChat()">💬 दुकानदाराशी चॅट</button>
+    <button type="button" class="cust-nav-btn" onclick="callMerchantPhone()">📞 दुकानदाराला कॉल</button>
+  </div>
+
+  <!-- NAVIGATION TABS -->
+  <div class="erp-tabs-bar" id="erp-navigation-tabs">
+    <button type="button" class="erp-tab-btn active" onclick="switchTab('tab-overview')">📊 डॅशबोर्ड</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-products')">📦 इन्व्हेंटरी व स्टॉक</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-sales')">💰 विक्री व इनव्हॉइस</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-purchase')">🛒 खरेदी</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-crm')">👥 CRM व ग्राहक</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-khata')">🧾 उधार खाता (Khata)</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-finance')">📑 खर्च व फायनान्स</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-hr')">👔 कर्मचारी (HR)</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-projects')">🏗️ प्रकल्प / साईट्स</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-pos')">⚡ POS काउंटर</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-orders')">🛍️ ऑनलाईन ऑर्डर्स</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-reports')">📈 रिपोर्ट्स व GST</button>
+    <button type="button" class="erp-tab-btn" onclick="switchTab('tab-settings')">⚙️ सेटिंग्स</button>
+  </div>
+
+  <!-- TAB 1: OVERVIEW -->
+  <div id="tab-overview" class="erp-tab-pane">
+    <div id="customer-store-notice" style="display:none; background:#e0f2fe; border:1px solid #7dd3fc; padding:14px; border-radius:8px; margin-bottom:16px; color:#0369a1; font-weight:bold; text-align:center;">
+      🔒 स्टोअर मोड: खालील प्रॉडक्ट्स निवडून कार्टमध्ये टाका आणि थेट दुकानदाराला ऑर्डर पाठवा.
+    </div>
+
+    <div id="customer-products-section" style="display:none; margin-bottom:30px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2 style="color:var(--primary); margin:0; font-size:18px;">📦 या दुकानातील उपलब्ध वस्तू</h2>
+        <div id="cart-summary-badge" style="background:var(--success); color:#fff; padding:6px 14px; border-radius:20px; font-weight:bold; font-size:13px; cursor:pointer;" onclick="openCustomerCartModal()">
+          🛒 कार्ट: <span id="cart-count">0</span> वस्तू (₹<span id="cart-total">0</span>)
+        </div>
+      </div>
+      <div id="customer-products-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:14px;">
+        <p class="muted">प्रॉडक्ट्स लोड होत आहेत...</p>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="kpi-grid-section">
+      <div class="kpi-card"><div class="kpi-title">एकूण विक्री</div><div class="kpi-value" id="kpi-total-sales">₹0.00</div></div>
+      <div class="kpi-card"><div class="kpi-title">एकूण खरेदी</div><div class="kpi-value" id="kpi-total-purchases">₹0.00</div></div>
+      <div class="kpi-card"><div class="kpi-title">एकूण खर्च</div><div class="kpi-value" id="kpi-total-expenses">₹0.00</div></div>
+      <div class="kpi-card"><div class="kpi-title">निव्वळ नफा</div><div class="kpi-value" id="kpi-net-profit">₹0.00</div></div>
+    </div>
+  </div>
+
+  <!-- TAB 2: PRODUCTS & INVENTORY -->
+  <div id="tab-products" class="erp-tab-pane" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+      <h2 style="color:var(--primary); margin:0; font-size:18px;">📦 इन्व्हेंटरी व स्टॉक व्यवस्थापन</h2>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="primary-action-btn" onclick="openAddProductModal()">➕ नवीन आयटम ॲड करा</button>
+        <button type="button" class="weavo-header-btn" onclick="openGlobalSearchModal()">🌐 ग्लोबल डिक्शनरी मधून शोधा</button>
+        <button type="button" class="ai-assistant-btn" onclick="startBarcodeScanner()">📷 बारकोड स्कॅन करा</button>
       </div>
     </div>
     
-    <div id="new-chat">
-      <input id="new-chat-username" placeholder="युझरनेम टाका (उदा. abhinay_gandhi)..." />
-      <button id="new-chat-btn">चॅट</button>
+    <div id="barcode-scanner-container" style="display:none; margin-bottom:16px; width:100%; max-width:320px; background:#000; border-radius:8px; overflow:hidden;">
+      <div id="reader"></div>
+      <button type="button" onclick="stopBarcodeScanner()" style="width:100%; background:#ef4444; color:#fff; border:none; padding:8px; font-weight:bold; cursor:pointer;">स्कॅनर बंद करा</button>
     </div>
 
-    <div id="conv-list"></div>
+    <div style="background:#fff; border:1px solid var(--border-color); border-radius:8px; padding:16px;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="text-align:left; border-bottom:2px solid var(--border-color);">
+            <th>इमेज</th><th>उत्पादन (Item Name)</th><th>विक्री दर</th><th>खरेदी दर</th><th>स्टॉक</th><th>बारकोड</th><th>कृती</th>
+          </tr>
+        </thead>
+        <tbody id="products-table-body">
+          <tr><td colspan="7" class="muted" style="text-align:center; padding:20px;">इन्व्हेंटरी लोड होत आहे...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
-  <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
+
+  <!-- OTHER TABS -->
+  <div id="tab-sales" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">💰 विक्री व इनव्हॉइस</h2></div>
+  <div id="tab-purchase" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">🛒 खरेदी</h2></div>
+  <div id="tab-crm" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">👥 CRM</h2></div>
+  <div id="tab-khata" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">🧾 उधार खाता</h2></div>
+  <div id="tab-finance" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">📑 फायनान्स</h2></div>
+  <div id="tab-hr" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">👔 कर्मचारी (HR)</h2></div>
+  <div id="tab-projects" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">🏗️ प्रकल्प</h2></div>
+  <div id="tab-pos" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">⚡ POS काउंटर</h2></div>
+
+  <!-- TAB 11: ONLINE ORDERS (Merchant View) -->
+  <div id="tab-orders" class="erp-tab-pane" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h2 style="color:var(--primary); font-size:18px;">🛍️ ऑनलाईन ग्राहकांच्या ऑर्डर्स</h2>
+      <button type="button" onclick="loadOnlineOrders()" style="background:var(--primary); color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">🔄 रिफ्रेश करा</button>
+    </div>
+    <div style="background:#fff; border:1px solid var(--border-color); border-radius:8px; padding:16px;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="text-align:left; border-bottom:2px solid var(--border-color);">
+            <th>ऑर्डर #</th><th>ग्राहक नाव</th><th>संपर्क व पत्ता</th><th>तपशील (Items)</th><th>रक्कम</th><th>स्थिती</th>
+          </tr>
+        </thead>
+        <tbody id="online-orders-table-body">
+          <tr><td colspan="6" class="muted" style="text-align:center; padding:20px;">ऑर्डर्स लोड होत आहेत...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-reports" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">📈 रिपोर्ट्स व GST</h2></div>
+  <div id="tab-settings" class="erp-tab-pane" style="display:none;"><h2 style="color:var(--primary);">⚙️ सेटिंग्स</h2></div>
+
+  <div id="tab-my-orders" class="erp-tab-pane" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h2 style="color:var(--primary); font-size:18px;">🛍️ तुमची ऑर्डर हिस्ट्री व स्टेटस</h2>
+      <button type="button" onclick="loadCustomerOrderHistory()" style="background:var(--primary); color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">🔄 रिफ्रेश करा</button>
+    </div>
+    <div style="background:#fff; border:1px solid var(--border-color); border-radius:8px; padding:16px;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="text-align:left; border-bottom:2px solid var(--border-color);">
+            <th>ऑर्डर #</th><th>तपशील (Items)</th><th>रक्कम</th><th>डिलिव्हरी पत्ता</th><th>स्थिती (Status)</th>
+          </tr>
+        </thead>
+        <tbody id="customer-history-table-body"><tr><td colspan="5" class="muted" style="text-align:center; padding:20px;">तुम्ही अजून कोणतीही ऑर्डर दिलेली नाही.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 
+<!-- 🌐 ग्लोबल डिक्शनरी सर्च मोडल -->
+<div id="global-search-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="margin:0; color:var(--primary);">🌐 ग्लोबल डिक्शनरी मधून प्रॉडक्ट शोधा</h3>
+      <button type="button" onclick="closeModal('global-search-modal')" style="background:transparent; border:none; font-size:16px; cursor:pointer; font-weight:bold; color:var(--text-muted);">✕</button>
+    </div>
+    <input type="text" id="global-search-input" placeholder="प्रॉडक्टचे नाव लिहा (उदा. Maggi, Tata Salt)..." oninput="searchGlobalCatalog(this.value)" style="width:100%; padding:10px; border:1px solid var(--border-color); border-radius:6px; font-size:14px; margin-bottom:12px;">
+    <div id="global-search-results" style="max-height:250px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+      <p class="muted" style="text-align:center;">शोधण्यासाठी नाव लिहा...</p>
+    </div>
+  </div>
+</div>
+
+<!-- ➕ नवीन आयटम ॲड मोडल -->
+<div id="add-product-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="margin:0; color:var(--primary);">➕ दुकानात नवीन आयटम जोडा</h3>
+      <button type="button" onclick="closeModal('add-product-modal')" style="background:transparent; border:none; font-size:16px; cursor:pointer; font-weight:bold; color:var(--text-muted);">✕</button>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-weight:700; font-size:12px; display:block; margin-bottom:3px;">आयटमचे नाव (Product Name):</label>
+      <input type="text" id="new-prod-name" placeholder="उदा. तांदूळ, चहा पावडर..." style="width:100%; padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13.5px;">
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:10px;">
+      <div style="flex:1;">
+        <label style="font-weight:700; font-size:12px; display:block; margin-bottom:3px;">विक्री दर (Selling Price):</label>
+        <input type="number" id="new-prod-selling" placeholder="₹0.00" style="width:100%; padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13.5px;">
+      </div>
+      <div style="flex:1;">
+        <label style="font-weight:700; font-size:12px; display:block; margin-bottom:3px;">खरेदी दर (Cost Price):</label>
+        <input type="number" id="new-prod-cost" placeholder="₹0.00" style="width:100%; padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13.5px;">
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:10px;">
+      <div style="flex:1;">
+        <label style="font-weight:700; font-size:12px; display:block; margin-bottom:3px;">सुरुवातीचा स्टॉक (Stock Qty):</label>
+        <input type="number" id="new-prod-stock" value="10" style="width:100%; padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13.5px;">
+      </div>
+      <div style="flex:1;">
+        <label style="font-weight:700; font-size:12px; display:block; margin-bottom:3px;">इमेज URL (Image Link):</label>
+        <input type="text" id="new-prod-image" placeholder="https://..." style="width:100%; padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13.5px;">
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-weight:700; font-size:12px; display:block; margin-bottom:3px;">बारकोड (Barcode):</label>
+      <input type="text" id="new-prod-barcode" placeholder="स्कॅन किंवा नंबर लिहा..." style="width:100%; padding:9px; border:1px solid var(--border-color); border-radius:6px; font-size:13.5px;">
+    </div>
+    <button type="button" onclick="saveNewProductToInventory()" style="width:100%; background:var(--primary); color:#fff; padding:11px; border:none; border-radius:6px; font-weight:bold; font-size:14px; cursor:pointer;">
+      💾 आयटम सेव्ह करा
+    </button>
+  </div>
+</div>
+
+<!-- 🛒 कार्ट मोडल -->
+<div id="customer-cart-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="margin:0; color:var(--primary);">🛒 तुमची चालू ऑर्डर (Cart Summary)</h3>
+      <button type="button" onclick="closeModal('customer-cart-modal')" style="background:transparent; border:none; font-size:16px; cursor:pointer; font-weight:bold; color:var(--text-muted);">✕</button>
+    </div>
+    <div id="customer-cart-items" style="max-height:160px; overflow-y:auto; margin-bottom:10px;">
+      <p class="muted">कार्ट रिकामी आहे.</p>
+    </div>
+    <hr style="border:none; border-top:1px solid var(--border-color); margin:8px 0;">
+    <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:bold; margin-bottom:12px;">
+      <span>एकूण रक्कम:</span>
+      <span style="color:var(--success);">₹<span id="modal-cart-total">0.00</span></span>
+    </div>
+    
+    <div style="background:#f1f5f9; padding:8px 12px; border-radius:6px; margin-bottom:10px; font-size:12px; color:#334155; border:1px solid var(--border-color);">
+      👤 गुगल ईमेल: <strong id="modal-user-email">तपासत आहे...</strong>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label style="font-weight:700; font-size:12px; color:var(--text-main); display:block; margin-bottom:3px;">📱 संपर्क मोबाईल नंबर:</label>
+      <input type="tel" id="cust-phone-input" placeholder="१० अंकी मोबाईल नंबर टाका" maxlength="10" style="width:100%; padding:9px 12px; border:1px solid var(--border-color); border-radius:6px; font-weight:600; font-size:13.5px; background:#fff;">
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label style="font-weight:700; font-size:12px; display:block; margin-bottom:3px;">🏠 संपूर्ण डिलिव्हरी पत्ता (Address):</label>
+      <textarea id="cust-address-input" placeholder="घर/दुकान क्रमांक, गल्ली, परिसर, शहर व पिनकोड लिहा..." rows="2" style="width:100%; padding:9px 12px; border:1px solid var(--border-color); border-radius:6px; font-weight:500; font-size:13px; background:#fff; resize:none;"></textarea>
+    </div>
+
+    <button type="button" onclick="submitCustomerOrderWithDetails()" style="width:100%; background:var(--success); color:#fff; padding:12px; border:none; border-radius:6px; font-weight:bold; font-size:15px; cursor:pointer;">
+      ✅ थेट ऑर्डर पाठवा व चॅट उघडा (Place Order)
+    </button>
+  </div>
+</div>
+
+<script src="js/supabase-client.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/tracking.js"></script>
+<script src="js/erp-engine.js"></script>
+<script src="js/master-dictionary.js"></script>
 <script>
-const SUPABASE_URL = "[https://xpsxbvmziibbrjnadrlm.supabase.co](https://xpsxbvmziibbrjnadrlm.supabase.co)";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
+let currentBusinessId = null;
+let currentProducts = [];
+let lockedStoreUsername = null;
+let customerCart = [];
+let loggedInCustomer = null;
+let merchantPhoneNo = "9876543210";
+let html5QrCode = null;
 
-let sb = null;
-try {
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-    realtime: { timeout: 30000 }
-  });
-} catch(e) {
-  console.error("Supabase init error:", e);
+function switchTab(tabId) {
+  var panes = document.querySelectorAll('.erp-tab-pane');
+  for (var i = 0; i < panes.length; i++) {
+    panes[i].style.display = 'none';
+  }
+  var buttons = document.querySelectorAll('.erp-tab-btn');
+  for (var j = 0; j < buttons.length; j++) {
+    buttons[j].classList.remove('active');
+  }
+  var target = document.getElementById(tabId);
+  if (target) target.style.display = 'block';
+  for (var k = 0; k < buttons.length; k++) {
+    var onclickAttr = buttons[k].getAttribute('onclick');
+    if (onclickAttr && onclickAttr.indexOf(tabId) !== -1) {
+      buttons[k].classList.add('active');
+    }
+  }
+  if (tabId === 'tab-products') loadMerchantProducts();
+  if (tabId === 'tab-orders') loadOnlineOrders();
+  if (tabId === 'tab-my-orders') loadCustomerOrderHistory();
 }
 
-let me = null;
-let activeConv = null;
-let messagesChannel = null;
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function openAddProductModal() { openModal('add-product-modal'); }
+function openGlobalSearchModal() { openModal('global-search-modal'); }
+function openAiAssistantModal() { alert('✨ AI असिस्टंट सक्रिय आहे.'); }
 
-const $ = function(id) { return document.getElementById(id); };
-
-function getBridgeParams() {
-  const urlParams = new URLSearchParams(window.location.search);
-  let store = urlParams.get('store');
-  let prefill = urlParams.get('prefill');
-  let customerEmail = urlParams.get('customer_email');
-
-  if (!store && window.location.hash.includes('store=')) {
-    const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || window.location.hash.replace('#',''));
-    store = hashParams.get('store');
-    prefill = hashParams.get('prefill');
-    customerEmail = hashParams.get('customer_email');
+function searchGlobalCatalog(query) {
+  var resultsDiv = document.getElementById('global-search-results');
+  if (!query || query.trim().length < 2) {
+    resultsDiv.innerHTML = '<p class="muted" style="text-align:center;">शोधण्यासाठी कमीत कमी २ अक्षरे लिहा...</p>';
+    return;
+  }
+  
+  var catalog = [];
+  if (typeof MASTER_DICTIONARY !== 'undefined') {
+    catalog = MASTER_DICTIONARY;
+  } else {
+    catalog = [
+      { name: "Maggi 2-Min Noodles 70g", price: 14, category: "Snacks", image: "https://placehold.co/100x100?text=Maggi" },
+      { name: "Tata Salt 1kg", price: 28, category: "Groceries", image: "https://placehold.co/100x100?text=Tata+Salt" },
+      { name: "Tata Tea Gold 500g", price: 280, category: "Beverages", image: "https://placehold.co/100x100?text=Tata+Tea" },
+      { name: "Parle-G Biscuit 80g", price: 10, category: "Snacks", image: "https://placehold.co/100x100?text=Parle-G" }
+    ];
   }
 
-  if (store) localStorage.setItem('weavo_target_store', store);
-  if (prefill) localStorage.setItem('weavo_prefill_msg', prefill);
+  var filtered = catalog.filter(function(item) {
+    return item.name.toLowerCase().indexOf(query.toLowerCase()) !== -1;
+  });
 
-  return { 
-    store: store || localStorage.getItem('weavo_target_store'), 
-    prefill: prefill || localStorage.getItem('weavo_prefill_msg'), 
-    customerEmail 
-  };
+  if (filtered.length === 0) {
+    resultsDiv.innerHTML = '<p class="muted" style="text-align:center;">कोणतेही उत्पादन सापडले नाही.</p>';
+    return;
+  }
+
+  resultsDiv.innerHTML = filtered.map(function(item) {
+    return '<div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid var(--border-color); padding:8px 12px; border-radius:6px;">' +
+      '<div><strong>' + escapeHtml(item.name) + '</strong><br><span class="muted">अंदाजे दर: ₹' + (item.price || 20) + '</span></div>' +
+      '<button onclick="addGlobalItemToStore(\'' + escapeHtml(item.name) + '\', ' + (item.price || 20) + ', \'' + (item.image || '') + '\')" style="background:var(--success); color:#fff; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">➕ दुकानात जोडा</button>' +
+      '</div>';
+  }).join('');
 }
 
-async function signInWithGoogle() {
-  await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.origin + window.location.pathname }
+async function addGlobalItemToStore(name, price, imageUrl) {
+  if (!currentBusinessId) return;
+  var res = await sb.from('business_products').insert({
+    business_id: currentBusinessId,
+    name: name,
+    selling_price: price,
+    cost_price: Math.round(price * 0.8),
+    stock_quantity: 50,
+    image_url: imageUrl
+  });
+  if (res.error) {
+    alert('प्रॉडक्ट जोडताना त्रुटी: ' + res.error.message);
+    return;
+  }
+  alert('✅ "' + name + '" तुमच्या दुकानात यशस्वीरीत्या जोडले गेले!');
+  closeModal('global-search-modal');
+  loadMerchantProducts();
+}
+
+function startBarcodeScanner() {
+  var container = document.getElementById('barcode-scanner-container');
+  container.style.display = 'block';
+  
+  if (!html5QrCode) {
+    html5QrCode = new Html5Qrcode("reader");
+  }
+  
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 250, height: 150 } },
+    function(decodedText, decodedResult) {
+      stopBarcodeScanner();
+      document.getElementById('new-prod-barcode').value = decodedText;
+      openAddProductModal();
+      alert('📷 बारकोड यशस्वीरीत्या स्कॅन झाला: ' + decodedText);
+    },
+    function(errorMessage) {}
+  ).catch(function(err) {
+    alert('कॅमेरा सुरू करण्यात अपयश आले: ' + err);
+    container.style.display = 'none';
   });
 }
 
-if ($('login-btn')) {$('login-btn').onclick = async function() {
-    var email = $('reg-email').value.trim();
-    var password = $('reg-password').value;
-    var res = await sb.auth.signInWithPassword({ email: email, password: password });
-    if (res.error) { $('error').textContent = res.error.message; return; }
-    await setupUserSession(res.data.user);
-  };
-}
-
-if ($('logout-btn')) {$('logout-btn').onclick = async function() {
-    await sb.auth.signOut();
-    localStorage.clear();
-    location.reload();
-  };
-}
-
-async function setupUserSession(user) {
-  if (!user) return;
-  me = { id: user.id, username: user.email.split('@')[0], email: user.email };
-  
-  $('auth-screen').style.display = 'none';
-  $('app').classList.add('active');$('me-name').textContent = user.email;
-  $('me-avatar').textContent = user.email[0].toUpperCase();
-  
-  subscribeRealtime();
-  await loadConversations();
-
-  var bridge = getBridgeParams();
-  if (bridge.store) {
-    await handleStoreBridge(bridge.store, bridge.prefill);
+function stopBarcodeScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(function() {
+      document.getElementById('barcode-scanner-container').style.display = 'none';
+    }).catch(function(err) {
+      document.getElementById('barcode-scanner-container').style.display = 'none';
+    });
+  } else {
+    document.getElementById('barcode-scanner-container').style.display = 'none';
   }
 }
 
-async function initWeavoSmartAuth() {
+async function initDashboard() {
   try {
-    var bridge = getBridgeParams();
+    var urlParams = new URLSearchParams(window.location.search);
+    lockedStoreUsername = urlParams.get('store');
 
     var sessionRes = await sb.auth.getSession();
     if (sessionRes.data && sessionRes.data.session && sessionRes.data.session.user) {
-      await setupUserSession(sessionRes.data.session.user);
-      if (bridge.store) {
-        await handleStoreBridge(bridge.store, bridge.prefill);
-      }
-      return;
+      loggedInCustomer = sessionRes.data.session.user;
+      localStorage.setItem('global_unified_email', loggedInCustomer.email);
     }
 
-    if (bridge.customerEmail) {
-      var targetEmail = bridge.customerEmail.trim().toLowerCase();
-      var targetUname = targetEmail.split('@')[0].toLowerCase();
+    if (lockedStoreUsername) {
+      document.body.classList.add('store-locked-mode');
+      document.getElementById('erp-navigation-tabs').style.display = 'none';
+      document.getElementById('kpi-grid-section').style.display = 'none';
+      document.getElementById('whatsapp-share-btn').style.display = 'none';
+      document.getElementById('weavo-chat-btn').style.display = 'none';
       
-      var profileRes = await sb.from('profiles').select('*').ilike('username', targetUname).maybeSingle();
-      if (profileRes.data) {
-        var profile = profileRes.data;
-        me = { id: profile.id, username: profile.username, email: targetEmail };
-        
-        $('auth-screen').style.display = 'none';
-        $('app').classList.add('active');$('me-name').textContent = targetEmail;
-        $('me-avatar').textContent = targetEmail[0].toUpperCase();
-        
-        subscribeRealtime();
-        await loadConversations();
+      document.getElementById('customer-action-bar').style.display = 'flex';
+      document.getElementById('customer-google-login-btn').style.display = 'inline-flex';
+      document.getElementById('customer-store-notice').style.display = 'block';
+      document.getElementById('customer-products-section').style.display = 'block';
 
-        if (bridge.store) {
-          await handleStoreBridge(bridge.store, bridge.prefill);
+      if (loggedInCustomer) {
+        var btnText = document.getElementById('google-login-btn-text');
+        if (btnText) {
+          var fullName = (loggedInCustomer.user_metadata && loggedInCustomer.user_metadata.full_name) ? loggedInCustomer.user_metadata.full_name : loggedInCustomer.email;
+          btnText.textContent = '👤 ' + fullName;
         }
-        return;
       }
-    }
-  } catch (err) {
-    console.error("Smart auth error:", err);
-  }
-}
 
-async function handleStoreBridge(storeUsername, prefillMsg) {
-  try {
-    if (!storeUsername || !me) return;
-    var cleanStoreName = storeUsername.replace(/_/g, ' ').trim();
-    var storeUserId = null;
-
-    var storeInfoRes = await sb.from('businesses').select('owner_id').ilike('name', cleanStoreName).maybeSingle();
-    if (storeInfoRes.data && storeInfoRes.data.owner_id) {
-      storeUserId = storeInfoRes.data.owner_id;
+      var cleanStoreName = lockedStoreUsername.replace(/_/g, ' ').trim();
+      var storeRes = await sb.from('businesses').select('*').ilike('name', cleanStoreName).maybeSingle();
+      
+      if (storeRes.data) {
+        currentBusinessId = storeRes.data.id;
+        document.getElementById('business-display-name').textContent = storeRes.data.name;
+        if (storeRes.data.phone) merchantPhoneNo = storeRes.data.phone;
+        await loadCustomerStoreProducts();
+      }
     } else {
-      var storeUserRes = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
-      if (storeUserRes.data) storeUserId = storeUserRes.data.id;
-    }
-
-    if (!storeUserId || storeUserId === me.id) return;
-
-    var myConvsRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-    var myIds = (myConvsRes.data || []).map(function(r) { return r.conversation_id; });
-    var targetConvId = null;
-
-    if (myIds.length) {
-      var theirConvsRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
-      if (theirConvsRes.data && theirConvsRes.data.length) targetConvId = theirConvsRes.data[0].conversation_id;
-    }
-
-    if (!targetConvId) {
-      var newConvRes = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
-      if (newConvRes.data) {
-        targetConvId = newConvRes.data.id;
-        await sb.from('conversation_members').insert([
-          { conversation_id: targetConvId, user_id: me.id },
-          { conversation_id: targetConvId, user_id: storeUserId },
-        ]);
+      if (!loggedInCustomer) { window.location.href = 'login.html'; return; }
+      
+      var bizRes = await sb.from('businesses').select('*').eq('owner_id', loggedInCustomer.id);
+      if (bizRes.data && bizRes.data.length > 0) {
+        currentBusinessId = bizRes.data[0].id;
+        document.getElementById('business-display-name').textContent = bizRes.data[0].name;
+        if (bizRes.data[0].phone) merchantPhoneNo = bizRes.data[0].phone;
+        await loadMerchantProducts();
+        await loadOnlineOrders();
+        subscribeMerchantOrderAlerts(currentBusinessId);
       }
     }
-
-    if (targetConvId) {
-      await loadConversations();
-      openConversation(targetConvId, '@' + storeUsername);
-
-      if (prefillMsg) {
-        setTimeout(function() {
-          var msgInput = document.getElementById('msg-input');
-          if (msgInput) {
-            msgInput.value = decodeURIComponent(prefillMsg);
-            localStorage.removeItem('weavo_prefill_msg');
-          }
-        }, 800);
-      }
-    }
-  } catch (err) {
-    console.log("Bridge handled gracefully.");
-  }
+  } catch (err) { console.error('Init error:', err); }
 }
 
-$('new-chat-btn').onclick = async function() {
-  var uname = $('new-chat-username').value.trim().replace(/^@/, '').toLowerCase();
-  if (!uname) return;
-
-  var otherRes = await sb.from('profiles').select('id, username').ilike('username', uname).maybeSingle();
-  if (!otherRes.data) { alert('तो वापरकर्ता सापडला नाही'); return; }
-  var other = otherRes.data;
-  if (other.id === me.id) { alert('स्वतःशी चॅट करता येत नाही'); return; }
-
-  var myConvsRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-  var myIds = (myConvsRes.data || []).map(function(r) { return r.conversation_id; });
-  var existingId = null;
-  if (myIds.length) {
-    var theirConvsRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
-    if (theirConvsRes.data && theirConvsRes.data.length) existingId = theirConvsRes.data[0].conversation_id;
-  }
-
-  var convId = existingId;
-  if (!convId) {
-    var newConvRes = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
-    if (newConvRes.data) {
-      convId = newConvRes.data.id;
-      await sb.from('conversation_members').insert([
-        { conversation_id: convId, user_id: me.id },
-        { conversation_id: convId, user_id: other.id },
-      ]);
-    }
-  }
-
-  $('new-chat-username').value = '';
-  await loadConversations();
-  openConversation(convId, '@' + other.username);
-};
-
-async function loadConversations() {
-  if (!me) return;
-  var memberRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-  var ids = (memberRes.data || []).map(function(r) { return r.conversation_id; });
-  var list = $('conv-list');
-  list.innerHTML = '';
-  if (!ids.length) return;
-
-  var convsRes = await sb.from('conversations').select('id, type, name').in('id', ids);
-  var convs = convsRes.data || [];
-  var directIds = convs.filter(function(c) { return c.type === 'direct'; }).map(function(c) { return c.id; });
-  var otherInfo = {};
-  if (directIds.length) {
-    var otherMembersRes = await sb.from('conversation_members').select('conversation_id, profiles(username)').in('conversation_id', directIds).neq('user_id', me.id);
-    (otherMembersRes.data || []).forEach(function(r) { 
-      otherInfo[r.conversation_id] = (r.profiles && r.profiles.username) ? r.profiles.username : 'Chat'; 
-    });
-  }
-
-  for (var i = 0; i < convs.length; i++) {
-    var c = convs[i];
-    var title = c.type === 'direct' ? ('@' + (otherInfo[c.id] || 'Chat')) : (c.name || 'Group');
-    var div = document.createElement('div');
-    div.className = 'conv-item';
-    div.innerHTML = '<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">' + title + '</div></div>';
-    (function(convId, convTitle) {
-      div.onclick = function() { openConversation(convId, convTitle); };
-    })(c.id, title);
-    list.appendChild(div);
-  }
+async function loginCustomerWithGoogle() {
+  var currentUrl = window.location.origin + window.location.pathname + (lockedStoreUsername ? ('?store=' + lockedStoreUsername) : '');
+  await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: currentUrl }
+  });
 }
 
-async function openConversation(id, title) {
-  activeConv = id;
-  var area = $('chat-area');
-  area.innerHTML = '<div id="chat-header">' +
-    '<span class="header-title">' + title + '</span>' +
-    '<div class="header-actions">' +
-    '<button class="action-icon-btn" onclick="startAudioCall()" title="ऑडिओ कॉल">📞 ऑडिओ कॉल</button>' +
-    '<button class="action-icon-btn" onclick="startVideoCall()" title="व्हिडिओ कॉल">📹 व्हिडिओ कॉल</button>' +
-    '<button class="action-icon-btn" onclick="shareLiveLocation()" title="लोकेशन शेअर करा">📍 लोकेशन</button>' +
-    '</div>' +
-    '</div>' +
-    '<div id="messages"></div>' +
-    '<div id="composer">' +
-    '<button class="media-btn" onclick="shareLiveLocation()" title="लोकेशन पाठवा">📍</button>' +
-    '<input id="msg-input" placeholder="मेसेज लिहा..." />' +
-    '<button id="send-btn">पाठवा</button>' +
-    '</div>';
-
-  var historyRes = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
-  var history = historyRes.data || [];
-  var box = $('messages');
-  box.innerHTML = history.map(function(m) {
-    return '<div class="bubble ' + (m.sender_id === me.id ? 'me' : 'them') + '">' + escapeHtml(m.content) + '</div>';
+async function loadMerchantProducts() {
+  if (!currentBusinessId) return;
+  var tbody = document.getElementById('products-table-body');
+  var prodRes = await sb.from('business_products').select('*').eq('business_id', currentBusinessId).order('name');
+  var products = prodRes.data;
+  if (!products || products.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center; padding:20px;">कोणताही स्टॉक उपलब्ध नाही. "नवीन आयटम ॲड करा" वर क्लिक करा.</td></tr>';
+    return;
+  }
+  currentProducts = products;
+  tbody.innerHTML = products.map(function(p) {
+    return '<tr style="border-bottom:1px solid #f1f5f9; padding:8px 0;">' +
+      '<td><img src="' + (p.image_url || 'https://placehold.co/40x40?text=Item') + '" style="width:36px; height:36px; object-fit:cover; border-radius:4px;"></td>' +
+      '<td><strong>' + escapeHtml(p.name) + '</strong></td>' +
+      '<td style="color:var(--success); font-weight:bold;">₹' + (p.selling_price || 0) + '</td>' +
+      '<td>₹' + (p.cost_price || 0) + '</td>' +
+      '<td>' + (p.stock_quantity || 0) + ' नग</td>' +
+      '<td><small class="muted">' + escapeHtml(p.barcode || '-') + '</small></td>' +
+      '<td><button onclick="deleteProduct(\'' + p.id + '\')" style="background:#ef4444; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">डिलीट</button></td>' +
+      '</tr>';
   }).join('');
-  box.scrollTop = box.scrollHeight;
-
-  $('send-btn').onclick = sendMessage;
-  $('msg-input').onkeydown = function(e) { if (e.key === 'Enter') sendMessage(); };
 }
 
-async function sendMessage() {
-  var input = $('msg-input');
-  var content = input.value.trim();
-  if (!content || !activeConv) return;
-  input.value = '';
-  await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: content });
+async function saveNewProductToInventory() {
+  var name = document.getElementById('new-prod-name').value.trim();
+  var selling = parseFloat(document.getElementById('new-prod-selling').value) || 0;
+  var cost = parseFloat(document.getElementById('new-prod-cost').value) || 0;
+  var stock = parseInt(document.getElementById('new-prod-stock').value) || 10;
+  var imageUrl = document.getElementById('new-prod-image').value.trim();
+  var barcode = document.getElementById('new-prod-barcode').value.trim();
+
+  if (!name || selling <= 0) {
+    alert('कृपया आयटमचे नाव आणि वैध विक्री दर प्रविष्ट करा!');
+    return;
+  }
+
+  var res = await sb.from('business_products').insert({
+    business_id: currentBusinessId,
+    name: name,
+    selling_price: selling,
+    cost_price: cost,
+    stock_quantity: stock,
+    image_url: imageUrl,
+    barcode: barcode
+  });
+
+  if (res.error) {
+    alert('आयटम सेव्ह करताना त्रुटी आली: ' + res.error.message);
+    return;
+  }
+
+  alert('✅ नवीन आयटम यशस्वीरीत्या जोडला गेला!');
+  closeModal('add-product-modal');
+  document.getElementById('new-prod-name').value = '';
+  document.getElementById('new-prod-selling').value = '';
+  document.getElementById('new-prod-cost').value = '';
+  document.getElementById('new-prod-image').value = '';
+  document.getElementById('new-prod-barcode').value = '';
+  loadMerchantProducts();
 }
 
-function startAudioCall() { alert('📞 ऑडिओ कॉल सुरू होत आहे...'); }
-function startVideoCall() { alert('📹 व्हिडिओ कॉल सुरू होत आहे...'); }
-function shareLiveLocation() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(async function(position) {
-      var lat = position.coords.latitude;
-      var lon = position.coords.longitude;
-      var mapLink = '📍 माझे लाईव्ह लोकेशन:\n[https://www.google.com/maps](https://www.google.com/maps)?
+async function deleteProduct(id) {
+  if (!confirm('तुम्हाला हा आयटम डिलीट करायचा आहे का?')) return;
+  await sb.from('business_products').delete().eq('id', id);
+  loadMerchantProducts();
+}
+
+async function loadCustomerStoreProducts() {
+  if (!currentBusinessId) return;
+  var gridEl = document.getElementById('customer-products-grid');
+  var prodRes = await sb.from('business_products').select('*').eq('business_id', currentBusinessId).order('name');
+  var products = prodRes.data;
+  if (!products || products.length === 0) {
+    gridEl.innerHTML = '<p class="muted">या दुकानात सध्या कोणतीही उत्पादने उपलब्ध नाहीत.</p>';
+    return;
+  }
+  currentProducts = products;
+  gridEl.innerHTML = products.map(function(p) {
+    return '<div style="background:#fff; border:1px solid var(--border-color); border-radius:8px; padding:12px; text-align:center; display:flex; flex-direction:column; justify-content:space-between;">' +
+      '<div>' +
+      '<img src="' + (p.image_url || 'https://placehold.co/100x100?text=Product') + '" style="width:90px; height:90px; object-fit:cover; border-radius:6px; margin-bottom:8px;">' +
+      '<div style="font-weight:700; font-size:14px; margin-bottom:4px; color:var(--text-main);">' + escapeHtml(p.name) + '</div>' +
+      '<div style="color:var(--success); font-weight:800; font-size:14px; margin-bottom:8px;">₹' + p.selling_price + '</div>' +
+      '</div>' +
+      '<button onclick="addToCustomerCart(\'' + p.id + '\')" style="background:var(--success); color:#fff; border:none; padding:7px; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer;">🛒 ॲड टू कार्ट</button>' +
+      '</div>';
+  }).join('');
+}
+
+function addToCustomerCart(productId) {
+  var product = currentProducts.find(function(p) { return p.id === productId; });
+  if (!product) return;
+  var existing = customerCart.find(function(item) { return item.id === productId; });
+  if (existing) existing.qty++;
+  else customerCart.push({ id: product.id, name: product.name, price: product.selling_price, qty: 1 });
+  updateCustomerCartUI();
+  alert('✅ "' + product.name + '" कार्टमध्ये जोडले गेले!');
+}
+
+function updateCustomerCartUI() {
+  var count = 0, total = 0;
+  customerCart.forEach(function(i) { count += i.qty; total += (i.price * i.qty); });
+  document.getElementById('cart-count').textContent = count;
+  document.getElementById('bar-cart-count').textContent = count;
+  document.getElementById('cart-total').textContent = total.toFixed(2);
+  document.getElementById('modal-cart-total').textContent = total.toFixed(2);
+
+  var itemsBox = document.getElementById('customer-cart-items');
+  if (customerCart.length === 0) {
+    itemsBox.innerHTML = '<p class="muted" style="text-align:center;">कार्ट रिकामी आहे.</p>';
+    return;
+  }
+  itemsBox.innerHTML = customerCart.map(function(i) {
+    return '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:13px; border-bottom:1px solid #f1f5f9; padding-bottom:4px;">' +
+      '<div><strong>' + escapeHtml(i.name) + '</strong><br><span class="muted">₹' + i.price + ' × ' + i.qty + '</span></div>' +
+      '<div style="font-weight:bold; color:var(--success);">₹' + (i.price * i.qty).toFixed(2) + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function openCustomerCartModal() {
+  if (customerCart.length === 0) { alert('तुमची कार्ट रिकामी आहे!'); return; }
+  
+  if (!loggedInCustomer) {
+    alert('कृपया ऑर्डर देण्यासाठी आधी वर दिलेल्या "Google ने लॉगिन करा" बटणावर क्लिक करा!');
+    loginCustomerWithGoogle();
+    return;
+  }
+
+  var userEmail = loggedInCustomer.email;
+  var userName = (loggedInCustomer.user_metadata && loggedInCustomer.user_metadata.full_name) ? loggedInCustomer.user_metadata.full_name : userEmail.split('@')[0];
+  document.getElementById('modal-user-email').textContent = userName + ' (' + userEmail + ')';
+
+  document.getElementById('cust-phone-input').value = localStorage.getItem('customer_saved_phone') || '';
+  document.getElementById('cust-address-input').value = localStorage.getItem('customer_saved_address') || '';
+
+  openModal('customer-cart-modal');
+}
+
+async function submitCustomerOrderWithDetails() {
+  if (customerCart.length === 0 || !loggedInCustomer) return;
+  
+  var phoneInput = document.getElementById('cust-phone-input').value.trim();
+  var addressInput = document.getElementById('cust-address-input').value.trim();
+
+  if (!phoneInput || phoneInput.length < 10) {
+    alert('कृपया संपर्क साधण्यासाठी वैध १० अंकी मोबाईल नंबर टाका!');
+    return;
+  }
+  if (!addressInput) {
+    alert('कृपया डिलिव्हरीसाठी ग्राहकाचा पत्ता (Address) प्रविष्ट करा!');
+    return;
+  }
+
+  localStorage.setItem('customer_saved_phone', phoneInput);
+  localStorage.setItem('customer_saved_address', addressInput);
+
+  var name = (loggedInCustomer.user_metadata && loggedInCustomer.user_metadata.full_name) ? loggedInCustomer.user_metadata.full_name : loggedInCustomer.email.split('@')[0];
+  var email = loggedInCustomer.email;
+
+  try {
+    var totalAmt = customerCart.reduce(function(sum, i) { return sum + (i.price * i.qty); }, 0);
+    var itemsSummaryText = customerCart.map(function(i) { return i.name + ' (' + i.qty + ' नग)'; }).join(', ');
+
+    var orderRes = await sb.from('orders').insert({
+      business_id: currentBusinessId,
+      customer_name: name,
+      customer_phone: phoneInput,
+      customer_address: addressInput,
+      items_summary: itemsSummaryText,
+      total_amount: totalAmt,
+      status: 'pending'
+    });
+
+    if (orderRes.error) throw orderRes.error;
+
+    alert('🎉 तुमची ऑर्डर यशस्वीरीत्या नोंदवली गेली! वीव्हो चॅट उघडत आहे...');
+    customerCart = [];
+    closeModal('customer-cart-modal');
+    updateCustomerCartUI();
+
+    var storeUsername = lockedStoreUsername || 'abhinay_gandhi';
+    localStorage.setItem('weavo_target_store', storeUsername);
+
+    var orderMsg = encodeURIComponent('📦 नवीन ऑनलाईन ऑर्डर:\n👤 ग्राहक: ' + name + '\n📱 मोबाईल: ' + phoneInput + '\n🏠 पत्ता: ' + addressInput + '\n📧 ईमेल: ' + email + '\n🛒 तपशील: ' + itemsSummaryText + '\n💰 एकूण: ₹' + totalAmt);
+    
+    var unifiedEmail = localStorage.getItem('global_unified_email') || email;
+    var weavoUrl = 'https://arhammarketingme-prog.github.io/weavo/?store=' + storeUsername + '&prefill=' + orderMsg + '&customer_email=' + encodeURIComponent(unifiedEmail);
+    
+    window.open(weavoUrl, '_blank');
+  } catch (err) {
+    alert('ऑर्डर पाठवताना त्रुटी आली: ' + err.message);
+  }
+}
+
+async function loadOnlineOrders() {
+  if (!currentBusinessId) return;
+  var tbody = document.getElementById('online-orders-table-body');
+  var orderRes = await sb.from('orders').select('*').eq('business_id', currentBusinessId).order('created_at', { ascending: false });
+  var orders = orderRes.data;
+  if (orderRes.error || !orders || orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center; padding:20px;">कोणतीही ऑनलाईन ऑर्डर आलेली नाही.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = orders.map(function(o) {
+    return '<tr style="border-bottom:1px solid #f1f5f9; padding:8px 0;">' +
+      '<td><strong>#' + o.id.toString().substring(0,8) + '</strong></td>' +
+      '<td>' + escapeHtml(o.customer_name || 'Customer') + '</td>' +
+      '<td>📱 <a href="tel:' + escapeHtml(o.customer_phone) + '">' + escapeHtml(o.customer_phone || '-') + '</a><br><small class="muted">🏠 ' + escapeHtml(o.customer_address || 'पत्ता नाही') + '</small></td>' +
+      '<td>' + escapeHtml(o.items_summary || '-') + '</td>' +
+      '<td style="font-weight:bold; color:var(--success);">₹' + (o.total_amount || 0) + '</td>' +
+      '<td><span class="badge pending">' + (o.status || 'pending') + '</span></td>' +
+      '</tr>';
+  }).join('');
+}
+
+async function loadCustomerOrderHistory() {
+  if (!loggedInCustomer) {
+    alert('कृपया आधी गुगलने लॉगिन करा!');
+    return;
+  }
+  var tbody = document.getElementById('customer-history-table-body');
+  var userPhone = localStorage.getItem('customer_saved_phone') || '';
+  
+  var query = sb.from('orders').select('*').order('created_at', { ascending: false });
+  if (userPhone) {
+    query = query.eq('customer_phone', userPhone);
+  } else {
+    var defaultName = (loggedInCustomer.user_metadata && loggedInCustomer.user_metadata.full_name) ? loggedInCustomer.user_metadata.full_name : loggedInCustomer.email.split('@')[0];
+    query = query.eq('customer_name', defaultName);
+  }
+
+  var historyRes = await query;
+  var orders = historyRes.data;
+  if (historyRes.error || !orders || orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center; padding:20px;">तुमची कोणतीही मागील ऑर्डर सापडली नाही.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = orders.map(function(o) {
+    return '<tr style="border-bottom:1px solid #f1f5f9; padding:8px 0;">' +
+      '<td><strong>#' + o.id.toString().substring(0,8) + '</strong></td>' +
+      '<td>' + escapeHtml(o.items_summary || '-') + '</td>' +
+      '<td style="font-weight:bold; color:var(--success);">₹' + (o.total_amount || 0) + '</td>' +
+      '<td>' + escapeHtml(o.customer_address || '-') + '</td>' +
+      '<td><span class="badge ' + (o.status === 'delivered' ? 'live' : 'pending') + '">' + (o.status || 'pending') + '</span></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function callMerchantPhone() {
+  if (merchantPhoneNo) {
+    window.location.href = 'tel:' + merchantPhoneNo;
+  } else {
+    alert('दुकानदाराचा मोबाईल नंबर उपलब्ध नाही.');
+  }
+}
+
+function subscribeMerchantOrderAlerts(businessId) {
+  sb.channel('merchant-orders-channel')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: 'business_id=eq.' + businessId }, function(payload) {
+      var banner = document.getElementById('merchant-alert-banner');
+      if (banner) banner.style.display = 'block';
+      playAlertBeepSound();
+      loadOnlineOrders();
+    })
+    .subscribe();
+}
+
+function playAlertBeepSound() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 800;
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  } catch(e) {}
+}
+
+function shareStoreOnWhatsApp() {
+  var storeName = document.getElementById('business-display-name').textContent.trim();
+  var shareUrl = window.location.origin + window.location.pathname + '?store=' + storeName.replace(/\s+/g, '_').toLowerCase();
+  window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent('आमच्या दुकानाला भेट द्या: ' + shareUrl), '_blank');
+}
+
+async function openWeavoChat() {
+  var storeUsername = lockedStoreUsername || 'abhinay_gandhi';
+  localStorage.setItem('weavo_target_store', storeUsername);
+
+  var unifiedEmail = localStorage.getItem('global_unified_email') || '';
+  if (!unifiedEmail) {
+    try {
+      var userRes = await sb.auth.getUser();
+      if (userRes.data && userRes.data.user && userRes.data.user.email) {
+        unifiedEmail = userRes.data.user.email;
+        localStorage.setItem('global_unified_email', unifiedEmail);
+      }
+    } catch(e) {}
+  }
+
+  var emailParam = unifiedEmail ? ('&customer_email=' + encodeURIComponent(unifiedEmail)) : '';
+  window.open('https://arhammarketingme-prog.github.io/weavo/?store=' + storeUsername + emailParam, '_blank');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+initDashboard();
+</script>
+</body>
+</html>
