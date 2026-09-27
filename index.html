@@ -54,11 +54,10 @@
 
   #chat-area { flex: 1; display: flex; flex-direction: column; background: #0b0d10; }
   
-  /* 🌟 चॅट हेडर आणि कॉलिंग/लोकेशन फीचर्स बटणे */
   #chat-header { padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); display: flex; justify-content: space-between; align-items: center; }
   .header-title { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .header-actions { display: flex; gap: 8px; align-items: center; }
-  .action-icon-btn { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; transition: 0.2s; }
+  .action-icon-btn { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
   .action-icon-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
   
   #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
@@ -66,7 +65,6 @@
   .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
   .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
   
-  /* 🌟 मेसेज कम्पोजर आणि मीडिया टूल्स */
   #composer { padding: 14px 18px; border-top: 1px solid var(--border); background: var(--panel); display: flex; gap: 8px; align-items: center; }
   #composer input { margin: 0; flex: 1; }
   #composer button { width: auto; padding: 10px 18px; }
@@ -158,10 +156,9 @@ function getBridgeParams() {
 }
 
 async function signInWithGoogle() {
-  const cleanUrl = window.location.origin + window.location.pathname;
   await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: cleanUrl }
+    options: { redirectTo: window.location.origin + window.location.pathname }
   });
 }
 
@@ -351,7 +348,6 @@ async function loadConversations() {
   }
 }
 
-// 🌟 सर्व्हर आणि कॉलिंग फीचर्ससह चॅट विंडो ओपन करणे
 async function openConversation(id, title) {
   activeConv = id;
   const area = $('chat-area');
@@ -389,30 +385,20 @@ async function sendMessage() {
   await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content });
 }
 
-// 🌟 रिस्टोर्ड कॉलिंग आणि लोकेशन फीचर्स
-function startAudioCall() {
-  alert('📞 ऑडिओ कॉल सुरू होत आहे... (LiveKit / WebRTC युनिफाइड चॅनल)');
-}
-
-function startVideoCall() {
-  alert('📹 व्हिडिओ कॉल सुरू होत आहे... (LiveKit / WebRTC युनिफाइड चॅनल)');
-}
-
+function startAudioCall() { alert('📞 ऑडिओ कॉल सुरू होत आहे...'); }
+function startVideoCall() { alert('📹 व्हिडिओ कॉल सुरू होत आहे...'); }
 function shareLiveLocation() {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(async (position) => {
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
       const mapLink = `📍 माझे लाईव्ह लोकेशन:\nhttps://www.google.com/maps?q=${lat},${lon}`;
-      
       if (activeConv && me) {
         await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: mapLink });
       }
-    }, () => {
-      alert('लोकेशन ॲक्सेस मिळवण्यात अपयश आले.');
     });
   } else {
-    alert('तुमच्या ब्राऊजरमध्ये जिओलोकेशन सपोर्ट उपलब्ध नाही.');
+    alert('जिओलोकेशन सपोर्ट उपलब्ध नाही.');
   }
 }
 
