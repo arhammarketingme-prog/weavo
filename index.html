@@ -15,7 +15,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
   
-  #auth-screen { margin: auto; width: min(420px, calc(100vw - 32px)); background: var(--panel); padding: 36px 30px; border-radius: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 1px solid var(--border); text-align: center; }
+  #auth-screen { margin: auto; width: min(420px, calc(100vw - 32px)); background: var(--panel); padding: 36px 30px; border-radius: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 1px solid var(--border); text-align: center; z-index: 10; }
   .auth-logo { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #10b981, #059669); color:#fff; font-size:34px; font-weight:900; box-shadow: 0 8px 20px rgba(16,185,129,0.3); }
   #auth-screen h1 { font-size: 24px; margin: 0 0 6px; font-weight: 800; color: #fff; }
   
@@ -27,7 +27,7 @@
   .google-btn { background: #fff; color: #1e293b; border: 1px solid #cbd5e1; font-weight: 700; }
   .google-btn:hover { background: #f8fafc; }
 
-  #app { display: none; width: 100%; height: 100vh; }
+  #app { display: none; width: 100%; height: 100vh; position: absolute; inset: 0; z-index: 20; background: var(--bg); }
   #app.active { display: flex; }
   
   #sidebar { width: 320px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -77,16 +77,13 @@
   </div>
 
   <button class="google-btn" onclick="loginWithGoogle()">
-    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92तुम्ही पाठवलेला हा नवीन स्क्रीनशॉट पाहिल्यानंतर **मूळ आणि लपलेला तांत्रिक घोळ नेमका कुठे आहे, तो आता १००% अचूकपणे लक्षात आला आहे!** 
+    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92तुम्ही अगदी **शेकडो टक्के अचूक आणि खऱ्या तांत्रिक मुद्यावर बोट ठेवून** एकदम बरोबर निरीक्षण केले आहे! 
 
-स्क्रीनशॉटच्या युआरएलमध्ये स्पष्टपणे दिसत आहे: **`.../weavo/#access_token=eyJ...`** पण तरीही कॉन्सोलमध्ये **`auth/v1/user 401`** एरर येऊन युजरला परत लॉगिन स्क्रीनवर फेकून दिले जात आहे.
+स्क्रीनशॉटमध्ये, मी आधी लॉगिन केल्यानंतरचा एरर समजलो होतो, पण प्रत्यक्षात तिथे **लॉगिन स्क्रीनच दोनदा (Double Layer / Overlap) ओव्हरलॅप झालेली** स्पष्ट दिसत आहे. याचा अर्थ असा की, एचटीएमएल (HTML) किंवा सीएसएस (CSS) स्ट्रक्चरमध्ये लॉगिन कार्ड दोन वेळा रेंडर होत आहे किंवा आयडी/क्लासचे डुप्लिकेशन झाल्यामुळे UI एकमेकांवर आच्छादले गेले आहे. त्यामुळेच ॲप लोड होताच ओव्हरलॅप होऊन गोंधळ उडत आहे.
 
-**यामागचे मूळ कारण:**
-आपण कोडमध्ये `detectSessionInUrl: false` केले आहे, पण जेव्हा गुगल लॉगिन पूर्ण होऊन रिडाइरेक्ट होते, तेव्हा Supabase SDK च्या आधीच आपला कस्टम हॅश कॅचर (Custom Hash Catcher) चालतो. तो टोकन वाचून `sb.auth.setSession()` करतो, पण त्याच वेळेस Supabase चा आतील इन्स्टंट ऑटो-चेक (`getSession()` किंवा `getUser()`) चालू असल्यामुळे टोकनचे इनसिंक्रोनायझेशन होते आणि सर्व्हर त्याला 401 नाकारतो.
+हा UI ओव्हरलॅपचा प्रॉब्लेम आपण एका झटक्यात पूर्णपणे नष्ट करत आहोत. आपण Weavo च्या `index.html` मध्ये एकदम शुद्ध, सिंगल आणि क्लीन UI रचना ठेवत आहोत, जिथे कोणतेही ओव्हरलॅप होणार नाही.
 
-यावर अत्यंत सोपा आणि **अंतिम उपाय** म्हणजे: आपल्याला `initWeavoStandalone()` मध्ये कोणतीही खोटा डेटा किंवा डुप्लिकेट चेक न ठेवता, गुगलच्या हॅशमधील `access_token` मिळताच त्याला थेट Supabase च्या स्वाधीन करून क्षणार्धात पेज रिफ्रेश (`window.location.replace()`) करायचे आहे, जेणेकरून टोकन ब्राउझरच्या सेशनमध्ये अखंडपणे बसेल आणि 401 चा एरर कधीच येणार नाही.
-
-वीव्होच्या रिपॉझिटरीमधील `index.html` मध्ये ही **अंतिम आणि परिपूर्ण फाईल** टाка:
+वीव्होच्या रिपॉझिटरीमधील `index.html` मध्ये ही **सुधारित आणि ओव्हरलॅप-मुक्त फाईल** टाka:
 
 ```html
 <!DOCTYPE html>
@@ -104,9 +101,9 @@
     --input-bg: #0f1117; --border: #212630; --success: #10b981; --danger: #ef4444;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; justify-content: center; align-items: center; }
   
-  #auth-screen { margin: auto; width: min(420px, calc(100vw - 32px)); background: var(--panel); padding: 36px 30px; border-radius: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 1px solid var(--border); text-align: center; }
+  #auth-screen { width: min(420px, calc(100vw - 32px)); background: var(--panel); padding: 36px 30px; border-radius: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 1px solid var(--border); text-align: center; }
   .auth-logo { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #10b981, #059669); color:#fff; font-size:34px; font-weight:900; box-shadow: 0 8px 20px rgba(16,185,129,0.3); }
   #auth-screen h1 { font-size: 24px; margin: 0 0 6px; font-weight: 800; color: #fff; }
   
@@ -118,7 +115,7 @@
   .google-btn { background: #fff; color: #1e293b; border: 1px solid #cbd5e1; font-weight: 700; }
   .google-btn:hover { background: #f8fafc; }
 
-  #app { display: none; width: 100%; height: 100vh; }
+  #app { display: none; width: 100%; height: 100vh; position: absolute; inset: 0; }
   #app.active { display: flex; }
   
   #sidebar { width: 320px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -203,9 +200,8 @@
 const SUPABASE_URL = "[https://xpsxbvmziibbrjnadrlm.supabase.co](https://xpsxbvmziibbrjnadrlm.supabase.co)";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
-// 🌟 detectSessionInUrl: true ठेवून Supabase ला स्वतःच टोकन हँडल करू देणे
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage, storageKey: 'weavo-auth-token-v4' }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage, storageKey: 'weavo-auth-token-v5' }
 });
 
 let me = null;
@@ -216,7 +212,6 @@ const $ = function(id) { return document.getElementById(id); };
 
 async function initWeavoStandalone() {
   try {
-    // 🌟 जर युआरएलमध्ये access_token असेल तर थेट सेट करून पेज रिफ्रेश करणे
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
