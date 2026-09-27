@@ -151,7 +151,7 @@
 </div>
 
 <script>
-// 🌟 अचूक हिरव्या थीमची Supabase URL आणि ॲनॉन की (फोर्सफुली युजर सेशन टिकवणारी रचना)
+// 🌟 अचूक आणि खरीखुरी हिरव्या थीमची Supabase URL व Anon Key
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
@@ -188,6 +188,18 @@ function getBridgeParams() {
 
 async function initWeavoSmartAuth() {
   try {
+    // 🌟 1. गुगल लॉगिननंतर URL च्या हॅशमधील access_token स्वतःहून कॅच करून सेशन सेट करणे (बाहेर फेकणे पूर्णपणे बंद!)
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken) {
+        await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        window.location.hash = ''; // युआरएल स्वच्छ करणे
+      }
+    }
+
     const bridge = getBridgeParams();
     if (bridge.store) {
       localStorage.setItem('weavo_target_store', bridge.store);
@@ -202,31 +214,11 @@ async function initWeavoSmartAuth() {
       return;
     }
 
-    // 🌟 फॉलबॅक: जर गूगल किंवा ईमेल लॉगिननंतर सेशन युआरएलमध्ये असेल तर स्वतःहून कॅच करणे
-    const hash = window.location.hash;
-    if (hash && hash.includes('access_token')) {
-      const { data } = await sb.auth.getSession();
-      if (data && data.session && data.session.user) {
-        await setupUserSession(data.session.user);
-        return;
-      }
-    }
-
     if (bridge.customerEmail) {
       const targetEmail = bridge.customerEmail.trim().toLowerCase();
-      try {
-        const { data: profile } = await sb.from('profiles').select('*').ilike('email', targetEmail).maybeSingle();
-        if (profile) {
-          me = { id: profile.id, username: profile.username || targetEmail.split('@')[0], email: targetEmail };
-          startAppUI(targetEmail);
-          return;
-        }
-      } catch(e) {
-        // फॉलबॅक युजर ऑब्जेक्ट थेट तयार करून बाहेर फेकून देण्यापासून वाचवणे
-        me = { id: 'fallback-id', username: targetEmail.split('@')[0], email: targetEmail };
-        startAppUI(targetEmail);
-        return;
-      }
+      me = { id: 'fallback-customer', username: targetEmail.split('@')[0], email: targetEmail };
+      startAppUI(targetEmail);
+      return;
     }
   } catch (err) {
     console.error("Auth error:", err);
@@ -269,7 +261,7 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
       if (storeUser) storeUserId = storeUser.id;
     } catch(e) {}
 
-    if (!storeUserId || storeUserId === me.id) return;
+    if (!storeUserId) return;
 
     let targetConvId = null;
     try {
