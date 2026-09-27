@@ -115,7 +115,7 @@
 
 <script>
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InxpcnF1eWh5YmtmZ3J1dnBha25tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
 let sb = null;
 try {
@@ -130,7 +130,7 @@ let me = null;
 let activeConv = null;
 let messagesChannel = null;
 
-const $ = (id) => document.getElementById(id);
+const $ = function(id) { return document.getElementById(id); };
 
 function getBridgeParams() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -162,16 +162,18 @@ async function signInWithGoogle() {
   });
 }
 
-if ($('login-btn')) {$('login-btn').onclick = async () => {
-    const email = $('reg-email').value.trim();
-    const password = $('reg-password').value;
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) { $('error').textContent = error.message; return; }
-    await setupUserSession(data.user);
+if ($('login-btn')) {
+  $('login-btn').onclick = async function() {
+    var email = $('reg-email').value.trim();
+    var password = $('reg-password').value;
+    var res = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (res.error) { $('error').textContent = res.error.message; return; }
+    await setupUserSession(res.data.user);
   };
 }
 
-if ($('logout-btn')) {$('logout-btn').onclick = async () => {
+if ($('logout-btn')) {
+  $('logout-btn').onclick = async function() {
     await sb.auth.signOut();
     localStorage.clear();
     location.reload();
@@ -183,13 +185,14 @@ async function setupUserSession(user) {
   me = { id: user.id, username: user.email.split('@')[0], email: user.email };
   
   $('auth-screen').style.display = 'none';
-  $('app').classList.add('active');$('me-name').textContent = user.email;
+  $('app').classList.add('active');
+  $('me-name').textContent = user.email;
   $('me-avatar').textContent = user.email[0].toUpperCase();
   
   subscribeRealtime();
   await loadConversations();
 
-  const bridge = getBridgeParams();
+  var bridge = getBridgeParams();
   if (bridge.store) {
     await handleStoreBridge(bridge.store, bridge.prefill);
   }
@@ -197,11 +200,11 @@ async function setupUserSession(user) {
 
 async function initWeavoSmartAuth() {
   try {
-    const bridge = getBridgeParams();
+    var bridge = getBridgeParams();
 
-    const { data: { session } } = await sb.auth.getSession();
-    if (session?.user) {
-      await setupUserSession(session.user);
+    var sessionRes = await sb.auth.getSession();
+    if (sessionRes.data && sessionRes.data.session && sessionRes.data.session.user) {
+      await setupUserSession(sessionRes.data.session.user);
       if (bridge.store) {
         await handleStoreBridge(bridge.store, bridge.prefill);
       }
@@ -209,15 +212,17 @@ async function initWeavoSmartAuth() {
     }
 
     if (bridge.customerEmail) {
-      const targetEmail = bridge.customerEmail.trim().toLowerCase();
-      const targetUname = targetEmail.split('@')[0].toLowerCase();
+      var targetEmail = bridge.customerEmail.trim().toLowerCase();
+      var targetUname = targetEmail.split('@')[0].toLowerCase();
       
-      const { data: profile } = await sb.from('profiles').select('*').ilike('username', targetUname).maybeSingle();
-      if (profile) {
+      var profileRes = await sb.from('profiles').select('*').ilike('username', targetUname).maybeSingle();
+      if (profileRes.data) {
+        var profile = profileRes.data;
         me = { id: profile.id, username: profile.username, email: targetEmail };
         
         $('auth-screen').style.display = 'none';
-        $('app').classList.add('active');$('me-name').textContent = targetEmail;
+        $('app').classList.add('active');
+        $('me-name').textContent = targetEmail;
         $('me-avatar').textContent = targetEmail[0].toUpperCase();
         
         subscribeRealtime();
@@ -237,32 +242,32 @@ async function initWeavoSmartAuth() {
 async function handleStoreBridge(storeUsername, prefillMsg) {
   try {
     if (!storeUsername || !me) return;
-    const cleanStoreName = storeUsername.replace(/_/g, ' ').trim();
-    let storeUserId = null;
+    var cleanStoreName = storeUsername.replace(/_/g, ' ').trim();
+    var storeUserId = null;
 
-    const { data: storeInfo } = await sb.from('businesses').select('owner_id').ilike('name', cleanStoreName).maybeSingle();
-    if (storeInfo && storeInfo.owner_id) {
-      storeUserId = storeInfo.owner_id;
+    var storeInfoRes = await sb.from('businesses').select('owner_id').ilike('name', cleanStoreName).maybeSingle();
+    if (storeInfoRes.data && storeInfoRes.data.owner_id) {
+      storeUserId = storeInfoRes.data.owner_id;
     } else {
-      const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
-      if (storeUser) storeUserId = storeUser.id;
+      var storeUserRes = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
+      if (storeUserRes.data) storeUserId = storeUserRes.data.id;
     }
 
     if (!storeUserId || storeUserId === me.id) return;
 
-    const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-    const myIds = (myConvs || []).map(r => r.conversation_id);
-    let targetConvId = null;
+    var myConvsRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+    var myIds = (myConvsRes.data || []).map(function(r) { return r.conversation_id; });
+    var targetConvId = null;
 
     if (myIds.length) {
-      const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
-      if (theirConvs && theirConvs.length) targetConvId = theirConvs[0].conversation_id;
+      var theirConvsRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
+      if (theirConvsRes.data && theirConvsRes.data.length) targetConvId = theirConvsRes.data[0].conversation_id;
     }
 
     if (!targetConvId) {
-      const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
-      if (newConv) {
-        targetConvId = newConv.id;
+      var newConvRes = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+      if (newConvRes.data) {
+        targetConvId = newConvRes.data.id;
         await sb.from('conversation_members').insert([
           { conversation_id: targetConvId, user_id: me.id },
           { conversation_id: targetConvId, user_id: storeUserId },
@@ -275,8 +280,8 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
       openConversation(targetConvId, '@' + storeUsername);
 
       if (prefillMsg) {
-        setTimeout(() => {
-          const msgInput = document.getElementById('msg-input');
+        setTimeout(function() {
+          var msgInput = document.getElementById('msg-input');
           if (msgInput) {
             msgInput.value = decodeURIComponent(prefillMsg);
             localStorage.removeItem('weavo_prefill_msg');
@@ -289,27 +294,28 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
   }
 }
 
-$('new-chat-btn').onclick = async () => {
-  let uname = $('new-chat-username').value.trim().replace(/^@/, '').toLowerCase();
+$('new-chat-btn').onclick = async function() {
+  var uname = $('new-chat-username').value.trim().replace(/^@/, '').toLowerCase();
   if (!uname) return;
 
-  const { data: other } = await sb.from('profiles').select('id, username').ilike('username', uname).maybeSingle();
-  if (!other) { alert('तो वापरकर्ता सापडला नाही'); return; }
+  var otherRes = await sb.from('profiles').select('id, username').ilike('username', uname).maybeSingle();
+  if (!otherRes.data) { alert('तो वापरकर्ता सापडला नाही'); return; }
+  var other = otherRes.data;
   if (other.id === me.id) { alert('स्वतःशी चॅट करता येत नाही'); return; }
 
-  const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-  const myIds = (myConvs || []).map(r => r.conversation_id);
-  let existingId = null;
+  var myConvsRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  var myIds = (myConvsRes.data || []).map(function(r) { return r.conversation_id; });
+  var existingId = null;
   if (myIds.length) {
-    const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
-    if (theirConvs && theirConvs.length) existingId = theirConvs[0].conversation_id;
+    var theirConvsRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', other.id).in('conversation_id', myIds);
+    if (theirConvsRes.data && theirConvsRes.data.length) existingId = theirConvsRes.data[0].conversation_id;
   }
 
-  let convId = existingId;
+  var convId = existingId;
   if (!convId) {
-    const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
-    if (newConv) {
-      convId = newConv.id;
+    var newConvRes = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+    if (newConvRes.data) {
+      convId = newConvRes.data.id;
       await sb.from('conversation_members').insert([
         { conversation_id: convId, user_id: me.id },
         { conversation_id: convId, user_id: other.id },
@@ -324,75 +330,82 @@ $('new-chat-btn').onclick = async () => {
 
 async function loadConversations() {
   if (!me) return;
-  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-  const ids = (memberRows || []).map(r => r.conversation_id);
-  const list = $('conv-list');
+  var memberRes = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+  var ids = (memberRes.data || []).map(function(r) { return r.conversation_id; });
+  var list = $('conv-list');
   list.innerHTML = '';
   if (!ids.length) return;
 
-  const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
-  const directIds = (convs || []).filter(c => c.type === 'direct').map(c => c.id);
-  const otherInfo = {};
+  var convsRes = await sb.from('conversations').select('id, type, name').in('id', ids);
+  var convs = convsRes.data || [];
+  var directIds = convs.filter(function(c) { return c.type === 'direct'; }).map(function(c) { return c.id; });
+  var otherInfo = {};
   if (directIds.length) {
-    const { data: otherMembers } = await sb.from('conversation_members').select('conversation_id, profiles(username)').in('conversation_id', directIds).neq('user_id', me.id);
-    (otherMembers || []).forEach(r => { otherInfo[r.conversation_id] = r.profiles?.username || 'Chat'; });
+    var otherMembersRes = await sb.from('conversation_members').select('conversation_id, profiles(username)').in('conversation_id', directIds).neq('user_id', me.id);
+    (otherMembersRes.data || []).forEach(function(r) { 
+      otherInfo[r.conversation_id] = (r.profiles && r.profiles.username) ? r.profiles.username : 'Chat'; 
+    });
   }
 
-  for (const c of convs || []) {
-    const title = c.type === 'direct' ? '@' + (otherInfo[c.id] || 'Chat') : (c.name || 'Group');
-    const div = document.createElement('div');
+  for (var i = 0; i < convs.length; i++) {
+    var c = convs[i];
+    var title = c.type === 'direct' ? ('@' + (otherInfo[c.id] || 'Chat')) : (c.name || 'Group');
+    var div = document.createElement('div');
     div.className = 'conv-item';
-    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div></div>`;
-    div.onclick = () => openConversation(c.id, title);
+    div.innerHTML = '<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">' + title + '</div></div>';
+    (function(convId, convTitle) {
+      div.onclick = function() { openConversation(convId, convTitle); };
+    })(c.id, title);
     list.appendChild(div);
   }
 }
 
 async function openConversation(id, title) {
   activeConv = id;
-  const area = $('chat-area');
-  area.innerHTML = `
-    <div id="chat-header">
-      <span class="header-title">${title}</span>
-      <div class="header-actions">
-        <button class="action-icon-btn" onclick="startAudioCall()" title="ऑडिओ कॉल">📞 ऑडिओ कॉल</button>
-        <button class="action-icon-btn" onclick="startVideoCall()" title="व्हिडिओ कॉल">📹 व्हिडिओ कॉल</button>
-        <button class="action-icon-btn" onclick="shareLiveLocation()" title="लोकेशन शेअर करा">📍 लोकेशन</button>
-      </div>
-    </div>
-    <div id="messages"></div>
-    <div id="composer">
-      <button class="media-btn" onclick="shareLiveLocation()" title="लोकेशन पाठवा">📍</button>
-      <input id="msg-input" placeholder="मेसेज लिहा..." />
-      <button id="send-btn">पाठवा</button>
-    </div>
-  `;
+  var area = $('chat-area');
+  area.innerHTML = '<div id="chat-header">' +
+    '<span class="header-title">' + title + '</span>' +
+    '<div class="header-actions">' +
+    '<button class="action-icon-btn" onclick="startAudioCall()" title="ऑडिओ कॉल">📞 ऑडिओ कॉल</button>' +
+    '<button class="action-icon-btn" onclick="startVideoCall()" title="व्हिडिओ कॉल">📹 व्हिडिओ कॉल</button>' +
+    '<button class="action-icon-btn" onclick="shareLiveLocation()" title="लोकेशन शेअर करा">📍 लोकेशन</button>' +
+    '</div>' +
+    '</div>' +
+    '<div id="messages"></div>' +
+    '<div id="composer">' +
+    '<button class="media-btn" onclick="shareLiveLocation()" title="लोकेशन पाठवा">📍</button>' +
+    '<input id="msg-input" placeholder="मेसेज लिहा..." />' +
+    '<button id="send-btn">पाठवा</button>' +
+    '</div>';
 
-  const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
-  const box = $('messages');
-  box.innerHTML = (history || []).map(m => `<div class="bubble ${m.sender_id === me.id ? 'me' : 'them'}">${escapeHtml(m.content)}</div>`).join('');
+  var historyRes = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
+  var history = historyRes.data || [];
+  var box = $('messages');
+  box.innerHTML = history.map(function(m) {
+    return '<div class="bubble ' + (m.sender_id === me.id ? 'me' : 'them') + '">' + escapeHtml(m.content) + '</div>';
+  }).join('');
   box.scrollTop = box.scrollHeight;
 
   $('send-btn').onclick = sendMessage;
-  $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+  $('msg-input').onkeydown = function(e) { if (e.key === 'Enter') sendMessage(); };
 }
 
 async function sendMessage() {
-  const input = $('msg-input');
-  const content = input.value.trim();
+  var input = $('msg-input');
+  var content = input.value.trim();
   if (!content || !activeConv) return;
   input.value = '';
-  await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content });
+  await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: content });
 }
 
 function startAudioCall() { alert('📞 ऑडिओ कॉल सुरू होत आहे...'); }
 function startVideoCall() { alert('📹 व्हिडिओ कॉल सुरू होत आहे...'); }
 function shareLiveLocation() {
   if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const lat = position.coords.latitude;
-      const lon = position.coords.longitude;
-      const mapLink = `📍 माझे लाईव्ह लोकेशन:\nhttps://www.google.com/maps?q=${lat},${lon}`;
+    navigator.geolocation.getCurrentPosition(async function(position) {
+      var lat = position.coords.latitude;
+      var lon = position.coords.longitude;
+      var mapLink = '📍 माझे लाईव्ह लोकेशन:\nhttps://www.google.com/maps?q=' + lat + ',' + lon;
       if (activeConv && me) {
         await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: mapLink });
       }
@@ -405,11 +418,11 @@ function shareLiveLocation() {
 function subscribeRealtime() {
   if (messagesChannel) sb.removeChannel(messagesChannel);
   messagesChannel = sb.channel('weavo-realtime')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-      const msg = payload.new;
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, function(payload) {
+      var msg = payload.new;
       if (msg.conversation_id === activeConv) {
-        const box = $('messages');
-        const div = document.createElement('div');
+        var box = $('messages');
+        var div = document.createElement('div');
         div.className = 'bubble ' + (msg.sender_id === me.id ? 'me' : 'them');
         div.textContent = msg.content;
         box.appendChild(div);
@@ -421,7 +434,7 @@ function subscribeRealtime() {
 }
 
 function escapeHtml(s) {
-  const d = document.createElement('div');
+  var d = document.createElement('div');
   d.textContent = s || '';
   return d.innerHTML;
 }
