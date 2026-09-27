@@ -137,12 +137,6 @@ function getBridgeParams() {
     customerEmail = hashParams.get('customer_email');
   }
 
-  if (!store) {
-    store = localStorage.getItem('weavo_target_store');
-  } else {
-    localStorage.setItem('weavo_target_store', store);
-  }
-
   return { store, prefill, customerEmail };
 }
 
@@ -186,30 +180,24 @@ async function setupUserSession(user) {
   }
 }
 
-// 🌟 फोर्स ऑटो-सिंक आणि साठवलेला जुना गोंधळ काढणारी स्मार्ट लॉगिन यंत्रणा
-async function forceAutoSyncAndLogin() {
+// 🌟 टोकन किंवा पासवर्ड न मागता, URL मधील customer_email वरून थेट पाववरफुल ऑटो-लॉगिन करणारी यंत्रणा (Passwordless Auto-Auth)
+async function initWeavoSmartAuth() {
   const bridge = getBridgeParams();
 
-  // जर ऑल ईआरपीकडून अचूक `customer_email` आला असेल
+  // 1. जर URL मध्ये AllERP कडून customer_email आला असेल
   if (bridge.customerEmail) {
-    // 1. प्रथम तपासा की वीव्होमध्ये आधीपासून कोण लॉगिन आहे
-    const { data: { session } } = await sb.auth.getSession();
+    const targetEmail = bridge.customerEmail.trim().toLowerCase();
     
-    // 2. जर आधीपासून दुसरा कोणी (उदा. jyotish) लॉगिन असेल, आणि तो ऑल ईआरपीच्या ईमेलपेक्षा वेगळा असेल
-    if (session?.user && session.user.email !== bridge.customerEmail) {
-      await sb.auth.signOut(); // जुना गोंधळ टाळण्यासाठी जुने सेशन त्वरित लॉगआउट करणे
-    }
-
-    // 3. प्रोफाईल टेबलमध्ये ऑल ईआरपीच्या ईमेलचा युझर शोधणे
-    const targetUname = bridge.customerEmail.split('@')[0].toLowerCase();
-    let { data: profile } = await sb.from('profiles').select('*').ilike('username', targetUname).maybeSingle();
+    // Supabase profiles टेबलमधून या ईमेलचा युझर आयडी शोधणे
+    const { data: profile } = await sb.from('profiles').select('*').ilike('username', targetEmail.split('@')[0]).maybeSingle();
 
     if (profile) {
-      // जर प्रोफाइल सापडले, तर त्याला थेट ॲप सेशन देणे
-      me = { id: profile.id, username: profile.username, email: bridge.customerEmail };
+      // प्रोफाइल सापडल्यास थेट सेशन प्रस्थापित करणे (पासवर्ड किंवा टोकनची गरज नाही)
+      me = { id: profile.id, username: profile.username, email: targetEmail };
+      
       $('auth-screen').style.display = 'none';
-      $('app').classList.add('active');$('me-name').textContent = bridge.customerEmail;
-      $('me-avatar').textContent = bridge.customerEmail[0].toUpperCase();
+      $('app').classList.add('active');$('me-name').textContent = targetEmail;
+      $('me-avatar').textContent = targetEmail[0].toUpperCase();
       
       subscribeRealtime();
       await loadConversations();
@@ -221,7 +209,7 @@ async function forceAutoSyncAndLogin() {
     }
   }
 
-  // सामान्यस्थितीत नेहमीचे सेशन तपासणे
+  // 2. साधारणस्थितीत नेहमीचे सेशन तपासणे
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user) {
     await setupUserSession(session.user);
@@ -392,9 +380,9 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
-// ॲप सुरु झाल्यावर फोर्स ऑटो-सिंक तपासा
+// ॲप लोड होताच स्मार्ट ऑथेंटिकेशन ट्रिगर करणे
 if (sb) {
-  forceAutoSyncAndLogin();
+  initWeavoSmartAuth();
 }
 </script>
 </body>
