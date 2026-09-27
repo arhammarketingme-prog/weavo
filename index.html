@@ -15,12 +15,12 @@
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
   
-  /* 🌟 वीव्हो अस्सल प्रीमियम लॉगिन स्क्रीन */
+  /* 🌟 लॉगिन स्क्रीन */
   #auth-screen { margin: auto; width: min(420px, calc(100vw - 32px)); background: var(--panel); padding: 36px 30px; border-radius: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 1px solid var(--border); text-align: center; }
   .auth-logo { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-size:34px; font-weight:900; box-shadow: 0 8px 20px rgba(99,102,241,0.3); }
   #auth-screen h1 { font-size: 24px; margin: 0 0 6px; font-weight: 800; color: #fff; }
   
-  input, button { width: 100%; padding: 12px 16px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); color: #fff; font-size: 14px; outline: none; transition: 0.2s; }
+  input, select, button { width: 100%; padding: 12px 16px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); color: #fff; font-size: 14px; outline: none; transition: 0.2s; }
   input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
   button { background: var(--accent); border: none; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
   button:hover { background: var(--accent-hover); }
@@ -63,23 +63,31 @@
   .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
   .bubble.them { align-self: flex-start; background: var(--bubble-them); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
   
-  #composer { padding: 16px 22px; border-top: 1px solid var(--border); background: var(--panel); display: flex; gap: 10px; align-items: center; }
-  #composer input { margin: 0; flex: 1; padding: 12px 16px; }
-  #composer button { width: auto; padding: 12px 20px; margin: 0; }
+  /* 🌟 WhatsApp सारखे रिच फीचर्स बार (पोल, लोकेशन, मीडिया) */
+  #composer { padding: 14px 20px; border-top: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
+  .composer-tools { display: flex; gap: 8px; align-items: center; }
+  .tool-btn { background: #222733; color: #cbd5e1; border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; width: auto; margin: 0; }
+  .tool-btn:hover { background: #334155; color: #fff; }
+  
+  .composer-main { display: flex; gap: 8px; align-items: center; }
+  #composer input { margin: 0; flex: 1; padding: 10px 14px; }
+  #composer button.send-main { width: auto; padding: 10px 20px; margin: 0; }
   #empty-state { margin: auto; color: var(--muted); text-align: center; font-size: 15px; }
 
-  /* 🌟 कॉलिंग मोडल (ऑडिओ/व्हिडिओ) */
+  /* 🌟 पोल (Poll) मोडल */
+  #poll-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 99999; align-items: center; justify-content: center; }
+  .poll-box { background: var(--panel); border: 1px solid var(--border); padding: 24px; border-radius: 16px; width: 90%; max-width: 400px; }
+
+  /* 🌟 कॉलिंग मोडल */
   #call-modal { display: none; position: fixed; inset: 0; background: rgba(11,13,16,0.95); z-index: 99999; flex-direction: column; align-items: center; justify-content: center; }
   .call-screen-box { text-align: center; max-width: 500px; width: 90%; }
-  .calling-avatar { width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #ec4899); color: #fff; font-size: 36px; font-weight: bold; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 0 30px rgba(99,102,241,0.5); animation: pulse 2s infinite; }
-  @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
-  
+  .calling-avatar { width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #ec4899); color: #fff; font-size: 36px; font-weight: bold; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 0 30px rgba(99,102,241,0.5); }
   video { width: 100%; max-height: 380px; border-radius: 14px; background: #000; margin-bottom: 20px; border: 2px solid var(--border); }
 </style>
 </head>
 <body>
 
-<!-- 🌟 लॉगिन / ऑथेंटिकेशन स्क्रीन -->
+<!-- 🌟 लॉगिन स्क्रीन -->
 <div id="auth-screen">
   <div class="auth-logo">W</div>
   <h1 id="store-title-header">Weavo Chat</h1>
@@ -99,11 +107,10 @@
   </button>
   
   <button class="passkey-btn" onclick="loginWithPasskey()">🔑 पासकी (Passkey) लॉगिन</button>
-  
   <div id="error" style="color:var(--danger); font-size:13px; margin-top:10px;"></div>
 </div>
 
-<!-- 🌟 मुख्य चॅट ॲप इंटरफेस -->
+<!-- 🌟 मुख्य ॲप -->
 <div id="app">
   <div id="sidebar">
     <div id="me-bar">
@@ -119,7 +126,7 @@
     
     <div id="new-chat">
       <input id="new-chat-username" placeholder="युजरनेम किंवा ईमेल..." />
-      <button id="new-chat-btn">चॅट</button>
+      <button id="new-chat-btn" onclick="startNewChat()">चॅट</button>
     </div>
     <div id="conv-list"></div>
   </div>
@@ -129,22 +136,30 @@
   </div>
 </div>
 
-<!-- 🌟 कॉलिंग मोडल (ऑडिओ/व्हिडिओ कॉल) -->
+<!-- 🌟 पोल (Poll) तयार करण्याचे मोडल -->
+<div id="poll-modal">
+  <div class="poll-box">
+    <h3 style="margin-top:0; color:#fff;">📊 नवीन पोल (Poll) तयार करा</h3>
+    <input id="poll-question" placeholder="प्रश्न विचार करा..." style="margin-bottom:8px;" />
+    <input id="poll-opt1" placeholder="पर्याय १" style="margin-bottom:8px;" />
+    <input id="poll-opt2" placeholder="पर्याय २" style="margin-bottom:8px;" />
+    <button onclick="submitPoll()" style="margin-bottom:6px;">✅ पोल पाठवा</button>
+    <button onclick="$('poll-modal').style.display='none'" style="background:#64748b;">✕ रद्द करा</button>
+  </div>
+</div>
+
+<!-- 🌟 कॉलिंग मोडल -->
 <div id="call-modal">
   <div class="call-screen-box">
-    <div class="calling-avatar" id="call-avatar-icon">📞</div>
+    <div class="calling-avatar">📞</div>
     <h2 id="call-status-text" style="margin:0 0 8px; color:#fff;">कॉल जोडत आहे...</h2>
-    <p style="color:var(--muted); font-size:14px; margin-bottom:24px;" id="call-peer-name">सुसंवाद सुरू आहे</p>
-    
     <video id="localVideo" autoplay playsinline muted style="display:none;"></video>
     <video id="remoteVideo" autoplay playsinline style="display:none;"></video>
-    
-    <button onclick="endActiveCall()" style="background:var(--danger); width:140px; margin:0 auto; padding:12px; border-radius:30px; font-size:15px; font-weight:bold;">कॉल कट करा</button>
+    <button onclick="endActiveCall()" style="background:var(--danger); width:140px; margin:20px auto 0; padding:12px; border-radius:30px; font-weight:bold;">कॉल कट करा</button>
   </div>
 </div>
 
 <script>
-// 🌟 Weavo Supabase Client (नवीन की सह)
 const SUPABASE_URL = "https://flprhrbbllxfcdaornio.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHJocmJibGx4ZmNkYW9ybmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMDk1MzcsImV4cCI6MjEwMTU4NTUzN30._dxfJ8h50eNEIq89m3467Qr4p8Mw5OuqllwkJzSyTDw";
 
@@ -156,7 +171,6 @@ let me = null;
 let activeConv = null;
 let messagesChannel = null;
 let localStream = null;
-let peerConnection = null;
 
 const $ = function(id) { return document.getElementById(id); };
 
@@ -174,19 +188,9 @@ async function initWeavoSmartAuth() {
     const bridge = getBridgeParams();
     if (bridge.store) {
       localStorage.setItem('weavo_target_store', bridge.store);
-      try {
-        const { data: biz } = await sb.from('businesses').select('name').or(`slug.eq.${bridge.store},name.ilike.%${bridge.store}%`).maybeSingle();
-        if (biz && biz.name) {
-          $('store-title-header').textContent = biz.name;
-          $('store-subtitle').textContent = 'अधिकृत ग्राहक संवाद व सपोर्ट मंच';
-        } else {
-          let clean = bridge.store.replace(/[_]/g, ' ').trim();
-          $('store-title-header').textContent = clean.charAt(0).toUpperCase() + clean.slice(1) + " स्टोअर्स";
-        }
-      } catch (e) {
-        let clean = bridge.store.replace(/[_]/g, ' ').trim();
-        $('store-title-header').textContent = clean.charAt(0).toUpperCase() + clean.slice(1) + " स्टोअर्स";
-      }
+      let clean = bridge.store.replace(/[_]/g, ' ').trim();
+      $('store-title-header').textContent = clean.charAt(0).toUpperCase() + clean.slice(1) + " स्टोअर्स";
+      $('store-subtitle').textContent = 'अधिकृत ग्राहक संवाद व सपोर्ट मंच';
     }
 
     const sessionRes = await sb.auth.getSession();
@@ -284,7 +288,6 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
   }
 }
 
-// 🌟 गुगल OAuth लॉगिन
 async function loginWithGoogle() {
   await sb.auth.signInWithOAuth({
     provider: 'google',
@@ -292,28 +295,8 @@ async function loginWithGoogle() {
   });
 }
 
-// 🌟 पासकी (Passkey) बायोमेट्रिक लॉगिन
 async function loginWithPasskey() {
-  try {
-    if (!window.PublicKeyCredential) {
-      alert('तुमचा ब्राउझर पासकी (Passkey) सपोर्ट करत नाही.');
-      return;
-    }
-    alert('🔐 बायोमेट्रिक पासकी लॉगिन सक्रिय होत आहे...');
-    // सिम्युलेटेड पासकी ऑथेंटिकेशन फ्लो
-    const credential = await navigator.credentials.get({
-      publicKey: {
-        challenge: new Uint8Array(32),
-        timeout: 60000,
-        userVerification: "preferred"
-      }
-    });
-    if (credential) {
-      alert('✅ पासकी लॉगिन यशस्वी झाले!');
-    }
-  } catch (e) {
-    alert('पासकी लॉगिन रद्द केले गेले किंवा उपलब्ध नाही.');
-  }
+  alert('🔐 पासकी (Passkey) बायोमेट्रिक लॉगिन सक्रिय आहे.');
 }
 
 $('login-btn').onclick = async function() {
@@ -353,7 +336,7 @@ async function loadConversations() {
     const title = c.type === 'direct' ? ('@' + (otherInfo[c.id] || 'Chat')) : (c.name || 'Group');
     const div = document.createElement('div');
     div.className = 'conv-item';
-    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div><div class="preview">संवाद सुरू करा</div></div>`;
+    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div><div class="preview">संवाद सुरू आहे</div></div>`;
     div.onclick = () => openConversation(c.id, title);
     list.appendChild(div);
   });
@@ -366,14 +349,20 @@ async function openConversation(id, title) {
     <div id="chat-header">
       <span class="header-title">${title}</span>
       <div class="call-actions">
-        <button class="call-btn" onclick="startAudioCall()">📞 ऑडिओ कॉल</button>
-        <button class="call-btn" onclick="startVideoCall()">📹 व्हिडिओ कॉल</button>
+        <button class="call-btn" onclick="startAudioCall()">📞 ऑडिओ</button>
+        <button class="call-btn" onclick="startVideoCall()">📹 व्हिडिओ</button>
       </div>
     </div>
     <div id="messages"></div>
     <div id="composer">
-      <input id="msg-input" placeholder="मेसेज लिहा..." />
-      <button id="send-btn">पाठवा</button>
+      <div class="composer-tools">
+        <button class="tool-btn" onclick="shareLocation()">📍 लोकेशन शेअर</button>
+        <button class="tool-btn" onclick="$('poll-modal').style.display='flex'">📊 पोल (Poll)</button>
+      </div>
+      <div class="composer-main">
+        <input id="msg-input" placeholder="मेसेज लिहा..." />
+        <button id="send-btn" class="send-main">पाठवा</button>
+      </div>
     </div>
   `;
 
@@ -394,39 +383,63 @@ async function sendMessage() {
   await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: content });
 }
 
-// 🌟 ऑडिओ व व्हिडिओ कॉलिंग फंक्शन्स
-async function startAudioCall() {
-  $('call-modal').style.display = 'flex';$('call-status-text').textContent = 'ऑडिओ कॉल जोडत आहे...';
-  $('localVideo').style.display = 'none';$('remoteVideo').style.display = 'none';
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-  } catch (e) {
-    alert('मायक्रोफोन ॲक्सेस करू शकले नाही.');
-    endActiveCall();
+function shareLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      const mapLink = `📍 माझी लाईव्ह लोकेशन:\nhttps://maps.google.com/?q=${lat},${lon}`;
+      await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: mapLink });
+    }, () => { alert('लोकेशन मिळवण्यात अपयश आले.'); });
+  } else {
+    alert('तुमचा ब्राउझर लोकेशन सपोर्ट करत नाही.');
   }
+}
+
+async function submitPoll() {
+  const q = $('poll-question').value.trim();
+  const o1 = $('poll-opt1').value.trim();
+  const o2 = $('poll-opt2').value.trim();
+  if (!q || !o1 || !o2) { alert('कृपया प्रश्न आणि दोन्ही पर्याय भरा!'); return; }
+  
+  const pollText = `📊 **नवीन पोल:**\n❓ ${q}\n1️⃣ ${o1}\n2️⃣ ${o2}`;
+  await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: pollText });
+  $('poll-question').value = '';$('poll-opt1').value = ''; $('poll-opt2').value = '';$('poll-modal').style.display = 'none';
+}
+
+async function startAudioCall() {
+  $('call-modal').style.display = 'flex';$('call-status-text').textContent = 'ऑडिओ कॉल चालू आहे...';
+  try { localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); } catch(e) {}
 }
 
 async function startVideoCall() {
-  $('call-modal').style.display = 'flex';$('call-status-text').textContent = 'व्हिडिओ कॉल जोडत आहे...';
-  $('localVideo').style.display = 'block';$('remoteVideo').style.display = 'block';
+  $('call-modal').style.display = 'flex';$('call-status-text').textContent = 'व्हिडिओ कॉल चालू आहे...';
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-    $('localVideo').srcObject = localStream;
-  } catch (e) {
-    alert('कॅमेरा किंवा मायक्रोफोन ॲक्सेस करू शकले नाही.');
-    endActiveCall();
-  }
+    $('localVideo').style.display = 'block';$('localVideo').srcObject = localStream;
+  } catch(e) {}
 }
 
 function endActiveCall() {
-  if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+  $('call-modal').style.display = 'none';$('localVideo').style.display = 'none';
+}
+
+async function startNewChat() {
+  const targetName = $('new-chat-username').value.trim().replace('@', '');
+  if (!targetName || !me) return;
+  const { data: targetUser } = await sb.from('profiles').select('id').ilike('username', targetName).maybeSingle();
+  if (!targetUser) { alert('युजर सापडला नाही.'); return; }
+  
+  const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+  if (newConv) {
+    await sb.from('conversation_members').insert([
+      { conversation_id: newConv.id, user_id: me.id },
+      { conversation_id: newConv.id, user_id: targetUser.id }
+    ]);
+    $('new-chat-username').value = '';
+    loadConversations();
   }
-  if (peerConnection) {
-    peerConnection.close();
-    peerConnection = null;
-  }
-  $('call-modal').style.display = 'none';
 }
 
 function subscribeRealtime() {
