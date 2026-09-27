@@ -114,8 +114,9 @@
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
+// 🌟 detectSessionInUrl: false करून टोकन संघर्ष पूर्णपणे थांबवणे
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage, storageKey: 'weavo-auth-token-v7' }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: window.localStorage, storageKey: 'weavo-auth-token-v8' }
 });
 
 let me = null;
@@ -126,6 +127,17 @@ const $ = function(id) { return document.getElementById(id); };
 
 async function initWeavoStandalone() {
   try {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken) {
+        await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+
     const sessionRes = await sb.auth.getSession();
     if (sessionRes.data && sessionRes.data.session && sessionRes.data.session.user) {
       await setupUserSession(sessionRes.data.session.user);
