@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Weavo — One World. One Communication Layer.</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
-<link rel="manifest" href="manifest.json" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0"></script>
 <style>
   :root {
@@ -84,8 +83,9 @@
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
+// 🌟 401 एरर कायमचा रोखण्यासाठी detectSessionInUrl: false आणि persistSession: true ठेवले आहे
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'weavo-auth-token-final' }
 });
 
 let me = null;
@@ -98,105 +98,7 @@ function enterApp() {
   loadConversations();
 }
 
-function getBridgeParams() {
-  let searchStr = window.location.search;
-  if (!searchStr && window.location.hash.includes('?')) {
-    searchStr = '?' + window.location.hash.split('?')[1];
-  }
-  const params = new URLSearchParams(searchStr);
-  const store = params.get('store') || params.get('merchant');
-  const customerEmail = params.get('customer_email') || params.get('email');
-  const customerName = params.get('customer_name') || params.get('name');
-  const orderDetails = params.get('order') || params.get('details');
-  const merchantMode = params.get('merchant_mode');
-  return { store, customerEmail, customerName, orderDetails, merchantMode };
-}
-
-// 🌟 URL madhun order data localStorage madhe secure thevne
-function checkAndProcessPendingOrder() {
-  const bridge = getBridgeParams();
-  if (bridge.store) {
-    const orderObj = {
-      store: bridge.store,
-      details: bridge.orderDetails || (bridge.customerName ? `📦 नवीन ऑर्डर: ग्राहक - ${bridge.customerName}` : 'दुकानदार पोर्टलवरून आलेली ऑर्डर')
-    };
-    localStorage.setItem('weavo_pending_order', JSON.stringify(orderObj));
-  }
-}
-
-async function handleStoreBridge(storeParam, pendingOrderText = null) {
-  if (!storeParam || !me) return;
-  const bridge = getBridgeParams();
-  if (bridge.merchantMode === 'true') return;
-
-  try {
-    let storeUserId = null;
-    let storeNameDisplay = '@' + storeParam;
-
-    const cleanQuery = storeParam.replace(/[_ ]/g, ' ').trim();
-    const { data: bizData } = await sb.from('business_profiles').select('owner_id, name').ilike('name', cleanQuery).maybeSingle();
-    
-    if (bizData && bizData.owner_id) {
-      storeUserId = bizData.owner_id;
-      const { data: ownerProf } = await sb.from('profiles').select('username').eq('id', storeUserId).maybeSingle();
-      if (ownerProf && ownerProf.username) storeNameDisplay = '@' + ownerProf.username;
-    } else {
-      const { data: userProf } = await sb.from('profiles').select('id, username').ilike('username', storeParam).maybeSingle();
-      if (userProf) {
-        storeUserId = userProf.id;
-        storeNameDisplay = '@' + userProf.username;
-      }
-    }
-
-    if (!storeUserId || storeUserId === me.id) return;
-
-    const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-    const myIds = (myConvs || []).map(r => r.conversation_id);
-    let existingConvId = null;
-
-    if (myIds.length) {
-      const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
-      if (theirConvs && theirConvs.length) existingConvId = theirConvs[0].conversation_id;
-    }
-
-    let targetConvId = existingConvId;
-    if (!targetConvId) {
-      const { data: newConv, error: convErr } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
-      if (!convErr && newConv) {
-        targetConvId = newConv.id;
-        await sb.from('conversation_members').insert([
-          { conversation_id: targetConvId, user_id: me.id },
-          { conversation_id: targetConvId, user_id: storeUserId },
-        ]);
-      }
-    }
-
-    if (targetConvId) {
-      await loadConversations();
-      openConversation(targetConvId, storeNameDisplay);
-
-      const textToSend = pendingOrderText || bridge.orderDetails || (bridge.customerName ? `📦 नवीन ऑर्डर: ग्राहक - ${bridge.customerName}` : null);
-      if (textToSend) {
-        setTimeout(async () => {
-          await sb.from('messages').insert({
-            conversation_id: targetConvId,
-            sender_id: me.id,
-            content: textToSend
-          });
-          // Order send zhalyanantar URL clean karne
-          if (window.location.search || window.location.hash.includes('?')) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        }, 800);
-      }
-    }
-  } catch(err) {
-    console.error("Store bridge error:", err);
-  }
-}
-
 async function signInWithGoogle() {
-  await checkAndProcessPendingOrder();
   const cleanUrl = window.location.origin + window.location.pathname;
   await sb.auth.signInWithOAuth({
     provider: 'google',
@@ -205,7 +107,6 @@ async function signInWithGoogle() {
 }
 
 if ($('login-btn')) {$('login-btn').onclick = async () => {
-    await checkAndProcessPendingOrder();
     const identifier = $('reg-email').value.trim();
     const password = $('reg-password').value;
     const { data, error } = await sb.auth.signInWithPassword({ email: identifier, password });
@@ -217,62 +118,63 @@ if ($('login-btn')) {$('login-btn').onclick = async () => {
 async function setupUserSession(user) {
   if (!user || me) return;
   me = { id: user.id, username: user.email?.split('@')[0] || 'user' };
-  
-  if (window.location.hash && window.location.hash.includes('access_token')) {
-    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-  }
-
   enterApp();
+}
 
-  // 🌟 Login nantar localStorage madhli pending order check karun merchant la pathavne
+// 🌟 पेज लोड झाल्यावर URL मधील टोकन स्वतः सुरक्षितपणे वाचून 401 एरर टाळणारा कोड
+async function initWeavoSession() {
   try {
-    const saved = localStorage.getItem('weavo_pending_order');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      localStorage.removeItem('weavo_pending_order');
-      setTimeout(() => handleStoreBridge(parsed.store, parsed.details), 600);
-    } else {
-      const bridge = getBridgeParams();
-      if (bridge.store) {
-        setTimeout(() => handleStoreBridge(bridge.store), 600);
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken) {
+        const { data } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (data && data.session && data.session.user) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await setupUserSession(data.session.user);
+          return;
+        }
       }
     }
-  } catch(e) {}
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    if (sessionRes && sessionRes.session && sessionRes.session.user) {
+      await setupUserSession(sessionRes.session.user);
+    }
+  } catch(err) {
+    console.error("Session init error:", err);
+  }
 }
 
 if (sb) {
-  (async () => {
-    await checkAndProcessPendingOrder();
-    const { data: { session } } = await sb.auth.getSession();
-    
-    if (session?.user) {
+  initWeavoSession();
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (session?.user && !me) {
       await setupUserSession(session.user);
     }
-
-    sb.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user && !me) {
-        await setupUserSession(session.user);
-      }
-    });
-  })();
+  });
 }
 
 async function loadConversations() {
   if (!me) return;
-  const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-  const ids = (memberRows || []).map(r => r.conversation_id);
-  const list = $('conv-list');
-  list.innerHTML = '';
-  if (!ids.length) return;
+  try {
+    const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+    const ids = (memberRows || []).map(r => r.conversation_id);
+    const list = $('conv-list');
+    list.innerHTML = '';
+    if (!ids.length) return;
 
-  const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
-  for (const c of convs || []) {
-    const div = document.createElement('div');
-    div.className = 'conv-item';
-    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who" style="font-weight:600; font-size:14px;">${c.name || 'चॅट'}</div><div class="preview" style="font-size:12px; color:var(--muted);">संवाद सुरू आहे</div></div>`;
-    div.onclick = () => openConversation(c.id, c.name || 'चॅट');
-    list.appendChild(div);
-  }
+    const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
+    for (const c of convs || []) {
+      const div = document.createElement('div');
+      div.className = 'conv-item';
+      div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who" style="font-weight:600; font-size:14px;">${c.name || 'चॅट'}</div><div class="preview" style="font-size:12px; color:var(--muted);">संवाद सुरू आहे</div></div>`;
+      div.onclick = () => openConversation(c.id, c.name || 'चॅट');
+      list.appendChild(div);
+    }
+  } catch(e) {}
 }
 
 async function openConversation(id, title) {
@@ -287,10 +189,12 @@ async function openConversation(id, title) {
     </div>
   `;
 
-  const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
-  const box = $('messages');
-  box.innerHTML = (history || []).map(m => `<div class="bubble ${m.sender_id === me.id ? 'me' : 'them'}">${m.content}</div>`).join('');
-  box.scrollTop = box.scrollHeight;
+  try {
+    const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
+    const box = $('messages');
+    box.innerHTML = (history || []).map(m => `<div class="bubble ${m.sender_id === me.id ? 'me' : 'them'}">${m.content}</div>`).join('');
+    box.scrollTop = box.scrollHeight;
+  } catch(e) {}
 
   $('send-btn').onclick = sendMessage;
   $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
@@ -301,7 +205,9 @@ async function sendMessage() {
   const content = input.value.trim();
   if (!content || !activeConv) return;
   input.value = '';
-  await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content });
+  try {
+    await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content });
+  } catch(e) {}
 }
 
 if ($('logout-btn')) {$('logout-btn').onclick = async () => {
