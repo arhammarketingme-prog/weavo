@@ -114,9 +114,9 @@
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
-// 🌟 Supabase SDK ला स्वतः URL हॅश डिटेक्ट करून सेशन मॅनेज करू देणे (नाहीतर 401 एरर येतो)
+// 🌟 साठवणूक आणि ऑटोमॅटिक टोकन कॉन्फ्लिक्ट पूर्णपणे टाळण्यासाठी client सेटअप
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage, storageKey: 'weavo-auth-token-v10' }
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
 });
 
 let me = null;
@@ -127,16 +127,29 @@ const $ = function(id) { return document.getElementById(id); };
 
 async function initWeavoStandalone() {
   try {
-    // Supabase चे नेटिव्ह ऑन-ऑथ-स्टेट-चेंज युजर सेशन अचूकपणे पकडते
-    sb.auth.onAuthStateChange(async (event, session) => {
-      if (session && session.user) {
-        await setupUserSession(session.user);
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken) {
+        const { data, error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (data && data.user) {
+          window.history.replaceState(null, '', window.location.pathname);
+          await setupUserSession(data.user);
+          return;
+        }
       }
-    });
+    }
 
-    const sessionRes = await sb.auth.getSession();
-    if (sessionRes.data && sessionRes.data.session && sessionRes.data.session.user) {
-      await setupUserSession(sessionRes.data.session.user);
+    // जर आधीच getUser द्वारे युजर मिळवायचा असेल
+    const token = localStorage.getItem('weavo_token');
+    if (token) {
+      const { data } = await sb.auth.getUser(token);
+      if (data && data.user) {
+        await setupUserSession(data.user);
+        return;
+      }
     }
   } catch (err) {
     console.error("Standalone init error:", err);
@@ -157,6 +170,7 @@ async function setupUserSession(user) {
 }
 
 async function loginWithGoogle() {
+  localStorage.clear();
   await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname }
@@ -169,11 +183,13 @@ async function handleEmailLogin(event) {
   const password = $('reg-password').value;
   const res = await sb.auth.signInWithPassword({ email, password });
   if (res.error) { $('error').textContent = res.error.message; return; }
+  if (res.data.session) {
+    localStorage.setItem('weavo_token', res.data.session.access_token);
+  }
   await setupUserSession(res.data.user);
 }
 
 $('logout-btn').onclick = async function() {
-  await sb.auth.signOut();
   localStorage.clear();
   location.reload();
 };
