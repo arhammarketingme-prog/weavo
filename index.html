@@ -248,7 +248,7 @@ function subscribeRealtime() {
   if (messagesChannel) sb.removeChannel(messagesChannel);
   try {
     messagesChannel = sb.channel('weavo-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },, (payload) => {
         const msg = payload.new;
         if (msg.conversation_id === activeConv) {
           const box = $('messages');
