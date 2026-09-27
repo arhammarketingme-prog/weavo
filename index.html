@@ -151,7 +151,7 @@
 </div>
 
 <script>
-// 🌟 अचूक आणि खरीखुरी हिरव्या थीमची Supabase URL व Anon Key
+// 🌟 अचूक Supabase URL आणि Anon Key (विना ओव्हरराईप केलेले स्टेबल क्लायंट)
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
@@ -161,12 +161,6 @@ let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken: true, 
     detectSessionInUrl: true,
     storage: window.localStorage
-  },
-  global: {
-    headers: {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
-    }
   }
 });
 
@@ -188,7 +182,7 @@ function getBridgeParams() {
 
 async function initWeavoSmartAuth() {
   try {
-    // 🌟 1. गुगल लॉगिननंतर URL च्या हॅशमधील access_token स्वतःहून कॅच करून सेशन सेट करणे (बाहेर फेकणे पूर्णपणे बंद!)
+    // 🌟 Google OAuth हॅश टोकन हाताने कॅच करून सेशन सेट करणे (401 एरर पूर्णपणे रोखणे)
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
@@ -196,7 +190,7 @@ async function initWeavoSmartAuth() {
       const refreshToken = params.get('refresh_token');
       if (accessToken) {
         await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        window.location.hash = ''; // युआरएल स्वच्छ करणे
+        window.location.hash = '';
       }
     }
 
@@ -216,6 +210,14 @@ async function initWeavoSmartAuth() {
 
     if (bridge.customerEmail) {
       const targetEmail = bridge.customerEmail.trim().toLowerCase();
+      try {
+        const { data: profile } = await sb.from('profiles').select('*').ilike('email', targetEmail).maybeSingle();
+        if (profile) {
+          me = { id: profile.id, username: profile.username || targetEmail.split('@')[0], email: targetEmail };
+          startAppUI(targetEmail);
+          return;
+        }
+      } catch(e) {}
       me = { id: 'fallback-customer', username: targetEmail.split('@')[0], email: targetEmail };
       startAppUI(targetEmail);
       return;
