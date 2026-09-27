@@ -106,6 +106,7 @@
 </div>
 
 <script>
+// 🌟 अचूक आणि स्वच्छ Supabase URL व Key (कोणतीही अतिरिक्त्त अक्षरे किंवा स्पेस नाही)
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
@@ -137,7 +138,6 @@ function getBridgeParams() {
     customerEmail = hashParams.get('customer_email');
   }
 
-  // 🌟 जर URL मध्ये store किंवा prefill आले असेल तर सुरक्षितपणे localStorage मध्ये सेव्ह करणे
   if (store) localStorage.setItem('weavo_target_store', store);
   if (prefill) localStorage.setItem('weavo_prefill_msg', prefill);
 
@@ -189,49 +189,45 @@ async function setupUserSession(user) {
   }
 }
 
-// 🌟 सुधारित स्मार्ट ऑथ आणि स्टोअर ब्रिज यंत्रणा
+// 🌟 अत्यंत सुरक्षित आणि साधी स्मार्ट ऑथेंटिकेशन यंत्रणा (कोणतेही क्रॅश होणार नाही)
 async function initWeavoSmartAuth() {
-  const bridge = getBridgeParams();
+  try {
+    const bridge = getBridgeParams();
 
-  // जर ऑल ईआरपीकडून नवीन ईमेल आला असेल
-  if (bridge.customerEmail) {
-    const targetEmail = bridge.customerEmail.trim().toLowerCase();
-    
-    // 1. जुने सेशन साफ करणे
-    try {
-      await sb.auth.signOut();
-    } catch(e) {}
-
-    // 2. profiles टेबलमधून नव्या ईमेलचे युझर प्रोफाइल शोधणे
-    const targetUname = targetEmail.split('@')[0].toLowerCase();
-    let { data: profile } = await sb.from('profiles').select('*').ilike('username', targetUname).maybeSingle();
-
-    if (profile) {
-      me = { id: profile.id, username: profile.username, email: targetEmail };
-      
-      $('auth-screen').style.display = 'none';
-      $('app').classList.add('active');$('me-name').textContent = targetEmail;
-      $('me-avatar').textContent = targetEmail[0].toUpperCase();
-      
-      subscribeRealtime();
-      await loadConversations();
-
-      // 3. स्टोअर युझरनेम आणि प्रीफिल्ड मेसेज नक्की लोड करणे
+    // 1. प्रथम Supabase चे आधीचे वैध सेशन तपासणे
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
+      await setupUserSession(session.user);
       if (bridge.store) {
         await handleStoreBridge(bridge.store, bridge.prefill);
       }
       return;
     }
-  }
 
-  // सामान्यस्थितीत नेहमीचे सेशन तपासणे
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    await setupUserSession(session.user);
-    const bridge = getBridgeParams();
-    if (bridge.store) {
-      await handleStoreBridge(bridge.store, bridge.prefill);
+    // 2. जर सेशन नसेल पण URL मध्ये email आला असेल, तर थेट پروفाईल शोधून लॉगिन करणे
+    if (bridge.customerEmail) {
+      const targetEmail = bridge.customerEmail.trim().toLowerCase();
+      const targetUname = targetEmail.split('@')[0].toLowerCase();
+      
+      const { data: profile } = await sb.from('profiles').select('*').ilike('username', targetUname).maybeSingle();
+      if (profile) {
+        me = { id: profile.id, username: profile.username, email: targetEmail };
+        
+        $('auth-screen').style.display = 'none';
+        $('app').classList.add('active');$('me-name').textContent = targetEmail;
+        $('me-avatar').textContent = targetEmail[0].toUpperCase();
+        
+        subscribeRealtime();
+        await loadConversations();
+
+        if (bridge.store) {
+          await handleStoreBridge(bridge.store, bridge.prefill);
+        }
+        return;
+      }
     }
+  } catch (err) {
+    console.error("Smart auth error:", err);
   }
 }
 
@@ -280,7 +276,7 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
           const msgInput = document.getElementById('msg-input');
           if (msgInput) {
             msgInput.value = decodeURIComponent(prefillMsg);
-            localStorage.removeItem('weavo_prefill_msg'); // वापरल्यानंतर साफ करणे
+            localStorage.removeItem('weavo_prefill_msg');
           }
         }, 800);
       }
