@@ -186,24 +186,26 @@ async function setupUserSession(user) {
   }
 }
 
-// 🌟 URL मधून येणारा customer_email वाचून ऑटो-लॉगिन करणारी यंत्रणा
-async function checkUrlAutoLoginAndBridge() {
+// 🌟 फोर्स ऑटो-सिंक आणि साठवलेला जुना गोंधळ काढणारी स्मार्ट लॉगिन यंत्रणा
+async function forceAutoSyncAndLogin() {
   const bridge = getBridgeParams();
-  
-  // 1. प्रथम तपासा की युझर आधीच लॉगिन आहे का
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    await setupUserSession(session.user);
-    return;
-  }
 
-  // 2. जर युझर लॉगिन नसेल, पण URL मध्ये customer_email आला असेल (AllERP वरून आलेला)
+  // जर ऑल ईआरपीकडून अचूक `customer_email` आला असेल
   if (bridge.customerEmail) {
-    // Supabase profiles टेबलमध्ये त्या ईमेलचा युझर शोधणे किंवा तयार करणे
-    let { data: profile } = await sb.from('profiles').select('*').ilike('username', bridge.customerEmail.split('@')[0]).maybeSingle();
+    // 1. प्रथम तपासा की वीव्होमध्ये आधीपासून कोण लॉगिन आहे
+    const { data: { session } } = await sb.auth.getSession();
     
+    // 2. जर आधीपासून दुसरा कोणी (उदा. jyotish) लॉगिन असेल, आणि तो ऑल ईआरपीच्या ईमेलपेक्षा वेगळा असेल
+    if (session?.user && session.user.email !== bridge.customerEmail) {
+      await sb.auth.signOut(); // जुना गोंधळ टाळण्यासाठी जुने सेशन त्वरित लॉगआउट करणे
+    }
+
+    // 3. प्रोफाईल टेबलमध्ये ऑल ईआरपीच्या ईमेलचा युझर शोधणे
+    const targetUname = bridge.customerEmail.split('@')[0].toLowerCase();
+    let { data: profile } = await sb.from('profiles').select('*').ilike('username', targetUname).maybeSingle();
+
     if (profile) {
-      // जर प्रोफाइल सापडले, तर आपण त्याला वर्चुअल सेशन देवून थेट ॲपमध्ये एंट्री देऊ शकतो
+      // जर प्रोफाइल सापडले, तर त्याला थेट ॲप सेशन देणे
       me = { id: profile.id, username: profile.username, email: bridge.customerEmail };
       $('auth-screen').style.display = 'none';
       $('app').classList.add('active');$('me-name').textContent = bridge.customerEmail;
@@ -217,6 +219,12 @@ async function checkUrlAutoLoginAndBridge() {
       }
       return;
     }
+  }
+
+  // सामान्यस्थितीत नेहमीचे सेशन तपासणे
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    await setupUserSession(session.user);
   }
 }
 
@@ -259,7 +267,6 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
       await loadConversations();
       openConversation(targetConvId, '@' + storeUsername);
 
-      // ऑर्डरचा तपशील चॅट बॉक्समध्ये ऑटो-फिल (Prefill) करणे
       if (prefillMsg) {
         setTimeout(() => {
           const msgInput = document.getElementById('msg-input');
@@ -385,9 +392,9 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
-// ॲप लोड झाल्यावर स्वयंचलितपणे ऑटो-लॉगिन तपासा
+// ॲप सुरु झाल्यावर फोर्स ऑटो-सिंक तपासा
 if (sb) {
-  checkUrlAutoLoginAndBridge();
+  forceAutoSyncAndLogin();
 }
 </script>
 </body>
