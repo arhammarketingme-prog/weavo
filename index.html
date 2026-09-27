@@ -151,7 +151,7 @@
 </div>
 
 <script>
-// 🌟 अचूक आणि शुद्ध Supabase कॉन्फिगरेशन (404 आणि URL एरर कायमचे नष्ट करणारी रचना)
+// 🌟 Supabase कॉन्फिगरेशन (नवीन ॲनॉन की आणि ग्लोबल ॲपिकेत हेडरसह)
 const SUPABASE_URL = "https://flprhrbbllxfcdaornio.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHJocmJibGx4ZmNkYW9ybmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMDk1MzcsImV4cCI6MjEwMTU4NTUzN30._dxfJ8h50eNEIq89m3467Qr4p8Mw5OuqllwkJzSyTDw";
 
@@ -161,6 +161,12 @@ let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken: true, 
     detectSessionInUrl: true,
     storage: window.localStorage
+  },
+  global: {
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+    }
   }
 });
 
