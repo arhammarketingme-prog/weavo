@@ -112,8 +112,9 @@
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
+// 🌟 detectSessionInUrl: false करून डबल रिक्वेस्ट कॉन्फ्लिक्ट आणि 401 एरर पूर्णपणे रोखणे
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: window.localStorage }
 });
 
 let me = null;
@@ -132,7 +133,7 @@ async function initWeavoStandalone() {
       if (accessToken) {
         const { data, error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
         if (error) {
-          localStorage.clear(); // 401 एरर आल्यास जुनी कॅशे पूर्णपणे स्वच्छ करणे
+          localStorage.clear();
         }
         window.history.replaceState(null, '', window.location.pathname);
       }
@@ -162,7 +163,7 @@ async function setupUserSession(user) {
 }
 
 async function loginWithGoogle() {
-  localStorage.clear(); // लॉगिन करण्यापूर्वी जुनी कॅशे साफ करणे
+  localStorage.clear();
   await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname }
