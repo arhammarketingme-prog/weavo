@@ -11,7 +11,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <meta name="theme-color" content="#6366f1" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
   :root {
     --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
@@ -23,129 +22,91 @@
     --text: #14161c; --muted: #6b7280; --bubble-me: #6366f1; --bubble-them: #eceef2;
     --input-bg: #f0f1f4; --border: #e5e7eb;
   }
-  body.light .bubble.them { color: #14161c; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
-  #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
-  .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; box-shadow: 0 14px 34px rgba(32,201,189,.28); }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+  
+  #landing { width: 100%; height: 100vh; overflow-y: auto; background: var(--bg); display: none; }
+  .landing-nav { display: flex; align-items: center; justify-content: space-between; padding: 20px clamp(20px, 6vw, 64px); position: sticky; top: 0; background: var(--bg); z-index: 10; border-bottom: 1px solid var(--border); }
+  .landing-logo { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; color: var(--text); }
+  .landing-logo-mark { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #16b8a9); color: white; display: inline-flex; align-items: center; justify-content: center; }
+  .landing-hero { max-width: 760px; margin: 0 auto; text-align: center; padding: clamp(50px, 10vh, 110px) 20px 60px; }
+  .landing-h1 { font-size: clamp(32px, 6vw, 56px); font-weight: 800; line-height: 1.08; margin: 0 0 18px; color: var(--text); }
+  .landing-sub { font-size: clamp(15px, 2vw, 18px); color: var(--muted); margin: 0 auto 34px; }
+  
+  #auth-screen { display: none; margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
+  .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; }
   #auth-screen h1 { text-align:center; font-size:25px; margin: 0 0 5px; }
-  .auth-switch { display:flex; gap:4px; padding:4px; margin: 2px 0 12px; border:1px solid var(--border); border-radius:14px; background:var(--input-bg); }
-  .auth-tab { flex:1; width:auto; margin:0; padding:10px; border-radius:10px; background:transparent; color:var(--muted); }
-  .auth-tab.active { background:var(--accent); color:#fff; }
-  .auth-or { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px; }
-  .auth-or:before,.auth-or:after { content:""; flex:1; height:1px; background:var(--border); }
-  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; cursor:pointer; }
-  .google-auth-btn:hover { background:#f8fafc; }
+  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; cursor:pointer; width: 100%; padding: 12px; border-radius: 10px; }
+  
   input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
   input:focus { outline: none; border-color: var(--accent); }
   button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
-  button.secondary { background: transparent; color: var(--accent); margin-top: 8px; }
+  .landing-btn-primary { background: linear-gradient(120deg, var(--accent), #16b8a9); color: white; border: none; padding: 15px 28px; font-weight: 700; border-radius: 16px; cursor: pointer; }
+  
   #error { color: #f87171; font-size: 13px; min-height: 16px; margin-top: 8px; }
   #app { display: none; width: 100%; height: 100vh; }
   #app.active { display: flex; }
   #sidebar { width: 280px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-  #back-btn { display: none; }
-
-  @media (max-width: 768px) {
-    #sidebar { width: 100%; }
-    #chat-area { width: 100%; }
-    #app.chat-open #sidebar { display: none; }
-    #app:not(.chat-open) #chat-area { display: none; }
-    #back-btn { display: inline-flex !important; }
-  }
   #me-bar { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  #me-bar .left { display: flex; align-items: center; gap: 10px; }
-  #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; overflow: hidden; flex-shrink: 0; }
-  #me-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  #me-bar .name { font-weight: 600; }
-  #me-bar .right { display: flex; align-items: center; gap: 4px; }
-  #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; }
+  #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; }
   #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
   #new-chat input { margin: 0; }
   #new-chat button { width: auto; padding: 10px 14px; }
   #conv-list { flex: 1; overflow-y: auto; }
   .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
-  .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
-  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; overflow: hidden; flex-shrink: 0; }
-  .conv-text { flex: 1; min-width: 0; }
-  .conv-item .who { font-weight: 600; font-size: 14px; }
-  .conv-item .preview { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conv-item:hover { background: var(--accent-soft); }
   #chat-area { flex: 1; display: flex; flex-direction: column; }
-  #chat-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .header-title-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .header-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #chat-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
   #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-  .bubble { max-width: 60%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; position: relative; }
-  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
-  .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
-  .bubble .time { display: block; font-size: 10px; opacity: 0.6; margin-top: 4px; }
-  #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; position: relative; }
+  .bubble { max-width: 60%; padding: 10px 14px; border-radius: 14px; font-size: 14px; }
+  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; }
+  .bubble.them { align-self: flex-start; background: var(--bubble-them); }
+  #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
   #composer input { margin: 0; flex: 1; }
   #composer button { width: auto; padding: 12px 20px; }
   #empty-state { margin: auto; color: var(--muted); text-align: center; }
-
-  :root {
-    --bg:#f3f6f8; --panel:#ffffff; --accent:#0b8f87; --accent-2:#16b8a9;
-    --accent-soft:rgba(11,143,135,.10); --accent-glow:rgba(22,184,169,.22);
-    --text:#172126; --muted:#738188; --bubble-me:#0b8f87; --bubble-them:#ffffff;
-    --input-bg:#f2f5f6; --border:#e4eaed;
-  }
-  body:not(.light){
-    --bg:#081214; --panel:#101b1e; --accent:#22c7b7; --accent-2:#4be0d1;
-    --accent-soft:rgba(34,199,183,.11); --accent-glow:rgba(34,199,183,.18);
-    --text:#edf7f6; --muted:#91a7a8; --bubble-me:#0c827b; --bubble-them:#172326;
-    --input-bg:#0d181b; --border:#223336;
-  }
-  html,body{overflow:hidden}
-  body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-  #landing { width: 100%; height: 100vh; overflow-y: auto; background: var(--bg); }
-  .landing-nav { display: flex; align-items: center; justify-content: space-between; padding: 20px clamp(20px, 6vw, 64px); position: sticky; top: 0; background: var(--bg); z-index: 10; border-bottom: 1px solid var(--border); }
-  .landing-logo { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; color: var(--text); }
-  .landing-logo-mark { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; display: inline-flex; align-items: center; justify-content: center; }
-  .landing-hero { max-width: 760px; margin: 0 auto; text-align: center; padding: clamp(50px, 10vh, 110px) 20px 60px; }
-  .landing-h1 { font-size: clamp(32px, 6vw, 56px); font-weight: 800; line-height: 1.08; margin: 0 0 18px; color: var(--text); }
-  .landing-sub { font-size: clamp(15px, 2vw, 18px); color: var(--muted); margin: 0 auto 34px; }
-  .landing-btn-primary { background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: white; border: none; padding: 15px 28px; font-weight: 700; border-radius: 16px; cursor: pointer; }
 </style>
 </head>
 <body>
 
+<!-- 1. लँडिंग पेज (फक्त लॉगआउट युजरसाठी) -->
 <div id="landing">
   <div class="landing-nav">
     <div class="landing-logo"><span class="landing-logo-mark">W</span> Weavo</div>
-    <div><button class="landing-btn-primary" onclick="showAuthFromLanding()">Get Started</button></div>
+    <div><button class="landing-btn-primary" onclick="showAuthScreen()">Get Started</button></div>
   </div>
   <div class="landing-hero">
     <h1 class="landing-h1">One World.<br />One Communication Layer.</h1>
     <p class="landing-sub">Chat &amp; AllERP Order Sync.</p>
-    <button class="landing-btn-primary" onclick="showAuthFromLanding()">Get Started — It's Free</button>
+    <button class="landing-btn-primary" onclick="showAuthScreen()">Get Started — It's Free</button>
   </div>
 </div>
 
-<div id="auth-screen" style="display:none">
+<!-- 2. लॉगिन स्क्रीन -->
+<div id="auth-screen">
   <div class="auth-logo">W</div>
   <h1>Welcome to Weavo</h1>
   <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">One World. One Communication Layer.</p>
   <input id="reg-email" placeholder="Email address" autocomplete="username" />
   <input id="reg-password" type="password" placeholder="Password" autocomplete="current-password" />
   <button id="login-btn">Continue to Weavo</button>
-  <div class="auth-or"><span>OR</span></div>
+  <div style="display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px;">OR</div>
   <button id="google-login-btn" class="google-auth-btn" type="button" onclick="signInWithGoogle()">
     <span>Continue with Google</span>
   </button>
+  <button class="landing-btn-primary" type="button" onclick="showLanding()" style="width:100%; margin-top:10px; background:transparent; color:var(--accent);">← Back</button>
   <div id="error" aria-live="polite"></div>
 </div>
 
+<!-- 3. मुख्य डॅशबोर्ड (ॲप) -->
 <div id="app">
   <div id="sidebar">
     <div id="me-bar">
-      <div class="left">
+      <div style="display:flex; align-items:center; gap:10px;">
         <div id="me-avatar">?</div>
-        <span class="name" id="me-name"></span>
+        <span class="name" id="me-name" style="font-weight:600;"></span>
       </div>
-      <div class="right">
-        <button class="logout" id="logout-btn">Logout</button>
-      </div>
+      <button id="logout-btn" style="width:auto; background:transparent; color:var(--muted); padding:4px 8px; font-size:12px;">Logout</button>
     </div>
     <div id="new-chat"><input id="new-chat-username" placeholder="username टाका..." /><button id="new-chat-btn">Chat</button></div>
     <div id="conv-list"></div>
@@ -154,11 +115,6 @@
 </div>
 
 <script>
-window.showAuthFromLanding = function() {
-  document.getElementById('landing').style.display = 'none';
-  document.getElementById('auth-screen').style.display = 'block';
-};
-
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
@@ -168,10 +124,26 @@ let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 let me = null;
 let activeConv = null;
-
 const $ = (id) => document.getElementById(id);
 
-// 🌟 URL मधून ऑलईआरपी (AllERP) मर्चंट/दुकान आणि ऑर्डरची माहिती सुरक्षितपणे वाचणारा ब्रिज
+// स्क्रीन नेव्हिगेशन फंक्शन्स (लूप टाळण्यासाठी क्लिअर कंट्रोल)
+function showLanding() {
+  $('landing').style.display = 'block';
+  $('auth-screen').style.display = 'none';$('app').classList.remove('active');
+}
+
+function showAuthScreen() {
+  $('landing').style.display = 'none';
+  $('auth-screen').style.display = 'block';$('app').classList.remove('active');
+}
+
+function enterApp() {
+  $('landing').style.display = 'none';$('auth-screen').style.display = 'none';
+  $('app').classList.add('active');$('me-name').textContent = '@' + me.username;
+  loadConversations();
+}
+
+// URL मधून AllERP चे पॅरामीटर्स वाचणारा ब्रिज
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -186,7 +158,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, orderDetails, merchantMode };
 }
 
-// 🌟 डेटाबेसवरून दुकानदाराचे अस्सल नाव/युजरनेम ऑटो-फेच करून अचूक मर्चंट ब्रिज जोडणारा फंक्शन
+// डेटाबेसवरून अचूक युजरनेम फेच करून मर्चंट ब्रिज जोडणारा फंक्शन
 async function handleStoreBridge(storeParam, pendingOrderText = null) {
   if (!storeParam || !me) return;
   const bridge = getBridgeParams();
@@ -196,19 +168,14 @@ async function handleStoreBridge(storeParam, pendingOrderText = null) {
     let storeUserId = null;
     let storeNameDisplay = '@' + storeParam;
 
-    // 1. प्रथम business_profiles किंवा businesses टेबलमधून store चे नाव किंवा ID तपणे
     const cleanQuery = storeParam.replace(/[_ ]/g, ' ').trim();
     const { data: bizData } = await sb.from('business_profiles').select('owner_id, name').ilike('name', cleanQuery).maybeSingle();
     
     if (bizData && bizData.owner_id) {
       storeUserId = bizData.owner_id;
-      // दुकानदाराचे profiles मधील खरे युजरनेम मिळवणे
       const { data: ownerProf } = await sb.from('profiles').select('username').eq('id', storeUserId).maybeSingle();
-      if (ownerProf && ownerProf.username) {
-        storeNameDisplay = '@' + ownerProf.username;
-      }
+      if (ownerProf && ownerProf.username) storeNameDisplay = '@' + ownerProf.username;
     } else {
-      // 2. जर थेट युजरनेम दिले असेल तर profiles टेबल तपणे
       const { data: userProf } = await sb.from('profiles').select('id, username').ilike('username', storeParam).maybeSingle();
       if (userProf) {
         storeUserId = userProf.id;
@@ -218,7 +185,6 @@ async function handleStoreBridge(storeParam, pendingOrderText = null) {
 
     if (!storeUserId || storeUserId === me.id) return;
 
-    // ग्राहक आणि दुकानदारामध्ये आधीपासून conversation आहे का ते तपासणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let existingConvId = null;
@@ -244,7 +210,6 @@ async function handleStoreBridge(storeParam, pendingOrderText = null) {
       await loadConversations();
       openConversation(targetConvId, storeNameDisplay, 'direct');
 
-      // पेंडिंग ऑर्डर किंवा ऑलईआरपीची ऑर्डर चॅटमध्ये पाठवणे
       const textToSend = pendingOrderText || bridge.orderDetails || (bridge.customerName ? `📦 नवीन ऑर्डर: ग्राहक - ${bridge.customerName}` : null);
       if (textToSend) {
         setTimeout(async () => {
@@ -257,17 +222,16 @@ async function handleStoreBridge(storeParam, pendingOrderText = null) {
       }
     }
   } catch(err) {
-    console.error("Auto-fetch store bridge error:", err);
+    console.error("Store bridge error:", err);
   }
 }
 
-// 🌟 पेंडिंग ऑर्डर तपासणारा आणि सेव्ह करणारा फंक्शन
 async function checkAndProcessPendingOrder() {
   const bridge = getBridgeParams();
   if (bridge.store) {
     const orderObj = {
       store: bridge.store,
-      details: bridge.orderDetails || (bridge.customerName ? `📦 नवीन ऑर्डर: ग्राहक - ${bridge.customerName} (${bridge.customerEmail || ''})` : 'दुकानदार पोर्टलवरून आलेली ऑर्डर')
+      details: bridge.orderDetails || (bridge.customerName ? `📦 नवीन ऑर्डर: ग्राहक - ${bridge.customerName}` : 'दुकानदार पोर्टलवरून आलेली ऑर्डर')
     };
     localStorage.setItem('weavo_pending_order', JSON.stringify(orderObj));
   }
@@ -317,16 +281,20 @@ async function setupUserSession(user) {
   } catch(e) {}
 }
 
+// 🌟 पेज लोड झाल्यावर सेशन तपासून योग्य स्क्रीन दाखवणारा अचूक लॉजिक
 if (sb) {
   (async () => {
     await checkAndProcessPendingOrder();
     const { data: { session } } = await sb.auth.getSession();
-    if (session?.user && !me) {
+    
+    if (session?.user) {
       await setupUserSession(session.user);
     } else {
       const bridge = getBridgeParams();
-      if (bridge.store && bridge.merchantMode !== 'true') {
-        showAuthFromLanding();
+      if (bridge.store) {
+        showAuthScreen(); // जर दुकानाच्या लिंकवरून आला असेल तर थेट लॉगिन दाखवा
+      } else {
+        showLanding();    // एरवी साधे लँडिंग पेज दाखवा
       }
     }
 
@@ -336,14 +304,6 @@ if (sb) {
       }
     });
   })();
-}
-
-function enterApp() {
-  document.getElementById('landing').style.display = 'none';
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('app').classList.add('active');
-  $('me-name').textContent = '@' + me.username;
-  loadConversations();
 }
 
 async function loadConversations() {
@@ -358,21 +318,17 @@ async function loadConversations() {
   for (const c of convs || []) {
     const div = document.createElement('div');
     div.className = 'conv-item';
-    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${c.name || 'चॅट'}</div><div class="preview">संवाद सुरू आहे</div></div>`;
-    div.onclick = () => openConversation(c.id, c.name || 'चॅट', c.type);
+    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who" style="font-weight:600; font-size:14px;">${c.name || 'चॅट'}</div><div class="preview" style="font-size:12px; color:var(--muted);">संवाद सुरू आहे</div></div>`;
+    div.onclick = () => openConversation(c.id, c.name || 'चॅट');
     list.appendChild(div);
   }
 }
 
-async function openConversation(id, title, type) {
+async function openConversation(id, title) {
   activeConv = id;
-  document.getElementById('app').classList.add('chat-open');
   const area = $('chat-area');
   area.innerHTML = `
-    <div id="chat-header">
-      <button id="back-btn" class="icon-btn" onclick="document.getElementById('app').classList.remove('chat-open')">←</button>
-      <span class="header-title-wrap"><span class="header-title">${title}</span></span>
-    </div>
+    <div id="chat-header"><span>${title}</span></div>
     <div id="messages"></div>
     <div id="composer">
       <input id="msg-input" placeholder="मेसेज लिहा..." />
@@ -400,8 +356,7 @@ async function sendMessage() {
 if ($('logout-btn')) {$('logout-btn').onclick = async () => {
     await sb.auth.signOut();
     me = null; activeConv = null;
-    document.getElementById('app').classList.remove('active');
-    document.getElementById('landing').style.display = 'block';
+    showLanding();
   };
 }
 </script>
