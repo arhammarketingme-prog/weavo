@@ -97,7 +97,7 @@
     </div>
     
     <div id="new-chat">
-      <input id="new-chat-username" placeholder="युजरनेम टाка..." />
+      <input id="new-chat-username" placeholder="युजरनेम टाका..." />
       <button id="new-chat-btn" onclick="startNewChat()">चॅट</button>
     </div>
     <div id="conv-list"></div>
@@ -130,7 +130,10 @@ async function initWeavoStandalone() {
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
       if (accessToken) {
-        await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        const { data, error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (error) {
+          localStorage.clear(); // 401 एरर आल्यास जुनी कॅशे पूर्णपणे स्वच्छ करणे
+        }
         window.history.replaceState(null, '', window.location.pathname);
       }
     }
@@ -140,6 +143,7 @@ async function initWeavoStandalone() {
       await setupUserSession(sessionRes.data.session.user);
     }
   } catch (err) {
+    localStorage.clear();
     console.error("Standalone init error:", err);
   }
 }
@@ -158,6 +162,7 @@ async function setupUserSession(user) {
 }
 
 async function loginWithGoogle() {
+  localStorage.clear(); // लॉगिन करण्यापूर्वी जुनी कॅशे साफ करणे
   await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname }
@@ -192,7 +197,7 @@ async function loadConversations() {
       const title = c.name || 'चॅट रूम';
       const div = document.createElement('div');
       div.className = 'conv-item';
-      div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div><div class="preview">संवाद सुरू करा</div></div>`;
+      div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div><div class="preview">संवाद सुरू आहे</div></div>`;
       div.onclick = () => openConversation(c.id, title);
       list.appendChild(div);
     });
