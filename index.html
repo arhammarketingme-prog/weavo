@@ -83,9 +83,8 @@
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
-// 🌟 401 एरर कायमचा रोखण्यासाठी detectSessionInUrl: false आणि persistSession: true ठेवले आहे
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'weavo-auth-token-final' }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 
 let me = null;
@@ -121,40 +120,19 @@ async function setupUserSession(user) {
   enterApp();
 }
 
-// 🌟 पेज लोड झाल्यावर URL मधील टोकन स्वतः सुरक्षितपणे वाचून 401 एरर टाळणारा कोड
-async function initWeavoSession() {
-  try {
-    const hash = window.location.hash;
-    if (hash && hash.includes('access_token')) {
-      const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-      if (accessToken) {
-        const { data } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        if (data && data.session && data.session.user) {
-          window.history.replaceState({}, document.title, window.location.pathname);
-          await setupUserSession(data.session.user);
-          return;
-        }
-      }
-    }
-
-    const { data: sessionRes } = await sb.auth.getSession();
-    if (sessionRes && sessionRes.session && sessionRes.session.user) {
-      await setupUserSession(sessionRes.session.user);
-    }
-  } catch(err) {
-    console.error("Session init error:", err);
-  }
-}
-
 if (sb) {
-  initWeavoSession();
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if (session?.user && !me) {
+  (async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
       await setupUserSession(session.user);
     }
-  });
+
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user && !me) {
+        await setupUserSession(session.user);
+      }
+    });
+  })();
 }
 
 async function loadConversations() {
