@@ -68,15 +68,17 @@
   <h1>Weavo Chat</h1>
   <p style="color:var(--muted); font-size:13.5px; margin-bottom:24px;">One World. One Communication Layer.</p>
   
-  <input id="reg-email" placeholder="ईमेल पत्ता" autocomplete="username" />
-  <input id="reg-password" type="password" placeholder="पासवर्ड" autocomplete="current-password" />
-  <button id="login-btn">🚀 ईमेलने लॉगइन करा</button>
+  <form id="login-form" onsubmit="handleEmailLogin(event)">
+    <input id="reg-email" type="email" placeholder="ईमेल पत्ता" autocomplete="email" required />
+    <input id="reg-password" type="password" placeholder="पासवर्ड" autocomplete="current-password" required />
+    <button type="submit" id="login-btn">🚀 ईमेलने लॉगइन करा</button>
+  </form>
   
   <div style="display:flex; align-items:center; margin: 14px 0; color:var(--muted); font-size:12px;">
     <div style="flex:1; height:1px; background:var(--border);"></div><span style="padding:0 10px;">किंवा</span><div style="flex:1; height:1px; background:var(--border);"></div>
   </div>
 
-  <button class="google-btn" onclick="loginWithGoogle()">
+  <button type="button" class="google-btn" onclick="loginWithGoogle()">
     <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
     Google ने लॉगिन करा
   </button>
@@ -113,7 +115,7 @@ const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage, storageKey: 'weavo-auth-token-v6' }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage, storageKey: 'weavo-auth-token-v7' }
 });
 
 let me = null;
@@ -124,18 +126,6 @@ const $ = function(id) { return document.getElementById(id); };
 
 async function initWeavoStandalone() {
   try {
-    const hash = window.location.hash;
-    if (hash && hash.includes('access_token')) {
-      const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-      if (accessToken) {
-        await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        window.location.replace(window.location.pathname);
-        return;
-      }
-    }
-
     const sessionRes = await sb.auth.getSession();
     if (sessionRes.data && sessionRes.data.session && sessionRes.data.session.user) {
       await setupUserSession(sessionRes.data.session.user);
@@ -165,13 +155,14 @@ async function loginWithGoogle() {
   });
 }
 
-$('login-btn').onclick = async function() {
+async function handleEmailLogin(event) {
+  event.preventDefault();
   const email = $('reg-email').value.trim();
   const password = $('reg-password').value;
   const res = await sb.auth.signInWithPassword({ email, password });
   if (res.error) { $('error').textContent = res.error.message; return; }
   await setupUserSession(res.data.user);
-};
+}
 
 $('logout-btn').onclick = async function() {
   await sb.auth.signOut();
