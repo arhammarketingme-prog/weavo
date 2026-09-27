@@ -4,302 +4,94 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Weavo — One World. One Communication Layer.</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root {
-    --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
-    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f;
-    --input-bg: #10121a; --border: #22252e; --success: #16a34a;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
-  
-  #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); text-align: center; }
-  .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; }
-  #auth-screen h1 { font-size:25px; margin: 0 0 5px; }
-  input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
-  button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
-  
+  body { margin: 0; font-family: sans-serif; background: #0f1115; color: #e9eaee; height: 100vh; display: flex; }
+  #auth-screen { margin: auto; width: min(390px, 90vw); background: #171a21; padding: 30px; border-radius: 20px; text-align: center; }
+  input, button { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #22252e; background: #10121a; color: #fff; font-size: 14px; }
+  button { background: #6366f1; border: none; font-weight: bold; cursor: pointer; }
   #app { display: none; width: 100%; height: 100vh; }
   #app.active { display: flex; }
-  #sidebar { width: 280px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-  
-  #me-bar { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
-  
-  #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
-  #new-chat input { margin: 0; }
-  #new-chat button { width: auto; padding: 10px 14px; }
-
-  #conv-list { flex: 1; overflow-y: auto; }
-  .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
-  .conv-item:hover, .conv-item.active { background: var(--accent-soft); }
-  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
-  .conv-text { flex: 1; min-width: 0; }
-  .conv-item .who { font-weight: 600; font-size: 14px; }
-
-  #chat-area { flex: 1; display: flex; flex-direction: column; background: #0b0d10; }
-  #chat-header { padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--panel); display: flex; justify-content: space-between; align-items: center; }
-  .header-title { font-weight: 600; font-size: 15px; }
-  
-  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-  .bubble { max-width: 65%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; word-break: break-word; }
-  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
-  .bubble.them { align-self: flex-start; background: var(--bubble-them); border-bottom-left-radius: 4px; }
-  
-  #composer { padding: 14px 18px; border-top: 1px solid var(--border); background: var(--panel); display: flex; gap: 8px; align-items: center; }
-  #composer input { margin: 0; flex: 1; }
-  #composer button { width: auto; padding: 10px 18px; }
-  #empty-state { margin: auto; color: var(--muted); text-align: center; }
+  #sidebar { width: 280px; background: #171a21; border-right: 1px solid #22252e; padding: 15px; }
+  #chat-area { flex: 1; display: flex; flex-direction: column; background: #0b0d10; padding: 20px; }
+  #messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 65%; padding: 10px 14px; border-radius: 10px; font-size: 14px; }
+  .bubble.me { align-self: flex-end; background: #6366f1; }
+  .bubble.them { align-self: flex-start; background: #23262f; }
 </style>
 </head>
 <body>
 
 <div id="auth-screen">
-  <div class="auth-logo">W</div>
-  <h1>Welcome to Weavo</h1>
-  <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">One World. One Communication Layer.</p>
-  <input id="reg-email" placeholder="Email address" autocomplete="username" />
-  <input id="reg-password" type="password" placeholder="Password" autocomplete="current-password" />
+  <h2>Weavo Login</h2>
+  <input id="reg-email" placeholder="Email address" />
+  <input id="reg-password" type="password" placeholder="Password" />
   <button id="login-btn">Continue to Weavo</button>
-  <div id="error" style="color:#f87171; font-size:13px; margin-top:8px;"></div>
+  <div id="error" style="color:#f87171; font-size:13px;"></div>
 </div>
 
 <div id="app">
   <div id="sidebar">
-    <div id="me-bar">
-      <div style="display:flex; align-items:center; gap:10px;">
-        <div id="me-avatar">?</div>
-        <span id="me-name" style="font-weight:600; font-size:13px;"></span>
-      </div>
-      <button id="logout-btn" style="width:auto; background:transparent; color:var(--muted); padding:4px 8px; font-size:12px;">Logout</button>
-    </div>
-    
-    <div id="new-chat">
-      <input id="new-chat-username" placeholder="युझरनेम टाका..." />
-      <button id="new-chat-btn">चॅट</button>
-    </div>
+    <h3 id="me-name">User</h3>
+    <button onclick="sb.auth.signOut(); localStorage.clear(); location.reload();">Logout</button>
     <div id="conv-list"></div>
   </div>
-  <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
+  <div id="chat-area">
+    <div id="messages"></div>
+    <div style="display:flex; gap:8px;">
+      <input id="msg-input" placeholder="मेसेज लिहा..." style="margin:0;" />
+      <button onclick="sendMessage()" style="width:auto; margin:0;">पाठवा</button>
+    </div>
+  </div>
 </div>
 
 <script>
-const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
+const SUPABASE_URL = "https://flprhrbbllxfcdaornio.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZscHJocmJibGx4ZmNkYW9ybmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMDk1MzcsImV4cCI6MjEwMTU4NTUzN30._dxfJ8h50eNEIq89m3467Qr4p8Mw5OuqllwkJzSyTDw";
 
-let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+let sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { storage: window.localStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 
 let me = null;
 let activeConv = null;
-let messagesChannel = null;
 
-const $ = function(id) { return document.getElementById(id); };
-
-function getBridgeParams() {
+async function initWeavo() {
   const urlParams = new URLSearchParams(window.location.search);
-  return {
-    store: urlParams.get('store') || localStorage.getItem('weavo_target_store'),
-    prefill: urlParams.get('prefill') || localStorage.getItem('weavo_prefill_msg'),
-    customerEmail: urlParams.get('customer_email') || localStorage.getItem('global_unified_email')
-  };
-}
-
-async function initWeavoSmartAuth() {
-  try {
-    const bridge = getBridgeParams();
-    const sessionRes = await sb.auth.getSession();
-    
-    if (sessionRes.data && sessionRes.data.session && sessionRes.data.session.user) {
-      await setupUserSession(sessionRes.data.session.user);
-      return;
-    }
-
-    if (bridge.customerEmail) {
-      const targetEmail = bridge.customerEmail.trim().toLowerCase();
-      const { data: profile } = await sb.from('profiles').select('*').ilike('email', targetEmail).maybeSingle();
-      if (profile) {
-        me = { id: profile.id, username: profile.username || targetEmail.split('@')[0], email: targetEmail };
-        startAppUI(targetEmail);
-        return;
-      }
-    }
-  } catch (err) {
-    console.error("Auth error:", err);
-  }
-}
-
-async function setupUserSession(user) {
-  if (!user) return;
-  me = { id: user.id, username: user.email ? user.email.split('@')[0] : 'user', email: user.email };
-  startAppUI(user.email);
-}
-
-function startAppUI(emailDisplay) {
-  $('auth-screen').style.display = 'none';
-  $('app').classList.add('active');$('me-name').textContent = emailDisplay;
-  $('me-avatar').textContent = emailDisplay[0].toUpperCase();
+  const customerEmail = urlParams.get('customer_email') || localStorage.getItem('global_unified_email');
   
-  subscribeRealtime();
-  loadConversations().then(() => {
-    const bridge = getBridgeParams();
-    if (bridge.store) {
-      handleStoreBridge(bridge.store, bridge.prefill);
-    }
-  });
-}
-
-async function handleStoreBridge(storeUsername, prefillMsg) {
-  try {
-    if (!storeUsername || !me) return;
-    let storeUserId = null;
-
-    const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
-    if (storeUser) storeUserId = storeUser.id;
-
-    if (!storeUserId || storeUserId === me.id) return;
-
-    const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-    const myIds = (myConvs || []).map(r => r.conversation_id);
-    let targetConvId = null;
-
-    if (myIds.length) {
-      const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
-      if (theirConvs && theirConvs.length) targetConvId = theirConvs[0].conversation_id;
-    }
-
-    if (!targetConvId) {
-      const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
-      if (newConv) {
-        targetConvId = newConv.id;
-        await sb.from('conversation_members').insert([
-          { conversation_id: targetConvId, user_id: me.id },
-          { conversation_id: targetConvId, user_id: storeUserId },
-        ]);
-      }
-    }
-
-    if (targetConvId) {
-      await loadConversations();
-      openConversation(targetConvId, '@' + storeUsername);
-
-      if (prefillMsg) {
-        const decodedMsg = decodeURIComponent(prefillMsg);
-        localStorage.removeItem('weavo_prefill_msg');
-        
-        await sb.from('messages').insert({
-          conversation_id: targetConvId,
-          sender_id: me.id,
-          content: decodedMsg
-        });
-      }
-    }
-  } catch (err) {
-    console.log("Bridge handled gracefully.");
+  const sessionRes = await sb.auth.getSession();
+  if (sessionRes.data?.session?.user) {
+    me = sessionRes.data.session.user;
+    startApp(me.email);
+  } else if (customerEmail) {
+    startApp(customerEmail);
   }
 }
 
-$('login-btn').onclick = async function() {
-  const email = $('reg-email').value.trim();
-  const password = $('reg-password').value;
+function startApp(email) {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('me-name').textContent = email;
+}
+
+document.getElementById('login-btn').onclick = async () => {
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
   const res = await sb.auth.signInWithPassword({ email, password });
-  if (res.error) { $('error').textContent = res.error.message; return; }
-  await setupUserSession(res.data.user);
+  if (res.error) { document.getElementById('error').textContent = res.error.message; return; }
+  startApp(res.data.user.email);
 };
 
-$('logout-btn').onclick = async function() {
-  await sb.auth.signOut();
-  localStorage.clear();
-  location.reload();
-};
-
-async function loadConversations() {
-  if (!me) return;
-  const { data: members } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-  const ids = (members || []).map(r => r.conversation_id);
-  const list = $('conv-list');
-  list.innerHTML = '';
-  if (!ids.length) return;
-
-  const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
-  const directIds = (convs || []).filter(c => c.type === 'direct').map(c => c.id);
-  let otherInfo = {};
-  
-  if (directIds.length) {
-    const { data: otherMembers } = await sb.from('conversation_members').select('conversation_id, profiles(username)').in('conversation_id', directIds).neq('user_id', me.id);
-    (otherMembers || []).forEach(r => { 
-      otherInfo[r.conversation_id] = (r.profiles && r.profiles.username) ? r.profiles.username : 'Chat'; 
-    });
-  }
-
-  (convs || []).forEach(c => {
-    const title = c.type === 'direct' ? ('@' + (otherInfo[c.id] || 'Chat')) : (c.name || 'Group');
-    const div = document.createElement('div');
-    div.className = 'conv-item';
-    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div></div>`;
-    div.onclick = () => openConversation(c.id, title);
-    list.appendChild(div);
-  });
-}
-
-async function openConversation(id, title) {
-  activeConv = id;
-  const area = $('chat-area');
-  area.innerHTML = `
-    <div id="chat-header"><span class="header-title">${title}</span></div>
-    <div id="messages"></div>
-    <div id="composer">
-      <input id="msg-input" placeholder="मेसेज लिहा..." />
-      <button id="send-btn">पाठवा</button>
-    </div>
-  `;
-
-  const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
-  const box = $('messages');
-  box.innerHTML = (history || []).map(m => `<div class="bubble ${m.sender_id === me.id ? 'me' : 'them'}">${escapeHtml(m.content)}</div>`).join('');
-  box.scrollTop = box.scrollHeight;
-
-  $('send-btn').onclick = sendMessage;
-  $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
-}
-
-async function sendMessage() {
-  const input = $('msg-input');
-  const content = input.value.trim();
-  if (!content || !activeConv) return;
+function sendMessage() {
+  const input = document.getElementById('msg-input');
+  if (!input.value.trim()) return;
+  const box = document.getElementById('messages');
+  box.innerHTML += `<div class="bubble me">${input.value}</div>`;
   input.value = '';
-  await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: content });
 }
 
-function subscribeRealtime() {
-  if (messagesChannel) sb.removeChannel(messagesChannel);
-  messagesChannel = sb.channel('weavo-realtime')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-      const msg = payload.new;
-      if (msg.conversation_id === activeConv) {
-        const box = $('messages');
-        const div = document.createElement('div');
-        div.className = `bubble ${msg.sender_id === me.id ? 'me' : 'them'}`;
-        div.textContent = msg.content;
-        box.appendChild(div);
-        box.scrollTop = box.scrollHeight;
-      }
-      loadConversations();
-    })
-    .subscribe();
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
-}
-
-initWeavoSmartAuth();
+initWeavo();
 </script>
 </body>
 </html>
