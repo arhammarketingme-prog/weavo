@@ -19,10 +19,10 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
-  #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
+  #auth-screen { margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); text-align: center; }
   .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; box-shadow: 0 14px 34px rgba(32,201,189,.28); }
-  #auth-screen h1 { text-align:center; font-size:25px; margin: 0 0 5px; }
-  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; cursor:pointer; width:100%; padding:12px; border-radius:10px; }
+  #auth-screen h1 { font-size:25px; margin: 0 0 5px; }
+  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:12px; font-weight:600; cursor:pointer; width:100%; padding:12px; border-radius:10px; }
   .google-auth-btn:hover { background:#f8fafc; }
 
   input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
@@ -37,7 +37,7 @@
   #me-bar { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   #me-bar .left { display: flex; align-items: center; gap: 10px; }
   #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
-  #me-bar .name { font-weight: 600; }
+  #me-bar .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
   #me-bar button.logout { width: auto; background: transparent; color: var(--muted); padding: 4px 8px; font-size: 12px; cursor: pointer; }
   
   #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
@@ -128,11 +128,13 @@ function getBridgeParams() {
   const urlParams = new URLSearchParams(window.location.search);
   let store = urlParams.get('store');
   let prefill = urlParams.get('prefill');
+  let customerEmail = urlParams.get('customer_email');
 
   if (!store && window.location.hash.includes('store=')) {
     const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || window.location.hash.replace('#',''));
     store = hashParams.get('store');
     prefill = hashParams.get('prefill');
+    customerEmail = hashParams.get('customer_email');
   }
 
   if (!store) {
@@ -141,7 +143,7 @@ function getBridgeParams() {
     localStorage.setItem('weavo_target_store', store);
   }
 
-  return { store, prefill };
+  return { store, prefill, customerEmail };
 }
 
 async function signInWithGoogle() {
@@ -169,11 +171,11 @@ if ($('logout-btn')) {$('logout-btn').onclick = async () => {
 
 async function setupUserSession(user) {
   if (!user) return;
-  me = { id: user.id, username: user.email.split('@')[0] };
+  me = { id: user.id, username: user.email.split('@')[0], email: user.email };
   
   $('auth-screen').style.display = 'none';
-  $('app').classList.add('active');$('me-name').textContent = '@' + me.username;
-  $('me-avatar').textContent = me.username[0].toUpperCase();
+  $('app').classList.add('active');$('me-name').textContent = user.email;
+  $('me-avatar').textContent = user.email[0].toUpperCase();
   
   subscribeRealtime();
   await loadConversations();
@@ -181,6 +183,40 @@ async function setupUserSession(user) {
   const bridge = getBridgeParams();
   if (bridge.store) {
     await handleStoreBridge(bridge.store, bridge.prefill);
+  }
+}
+
+// 🌟 URL मधून येणारा customer_email वाचून ऑटो-लॉगिन करणारी यंत्रणा
+async function checkUrlAutoLoginAndBridge() {
+  const bridge = getBridgeParams();
+  
+  // 1. प्रथम तपासा की युझर आधीच लॉगिन आहे का
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    await setupUserSession(session.user);
+    return;
+  }
+
+  // 2. जर युझर लॉगिन नसेल, पण URL मध्ये customer_email आला असेल (AllERP वरून आलेला)
+  if (bridge.customerEmail) {
+    // Supabase profiles टेबलमध्ये त्या ईमेलचा युझर शोधणे किंवा तयार करणे
+    let { data: profile } = await sb.from('profiles').select('*').ilike('username', bridge.customerEmail.split('@')[0]).maybeSingle();
+    
+    if (profile) {
+      // जर प्रोफाइल सापडले, तर आपण त्याला वर्चुअल सेशन देवून थेट ॲपमध्ये एंट्री देऊ शकतो
+      me = { id: profile.id, username: profile.username, email: bridge.customerEmail };
+      $('auth-screen').style.display = 'none';
+      $('app').classList.add('active');$('me-name').textContent = bridge.customerEmail;
+      $('me-avatar').textContent = bridge.customerEmail[0].toUpperCase();
+      
+      subscribeRealtime();
+      await loadConversations();
+
+      if (bridge.store) {
+        await handleStoreBridge(bridge.store, bridge.prefill);
+      }
+      return;
+    }
   }
 }
 
@@ -223,7 +259,7 @@ async function handleStoreBridge(storeUsername, prefillMsg) {
       await loadConversations();
       openConversation(targetConvId, '@' + storeUsername);
 
-      // ग्राहकाने ऑर्डर केल्यावर तो मजकूर आपोआप चॅट बॉक्समध्ये टाकणे (Prefill & Auto-populate)
+      // ऑर्डरचा तपशील चॅट बॉक्समध्ये ऑटो-फिल (Prefill) करणे
       if (prefillMsg) {
         setTimeout(() => {
           const msgInput = document.getElementById('msg-input');
@@ -349,10 +385,9 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
+// ॲप लोड झाल्यावर स्वयंचलितपणे ऑटो-लॉगिन तपासा
 if (sb) {
-  sb.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) setupUserSession(session.user);
-  });
+  checkUrlAutoLoginAndBridge();
 }
 </script>
 </body>
