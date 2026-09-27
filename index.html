@@ -120,7 +120,6 @@ async function initWeavoSmartAuth() {
 
     if (bridge.customerEmail) {
       const targetEmail = bridge.customerEmail.trim().toLowerCase();
-      // 🌟 ईमेल आयडीवरून अचूक युझर शोधणारा लॉजिक
       const { data: profile } = await sb.from('profiles').select('*').ilike('email', targetEmail).maybeSingle();
       if (profile) {
         me = { id: profile.id, username: profile.username || targetEmail.split('@')[0], email: targetEmail };
@@ -156,7 +155,6 @@ function startAppUI(emailDisplay) {
 async function handleStoreBridge(storeUsername, prefillMsg) {
   try {
     if (!storeUsername || !me) return;
-    const cleanStoreName = storeUsername.replace(/_/g, ' ').trim();
     let storeUserId = null;
 
     const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
