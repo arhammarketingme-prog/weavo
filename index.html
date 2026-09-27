@@ -4,48 +4,61 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Weavo — One World. One Communication Layer.</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236366f1'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0"></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2310b981'/%3E%3Ctext x='50' y='68' font-size='55' font-family='Arial' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg: #0f1115; --panel: #171a21; --accent: #6366f1; --accent-soft: #6366f122;
-    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #6366f1; --bubble-them: #23262f;
-    --input-bg: #10121a; --border: #22252e;
+    --bg: #0b0d10; --panel: #14171f; --accent: #10b981; --accent-hover: #059669;
+    --text: #e9eaee; --muted: #8b8fa3; --bubble-me: #10b981; --bubble-them: #1e222b;
+    --input-bg: #0f1117; --border: #212630; --success: #10b981; --danger: #ef4444;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
   
-  #auth-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; margin: auto; width: min(390px, calc(100vw - 28px)); background: var(--panel); padding: 30px; border-radius: 28px; box-shadow: 0 24px 80px #0009; border: 1px solid var(--border); }
-  .auth-logo { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 19px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #20c9bd, #159d96); color:#fff; font-size:30px; font-weight:850; }
-  #auth-screen h1 { text-align:center; font-size:25px; margin: 0 0 5px; }
-  .google-auth-btn { display:flex; align-items:center; justify-content:center; gap:10px; background:#ffffff; color:#1e293b; border:1px solid var(--border); margin-top:8px; font-weight:600; cursor:pointer; width: 100%; padding: 12px; border-radius: 10px; }
+  #auth-screen { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); background: var(--panel); padding: 36px 30px; border-radius: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.6); border: 1px solid var(--border); text-align: center; z-index: 100; }
+  .auth-logo { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #10b981, #059669); color:#fff; font-size:34px; font-weight:900; box-shadow: 0 8px 20px rgba(16,185,129,0.3); }
+  #auth-screen h1 { font-size: 24px; margin: 0 0 6px; font-weight: 800; color: #fff; }
   
-  input { width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
-  input:focus { outline: none; border-color: var(--accent); }
-  button { width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; background: var(--accent); color: white; font-weight: 600; font-size: 14px; margin-top: 4px; }
-  
-  #error { color: #f87171; font-size: 13px; min-height: 16px; margin-top: 8px; }
-  #app { display: none; width: 100%; height: 100vh; }
+  input, button { width: 100%; padding: 12px 16px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); color: #fff; font-size: 14px; outline: none; transition: 0.2s; }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+  button { background: var(--accent); border: none; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  button:hover { background: var(--accent-hover); }
+
+  .google-btn { background: #fff; color: #1e293b; border: 1px solid #cbd5e1; font-weight: 700; }
+  .google-btn:hover { background: #f8fafc; }
+
+  #app { display: none; width: 100%; height: 100vh; position: fixed; inset: 0; z-index: 200; background: var(--bg); }
   #app.active { display: flex; }
-  #sidebar { width: 280px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-  #me-bar { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  #me-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-  #new-chat { padding: 12px 16px; display: flex; gap: 6px; border-bottom: 1px solid var(--border); }
-  #new-chat input { margin: 0; }
-  #new-chat button { width: auto; padding: 10px 14px; }
+  
+  #sidebar { width: 320px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  #me-bar { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #101218; }
+  #me-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
+  
+  #new-chat { padding: 12px 16px; display: flex; gap: 8px; border-bottom: 1px solid var(--border); }
+  #new-chat input { margin: 0; padding: 10px 14px; }
+  #new-chat button { width: auto; padding: 10px 16px; margin: 0; }
+
   #conv-list { flex: 1; overflow-y: auto; }
-  .conv-item { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
-  .conv-item:hover { background: var(--accent-soft); }
-  #chat-area { flex: 1; display: flex; flex-direction: column; }
-  #chat-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
-  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-  .bubble { max-width: 60%; padding: 10px 14px; border-radius: 14px; font-size: 14px; }
-  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; }
-  .bubble.them { align-self: flex-start; background: var(--bubble-them); }
-  #composer { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
-  #composer input { margin: 0; flex: 1; }
-  #composer button { width: auto; padding: 12px 20px; }
-  #empty-state { margin: auto; color: var(--muted); text-align: center; }
+  .conv-item { padding: 12px 18px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; transition: 0.15s; }
+  .conv-item:hover, .conv-item.active { background: rgba(16,185,129,0.1); }
+  .conv-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #047857); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
+  .conv-text { flex: 1; min-width: 0; }
+  .conv-item .who { font-weight: 700; font-size: 14.5px; color: #fff; }
+  .conv-item .preview { font-size: 12.5px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  #chat-area { flex: 1; display: flex; flex-direction: column; background: var(--bg); position: relative; }
+  #chat-header { padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--panel); display: flex; justify-content: space-between; align-items: center; }
+  .header-title { font-weight: 700; font-size: 16px; color: #fff; }
+
+  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+  .bubble { max-width: 65%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.45; word-break: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  .bubble.me { align-self: flex-end; background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
+  .bubble.them { align-self: flex-start; background: var(--bubble-them); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
+  
+  #composer { padding: 14px 20px; border-top: 1px solid var(--border); background: var(--panel); display: flex; gap: 8px; align-items: center; }
+  #composer input { margin: 0; flex: 1; padding: 10px 14px; }
+  #composer button { width: auto; padding: 10px 20px; margin: 0; }
+  #empty-state { margin: auto; color: var(--muted); text-align: center; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -53,15 +66,23 @@
 <div id="auth-screen">
   <div class="auth-logo">W</div>
   <h1>Weavo Chat</h1>
-  <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">One World. One Communication Layer.</p>
-  <input id="reg-email" placeholder="Email address" autocomplete="username" />
-  <input id="reg-password" type="password" placeholder="Password" autocomplete="current-password" />
-  <button id="login-btn">Continue to Weavo</button>
-  <div style="display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin:13px 0 5px;">OR</div>
-  <button id="google-login-btn" class="google-auth-btn" type="button" onclick="signInWithGoogle()">
-    <span>Continue with Google</span>
+  <p style="color:var(--muted); font-size:13.5px; margin-bottom:24px;">One World. One Communication Layer.</p>
+  
+  <form id="login-form" onsubmit="handleEmailLogin(event)">
+    <input id="reg-email" type="email" placeholder="ईमेल पत्ता" autocomplete="email" required />
+    <input id="reg-password" type="password" placeholder="पासवर्ड" autocomplete="current-password" required />
+    <button type="submit" id="login-btn">🚀 ईमेलने लॉगइन करा</button>
+  </form>
+  
+  <div style="display:flex; align-items:center; margin: 14px 0; color:var(--muted); font-size:12px;">
+    <div style="flex:1; height:1px; background:var(--border);"></div><span style="padding:0 10px;">किंवा</span><div style="flex:1; height:1px; background:var(--border);"></div>
+  </div>
+
+  <button type="button" class="google-btn" onclick="loginWithGoogle()">
+    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    Google ने लॉगिन करा
   </button>
-  <div id="error" aria-live="polite"></div>
+  <div id="error" style="color:var(--danger); font-size:13px; margin-top:10px;"></div>
 </div>
 
 <div id="app">
@@ -69,14 +90,24 @@
     <div id="me-bar">
       <div style="display:flex; align-items:center; gap:10px;">
         <div id="me-avatar">?</div>
-        <span class="name" id="me-name" style="font-weight:600;"></span>
+        <div>
+          <div id="me-name" style="font-weight:700; font-size:13.5px; color:#fff;">User</div>
+          <div style="font-size:11px; color:var(--success);">● ऑनलाइन</div>
+        </div>
       </div>
-      <button id="logout-btn" style="width:auto; background:transparent; color:var(--muted); padding:4px 8px; font-size:12px;">Logout</button>
+      <button id="logout-btn" style="width:auto; background:#222733; color:var(--muted); padding:6px 10px; font-size:12px; border-radius:6px;">बाहेर पडा</button>
     </div>
-    <div id="new-chat"><input id="new-chat-username" placeholder="username टाका..." /><button id="new-chat-btn">Chat</button></div>
+    
+    <div id="new-chat">
+      <input id="new-chat-username" placeholder="युजरनेम टाका..." />
+      <button id="new-chat-btn" onclick="startNewChat()">चॅट</button>
+    </div>
     <div id="conv-list"></div>
   </div>
-  <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
+  
+  <div id="chat-area">
+    <div id="empty-state">💬 संवाद साधण्यासाठी डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div>
+  </div>
 </div>
 
 <script>
@@ -89,69 +120,73 @@ let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 let me = null;
 let activeConv = null;
-const $ = (id) => document.getElementById(id);
+let messagesChannel = null;
 
-function enterApp() {
-  $('auth-screen').style.display = 'none';
-  $('app').classList.add('active');$('me-name').textContent = '@' + me.username;
-  loadConversations();
-}
+const $ = function(id) { return document.getElementById(id); };
 
-async function signInWithGoogle() {
-  const cleanUrl = window.location.origin + window.location.pathname;
-  await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: cleanUrl, queryParams: { prompt: 'select_account' } }
-  });
-}
-
-if ($('login-btn')) {$('login-btn').onclick = async () => {
-    const identifier = $('reg-email').value.trim();
-    const password = $('reg-password').value;
-    const { data, error } = await sb.auth.signInWithPassword({ email: identifier, password });
-    if (error) { $('error').textContent = error.message; return; }
-    await setupUserSession(data.user);
-  };
+async function initWeavoStandalone() {
+  try {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session && data.session.user) {
+      await setupUserSession(data.session.user);
+    }
+  } catch (err) {
+    console.error("Standalone init error:", err);
+  }
 }
 
 async function setupUserSession(user) {
-  if (!user || me) return;
-  me = { id: user.id, username: user.email?.split('@')[0] || 'user' };
-  enterApp();
+  if (!user) return;
+  let username = user.email ? user.email.split('@')[0] : 'user';
+  me = { id: user.id, username: username, email: user.email };
+  
+  $('auth-screen').style.display = 'none';
+  $('app').classList.add('active');$('me-name').textContent = '@' + username;
+  $('me-avatar').textContent = username[0].toUpperCase();
+  
+  subscribeRealtime();
+  loadConversations();
 }
 
-if (sb) {
-  (async () => {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session?.user) {
-      await setupUserSession(session.user);
-    }
-
-    sb.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user && !me) {
-        await setupUserSession(session.user);
-      }
-    });
-  })();
+async function loginWithGoogle() {
+  await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + window.location.pathname }
+  });
 }
+
+async function handleEmailLogin(event) {
+  event.preventDefault();
+  const email = $('reg-email').value.trim();
+  const password = $('reg-password').value;
+  const res = await sb.auth.signInWithPassword({ email, password });
+  if (res.error) { $('error').textContent = res.error.message; return; }
+  await setupUserSession(res.data.user);
+}
+
+$('logout-btn').onclick = async function() {
+  await sb.auth.signOut();
+  location.reload();
+};
 
 async function loadConversations() {
   if (!me) return;
+  const list = $('conv-list');
+  list.innerHTML = '';
   try {
-    const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
-    const ids = (memberRows || []).map(r => r.conversation_id);
-    const list = $('conv-list');
-    list.innerHTML = '';
+    const { data: members } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+    const ids = (members || []).map(r => r.conversation_id);
     if (!ids.length) return;
 
     const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
-    for (const c of convs || []) {
+    (convs || []).forEach(c => {
+      const title = c.name || 'चॅट रूम';
       const div = document.createElement('div');
       div.className = 'conv-item';
-      div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who" style="font-weight:600; font-size:14px;">${c.name || 'चॅट'}</div><div class="preview" style="font-size:12px; color:var(--muted);">संवाद सुरू आहे</div></div>`;
-      div.onclick = () => openConversation(c.id, c.name || 'चॅट');
+      div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${title}</div><div class="preview">संवाद सुरू आहे</div></div>`;
+      div.onclick = () => openConversation(c.id, title);
       list.appendChild(div);
-    }
+    });
   } catch(e) {}
 }
 
@@ -159,7 +194,7 @@ async function openConversation(id, title) {
   activeConv = id;
   const area = $('chat-area');
   area.innerHTML = `
-    <div id="chat-header"><span>${title}</span></div>
+    <div id="chat-header"><span class="header-title">${title}</span></div>
     <div id="messages"></div>
     <div id="composer">
       <input id="msg-input" placeholder="मेसेज लिहा..." />
@@ -170,7 +205,7 @@ async function openConversation(id, title) {
   try {
     const { data: history } = await sb.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
     const box = $('messages');
-    box.innerHTML = (history || []).map(m => `<div class="bubble ${m.sender_id === me.id ? 'me' : 'them'}">${m.content}</div>`).join('');
+    box.innerHTML = (history || []).map(m => `<div class="bubble ${m.sender_id === me.id ? 'me' : 'them'}">${escapeHtml(m.content)}</div>`).join('');
     box.scrollTop = box.scrollHeight;
   } catch(e) {}
 
@@ -184,16 +219,59 @@ async function sendMessage() {
   if (!content || !activeConv) return;
   input.value = '';
   try {
-    await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content });
+    await sb.from('messages').insert({ conversation_id: activeConv, sender_id: me.id, content: content });
   } catch(e) {}
 }
 
-if ($('logout-btn')) {$('logout-btn').onclick = async () => {
-    await sb.auth.signOut();
-    me = null; activeConv = null;
-    location.reload();
-  };
+async function startNewChat() {
+  const targetUsername = $('new-chat-username').value.trim();
+  if (!targetUsername || !me) return;
+  try {
+    const { data: otherUser } = await sb.from('profiles').select('id').eq('username', targetUsername).maybeSingle();
+    if (!otherUser) { alert('वापरकर्ता सापडला नाही'); return; }
+
+    const { data: newConv } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
+    if (newConv) {
+      await sb.from('conversation_members').insert([
+        { conversation_id: newConv.id, user_id: me.id },
+        { conversation_id: newConv.id, user_id: otherUser.id }
+      ]);
+      $('new-chat-username').value = '';
+      loadConversations();
+    }
+  } catch(e) {
+    alert('चॅट सुरू करताना त्रुटी आली.');
+  }
 }
+
+function subscribeRealtime() {
+  if (messagesChannel) sb.removeChannel(messagesChannel);
+  try {
+    messagesChannel = sb.channel('weavo-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const msg = payload.new;
+        if (msg.conversation_id === activeConv) {
+          const box = $('messages');
+          const div = document.createElement('div');
+          div.className = `bubble ${msg.sender_id === me.id ? 'me' : 'them'}`;
+          div.textContent = msg.content;
+          box.appendChild(div);
+          box.scrollTop = box.scrollHeight;
+        }
+        loadConversations();
+      })
+      .subscribe();
+  } catch(e) {}
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+initWeavoStandalone();
 </script>
 </body>
 </html>
