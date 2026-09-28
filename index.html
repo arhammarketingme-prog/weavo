@@ -115,7 +115,7 @@ const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
 });
 
 let me = null;
@@ -129,11 +129,6 @@ async function setupUserSession(user) {
   let username = user.email ? user.email.split('@')[0] : 'user';
   me = { id: user.id, username: username, email: user.email };
   
-  // URL मधील टोकन साफ करणे जेणेकरून लूप होणार नाही
-  if (window.location.hash && window.location.hash.includes('access_token')) {
-    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-  }
-
   $('auth-screen').style.display = 'none';
   $('app').classList.add('active');$('me-name').textContent = '@' + username;
   $('me-avatar').textContent = username[0].toUpperCase();
@@ -142,14 +137,31 @@ async function setupUserSession(user) {
   loadConversations();
 }
 
-async function checkExistingSession() {
+async function initWeavoApp() {
   try {
+    // 1. URL मधील OAuth टोकन तपासून घेणे
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken) {
+        const { data, error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (!error && data?.session?.user) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await setupUserSession(data.session.user);
+          return;
+        }
+      }
+    }
+
+    // 2. आधीच सेव्ह केलेले सेशन तपासणे
     const { data } = await sb.auth.getSession();
     if (data && data.session && data.session.user) {
       await setupUserSession(data.session.user);
     }
   } catch (err) {
-    console.error("Session check error:", err);
+    console.error("Init error:", err);
   }
 }
 
@@ -277,14 +289,8 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-// ॲप लोड होताच सेशन तपासा
-checkExistingSession();
-
-sb.auth.onAuthStateChange(async (event, session) => {
-  if (session?.user && !me) {
-    await setupUserSession(session.user);
-  }
-});
+// ॲप सुरू करा
+initWeavoApp();
 </script>
 </body>
 </html>
