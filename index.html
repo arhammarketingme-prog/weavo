@@ -653,7 +653,7 @@ window.showAuthFromLanding = function() {
 if (localStorage.getItem('weavo_theme') === 'light') document.body.classList.add('light');
 
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwc3hidm16aWliYnJqbmFkcmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
 let sb = null;
 try {
@@ -706,6 +706,7 @@ async function handleStoreBridge(storeUsername) {
   if (!storeUsername || !me) return;
   const bridge = getBridgeParams();
   
+  // जर मर्चंट (दुकानदार) स्वतः डॅशबोर्डवरून आला असेल, तर त्याला त्याचे स्वतःचे डॅशबोर्ड चॅट्स दाखवा, वेगळा ग्राहक म्हणून ब्रिज करू नका
   if (bridge.merchantMode === 'true') {
     return;
   }
@@ -715,10 +716,12 @@ async function handleStoreBridge(storeUsername) {
   try {
     let storeUserId = null;
 
+    // 1. businesses टेबलमधून owner_id शोधणे
     const { data: storeInfo } = await sb.from('businesses').select('owner_id, name').ilike('name', cleanStoreName).maybeSingle();
     if (storeInfo && storeInfo.owner_id) {
       storeUserId = storeInfo.owner_id;
     } else {
+      // 2. profiles टेबलमध्ये username तपापणे
       const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
       if (storeUser) {
         storeUserId = storeUser.id;
@@ -729,6 +732,7 @@ async function handleStoreBridge(storeUsername) {
       return;
     }
 
+    // ग्राहक आणि दुकानदारामध्ये आधीपासून conversation आहे का ते तपासणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let existingConvId = null;
@@ -908,8 +912,7 @@ async function setupUserSession(user) {
     }
   }
 
-  // युजर ऑब्जेक्टमध्ये ईमेल साठवणे
-  me = { id: user.id, username: baseName, email: user.email };
+  me = { id: user.id, username: baseName };
 
   if (window.location.hash && window.location.hash.includes('access_token')) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
@@ -925,6 +928,7 @@ async function setupUserSession(user) {
     const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
     if (profile?.username) {
       me.username = profile.username;
+      if ($('me-name')) $('me-name').textContent = '@' + me.username;
     } else {
       let uniqueName = baseName;
       const { data: exists } = await sb.from('profiles').select('id').eq('username', uniqueName).maybeSingle();
@@ -933,12 +937,8 @@ async function setupUserSession(user) {
       }
       await sb.from('profiles').upsert({ id: user.id, username: uniqueName });
       me.username = uniqueName;
+      if ($('me-name')) $('me-name').textContent = '@' + me.username;
     }
-    
-    // प्रोफाईलवर युजरनेमऐवजी थेट ईमेल आयडी दाखवणे
-    const displayEmail = user.email || me.email || 'user';
-    if ($('me-name')) $('me-name').textContent = displayEmail;
-
   } catch (err) {
     console.warn("Background profile sync note:", err);
   } finally {
@@ -983,10 +983,7 @@ async function enterApp() {
   if (auth) auth.style.display = 'none';
   if (app) app.classList.add('active');
 
-  // प्रोफाईल बारवर थेट ईमेल आयडी सेट करणे
-  const displayEmail = (me && me.email) || 'user';
-  if ($('me-name')) $('me-name').textContent = displayEmail;
-  
+  $('me-name').textContent = '@' + me.username;
   subscribeRealtime();
   loadConversations();
 
@@ -1059,6 +1056,7 @@ async function enterApp() {
       statusEl.style.color = '#ef4444';
     } else {
       me.username = newName;
+      $('me-name').textContent = '@' + me.username;
       statusEl.textContent = 'नाव यशस्वीपणे बदलले! ✓';
       statusEl.style.color = '#22c55e';
     }
@@ -1952,7 +1950,7 @@ async function offerTo(uid) {
 }
 
 async function startCall(convId, title, type) {
-  if (amIInCall) { alert('कॉल चालू असताना दुसरा चॅट उघडता येणार नाही'); return; }
+  if (amIInCall) { alert('आधीच एक कॉल सुरू आहे'); return; }
   try {
     localStream = await navigator.mediaDevices.getUserMedia(getMediaConstraints(type === 'video'));
   } catch (err) {
