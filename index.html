@@ -114,9 +114,8 @@
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
-// 🌟 detectSessionInUrl: false ठेवून URL मधील तुटलेले टोकन स्वतः मॅन्युअली हँडल करूया जेणेकरून 401 एरर येणार नाही
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 
 let me = null;
@@ -130,6 +129,11 @@ async function setupUserSession(user) {
   let username = user.email ? user.email.split('@')[0] : 'user';
   me = { id: user.id, username: username, email: user.email };
   
+  // URL मधील टोकन साफ करणे जेणेकरून लूप होणार नाही
+  if (window.location.hash && window.location.hash.includes('access_token')) {
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+  }
+
   $('auth-screen').style.display = 'none';
   $('app').classList.add('active');$('me-name').textContent = '@' + username;
   $('me-avatar').textContent = username[0].toUpperCase();
@@ -138,30 +142,14 @@ async function setupUserSession(user) {
   loadConversations();
 }
 
-// 🌟 पेज लोड झाल्यावर URL मधील access_token तपासून सुरक्षितपणे सेशन सेट करणे
-async function checkUrlTokenAndInit() {
+async function checkExistingSession() {
   try {
-    const hash = window.location.hash;
-    if (hash && hash.includes('access_token')) {
-      const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-      if (accessToken) {
-        const { data, error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        if (!error && data?.session?.user) {
-          window.history.replaceState({}, document.title, window.location.pathname);
-          await setupUserSession(data.session.user);
-          return;
-        }
-      }
-    }
-
     const { data } = await sb.auth.getSession();
     if (data && data.session && data.session.user) {
       await setupUserSession(data.session.user);
     }
   } catch (err) {
-    console.error("Init session error:", err);
+    console.error("Session check error:", err);
   }
 }
 
@@ -169,7 +157,7 @@ async function loginWithGoogle() {
   const cleanUrl = window.location.origin + window.location.pathname;
   await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: cleanUrl }
+    options: { redirectTo: cleanUrl, queryParams: { prompt: 'select_account' } }
   });
 }
 
@@ -289,8 +277,14 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-// ॲप सुरू करताना टोकन तपासा
-checkUrlTokenAndInit();
+// ॲप लोड होताच सेशन तपासा
+checkExistingSession();
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user && !me) {
+    await setupUserSession(session.user);
+  }
+});
 </script>
 </body>
 </html>
