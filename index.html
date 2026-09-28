@@ -114,8 +114,9 @@
 const SUPABASE_URL = "https://xpsxbvmziibbrjnadrlm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwcxbvmziibbrjnadrlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTY0NTcsImV4cCI6MjEwNDI3MjQ1N30.d-kDYwqFfxP_xfNHQHEYYYZQHr31-75u-UHxYznRP-A";
 
+// 🌟 detectSessionInUrl: false ठेवून URL मधील तुटलेले टोकन स्वतः मॅन्युअली हँडल करूया जेणेकरून 401 एरर येणार नाही
 let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
 });
 
 let me = null;
@@ -123,17 +124,6 @@ let activeConv = null;
 let messagesChannel = null;
 
 const $ = function(id) { return document.getElementById(id); };
-
-async function initWeavoStandalone() {
-  try {
-    const { data } = await sb.auth.getSession();
-    if (data && data.session && data.session.user) {
-      await setupUserSession(data.session.user);
-    }
-  } catch (err) {
-    console.error("Standalone init error:", err);
-  }
-}
 
 async function setupUserSession(user) {
   if (!user) return;
@@ -146,6 +136,33 @@ async function setupUserSession(user) {
   
   subscribeRealtime();
   loadConversations();
+}
+
+// 🌟 पेज लोड झाल्यावर URL मधील access_token तपासून सुरक्षितपणे सेशन सेट करणे
+async function checkUrlTokenAndInit() {
+  try {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken) {
+        const { data, error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (!error && data?.session?.user) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await setupUserSession(data.session.user);
+          return;
+        }
+      }
+    }
+
+    const { data } = await sb.auth.getSession();
+    if (data && data.session && data.session.user) {
+      await setupUserSession(data.session.user);
+    }
+  } catch (err) {
+    console.error("Init session error:", err);
+  }
 }
 
 async function loginWithGoogle() {
@@ -272,7 +289,8 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-initWeavoStandalone();
+// ॲप सुरू करताना टोकन तपासा
+checkUrlTokenAndInit();
 </script>
 </body>
 </html>
