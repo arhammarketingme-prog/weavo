@@ -701,7 +701,7 @@ function getBridgeParams() {
   let merchantMode = params.get('merchant_mode');
   let prefillMsg = params.get('prefill_msg');
 
-  if (store || prefillMsg) {
+  if (store || prefillMsg || customerEmail) {
     const bridgeObj = { store, customerEmail, customerName, merchantMode, prefillMsg };
     localStorage.setItem('weavo_pending_bridge', JSON.stringify(bridgeObj));
   } else {
@@ -721,27 +721,34 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 ईमेल आणि युजरनेमच्या आधारे अचूक दुकानदाराचे चॅट शोधून 404/400 एरर कायमचे रोखणारा ब्रिज
-async function handleStoreBridge(storeParam) {
-  if (!storeParam || !me) return;
+// 🌟 404/400 एरर्स न देणारा आणि ईमेल/युजरनेमने अचूक मर्चंट चॅट शोधणारा ब्रिज
+async function handleStoreBridge() {
+  if (!me) return;
   const bridge = getBridgeParams();
   
   if (bridge.merchantMode === 'true') {
     return;
   }
 
-  const cleanQuery = storeParam.trim();
+  // ऑल ईआरपी कडून आलेला store किंवा customerEmail वापरून मर्चंट शोधणे
+  const queryParam = bridge.store || bridge.customerEmail;
+  if (!queryParam) return;
+
+  const cleanQuery = queryParam.trim();
   
   try {
     let storeUserId = null;
 
-    // 1. जर storeParam हा ईमेल असेल किंवा युजरनेम असेल, तर profiles टेबलमध्ये सुरक्षितपणे शोधणे
-    const { data: profileUser } = await sb.from('profiles').select('id').or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`).maybeSingle();
+    // 1. प्रथम profiles टेबलमध्ये email किंवा username द्वारे मर्चंट शोधणे (कोणतेही 404 एरर येणार नाहीत)
+    const { data: profileUser } = await sb.from('profiles')
+      .select('id')
+      .or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`)
+      .maybeSingle();
     
     if (profileUser) {
       storeUserId = profileUser.id;
     } else {
-      // 2. जर नसेल सापडला, तर businesses टेबलमधून owner_id शोधणे
+      // 2. जर प्रोफाईलमध्ये नसेल सापडला, तर businesses टेबलमधून owner_id शोधणे
       const { data: storeInfo } = await sb.from('businesses').select('owner_id').ilike('name', cleanQuery).maybeSingle();
       if (storeInfo && storeInfo.owner_id) {
         storeUserId = storeInfo.owner_id;
@@ -752,6 +759,7 @@ async function handleStoreBridge(storeParam) {
       return;
     }
 
+    // ग्राहक आणि दुकानदारामध्ये आधीपासून conversation आहे का तपासणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let existingConvId = null;
@@ -917,6 +925,7 @@ if ($('logout-btn')) {
   };
 }
 
+// 🌟 युजर सेशन सेटअप करताना त्याचा ईमेल profiles टेबलमध्ये १००% सेव्ह करणारे लॉजिक
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
@@ -935,7 +944,7 @@ async function setupUserSession(user) {
     }
   }
 
-  me = { id: user.id, username: baseName };
+  me = { id: user.id, username: baseName, email: user.email };
 
   if (window.location.hash && window.location.hash.includes('access_token')) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
@@ -943,24 +952,31 @@ async function setupUserSession(user) {
 
   enterApp();
 
-  if (bridge.store && bridge.merchantMode !== 'true') {
-    setTimeout(() => {
-      handleStoreBridge(bridge.store);
-    }, 1000);
-  }
-
+  // 🌟 प्रोफाईल टेबलमध्ये युजरचा ईमेल अचूकपणे सेव्ह किंवा अपडेट करणे
   try {
-    const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
+    const { data: profile } = await sb.from('profiles').select('username, email').eq('id', user.id).maybeSingle();
+    
     if (profile?.username) {
       me.username = profile.username;
       if ($('me-name')) $('me-name').textContent = '@' + me.username;
+      
+      // जर प्रोफाइलमध्ये ईमेल नसेल तर तो अपडेट करणे
+      if (!profile.email && user.email) {
+        await sb.from('profiles').update({ email: user.email }).eq('id', user.id);
+      }
     } else {
       let uniqueName = baseName;
       const { data: exists } = await sb.from('profiles').select('id').eq('username', uniqueName).maybeSingle();
       if (exists) {
         uniqueName = `${baseName}_${Math.floor(100 + Math.random() * 900)}`;
       }
-      await sb.from('profiles').upsert({ id: user.id, username: uniqueName });
+      
+      await sb.from('profiles').upsert({ 
+        id: user.id, 
+        username: uniqueName, 
+        email: user.email || bridge.customerEmail || null 
+      });
+      
       me.username = uniqueName;
       if ($('me-name')) $('me-name').textContent = '@' + me.username;
     }
@@ -969,13 +985,20 @@ async function setupUserSession(user) {
   } finally {
     isAuthProcessing = false;
   }
+
+  // मर्चंट ब्रिज ट्रिगर करणे
+  if ((bridge.store || bridge.customerEmail) && bridge.merchantMode !== 'true') {
+    setTimeout(() => {
+      handleStoreBridge();
+    }, 1000);
+  }
 }
 
 if (sb) {
   (async () => {
     const bridge = getBridgeParams();
     
-    if (bridge.store && bridge.merchantMode !== 'true') {
+    if ((bridge.store || bridge.customerEmail) && bridge.merchantMode !== 'true') {
       const { data: { session } } = await sb.auth.getSession();
       if (!session?.user) {
         showAuthFromLanding();
@@ -1013,8 +1036,8 @@ async function enterApp() {
   loadConversations();
 
   const bridge = getBridgeParams();
-  if (bridge.store && !activeConv) {
-    setTimeout(() => handleStoreBridge(bridge.store), 600);
+  if ((bridge.store || bridge.customerEmail) && !activeConv) {
+    setTimeout(() => handleStoreBridge(), 600);
   }
 
   try {
@@ -1897,7 +1920,7 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
-  // 🚀 सुरक्षित आणि अचूक ऑटो-पेस्ट लॉजिक (फक्त मर्चंटच्या चॅटसाठी)
+  // 🚀 सुरक्षित आणि अचूक ऑटो-पेस्ट लॉजिक (फक्त पर्टिकुलर मर्चंटच्या चॅट बॉक्ससाठी)
   if (currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
     const bridge = getBridgeParams();
     if (bridge.prefillMsg) {
