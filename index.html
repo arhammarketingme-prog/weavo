@@ -687,7 +687,7 @@ if (backLandingBtn) {
   };
 }
 
-// 🌟 URL मधून स्टोअर (दुकानदार) सुरक्षितपणे वाचणारा फंक्शन
+// 🌟 URL मधून स्टोअर आणि प्रीफिल्ड मेसेज सुरक्षितपणे वाचणारा फंक्शन
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -698,7 +698,8 @@ function getBridgeParams() {
   const customerEmail = params.get('customer_email') || params.get('email');
   const customerName = params.get('customer_name') || params.get('name');
   const merchantMode = params.get('merchant_mode');
-  return { store, customerEmail, customerName, merchantMode };
+  const prefillMsg = params.get('prefill_msg'); // 👈 ऑल ईआरपी ऑर्डर मेसेज कॅच करण्यासाठी
+  return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
 // 🌟 मर्चंट आणि ग्राहक ओळखणारा अचूक स्टोअर ब्रिज
@@ -706,7 +707,6 @@ async function handleStoreBridge(storeUsername) {
   if (!storeUsername || !me) return;
   const bridge = getBridgeParams();
   
-  // जर मर्चंट (दुकानदार) स्वतः डॅशबोर्डवरून आला असेल, तर त्याला त्याचे स्वतःचे डॅशबोर्ड चॅट्स दाखवा, वेगळा ग्राहक म्हणून ब्रिज करू नका
   if (bridge.merchantMode === 'true') {
     return;
   }
@@ -721,10 +721,14 @@ async function handleStoreBridge(storeUsername) {
     if (storeInfo && storeInfo.owner_id) {
       storeUserId = storeInfo.owner_id;
     } else {
-      // 2. profiles टेबलमध्ये username तपापणे
+      // 2. profiles टेबलमध्ये username किंवा email तपापणे
       const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
       if (storeUser) {
         storeUserId = storeUser.id;
+      } else {
+        // जर युजरनेमने नाही सापडला, तर ईमेल किंवा Wix सामान्य युजर मॅपिंग तपासणे
+        const { data: emailUser } = await sb.from('profiles').select('id').eq('email', bridge.customerEmail).maybeSingle();
+        if (emailUser) storeUserId = emailUser.id;
       }
     }
 
@@ -1867,6 +1871,18 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
+  // 🚀 ALL ERP कडून आलेला prefill_msg थेट चॅट बॉक्समध्ये ऑटो-इन्पुट करणारे लॉजिक
+  const bridge = getBridgeParams();
+  if (bridge.prefillMsg) {
+    setTimeout(() => {
+      const msgInput = document.getElementById('msg-input');
+      if (msgInput) {
+        msgInput.value = decodeURIComponent(bridge.prefillMsg);
+        msgInput.focus();
+      }
+    }, 600);
+  }
+
   $('send-btn').onclick = sendMessage;
   $('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
   let typingDebounce = null;
@@ -1885,10 +1901,6 @@ async function openConversation(id, title, type) {
   $('plus-location').onclick = sendLocation;
   $('plus-contact').onclick = openContactSharePicker;
   $('plus-poll').onclick = openPollCreator;
-}
-
-function otherInfoUsername(title) {
-  return title.replace(/^@/, '');
 }
 
 // WEBRTC CALLING
