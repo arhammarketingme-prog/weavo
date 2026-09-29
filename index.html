@@ -687,7 +687,7 @@ if (backLandingBtn) {
   };
 }
 
-// 🌟 URL किंवा Backup मधून ब्रिज पॅरामीटर्स वाचणारा आणि सेव्ह करणारा फंक्शन
+// 🌟 URL किंवा Backup मधून ब्रिज पॅरामीटर्स सुरक्षितपणे वाचणारा आणि सेव्ह करणारा फंक्शन
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -700,12 +700,10 @@ function getBridgeParams() {
   let merchantMode = params.get('merchant_mode');
   let prefillMsg = params.get('prefill_msg');
 
-  // जर URL मध्ये पॅरामीटर्स असतील तर localStorage मध्ये बॅकअप ठेवणे (लॉगिन नंतर वापरण्यासाठी)
   if (store || prefillMsg) {
     const bridgeObj = { store, customerEmail, customerName, merchantMode, prefillMsg };
     localStorage.setItem('weavo_pending_bridge', JSON.stringify(bridgeObj));
   } else {
-    // URL मध्ये नसतील तर localStorage मधून वाचणे
     const saved = localStorage.getItem('weavo_pending_bridge');
     if (saved) {
       try {
@@ -722,7 +720,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 मर्चंट आणि ग्राहक ओळखणारा अचूक स्टोअर ब्रिज (स्वयंचलित चॅट ओपनिंगसह)
+// 🌟 मर्चंट आणि ग्राहक ओळखणारा अचूक स्टोअर ब्रिज (स्वयंचलित चॅट ओपनिंग व सुरक्षित प्रिफिल्ड मेसेजसह)
 async function handleStoreBridge(storeUsername) {
   if (!storeUsername || !me) return;
   const bridge = getBridgeParams();
@@ -741,12 +739,11 @@ async function handleStoreBridge(storeUsername) {
     if (storeInfo && storeInfo.owner_id) {
       storeUserId = storeInfo.owner_id;
     } else {
-      // 2. profiles टेबलमध्ये username तपासणे
+      // 2. profiles टेबलमध्ये username किंवा email तपासणे
       const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
       if (storeUser) {
         storeUserId = storeUser.id;
-      } else {
-        // ईमेल किंवा Wix सामान्य युजर मॅपिंग तपासणे
+      } else if (bridge.customerEmail) {
         const { data: emailUser } = await sb.from('profiles').select('id').eq('email', bridge.customerEmail).maybeSingle();
         if (emailUser) storeUserId = emailUser.id;
       }
@@ -756,7 +753,7 @@ async function handleStoreBridge(storeUsername) {
       return;
     }
 
-    // ग्राहक आणि दुकानदारामध्ये आधीपासून conversation आहे का ते तपासणे
+    // ग्राहक आणि दुकानदारामध्ये आधीपासून conversation आहे का तपासणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let existingConvId = null;
@@ -783,7 +780,7 @@ async function handleStoreBridge(storeUsername) {
       const { data: storeProfile } = await sb.from('profiles').select('username').eq('id', storeUserId).single();
       const storeNameDisplay = storeProfile ? '@' + storeProfile.username : '@' + storeUsername;
       
-      // 🚀 अचूक चॅट विंडो स्वयंचलितपणे ओपन करणे
+      // 🚀 अचूक चॅट विंडो स्वयंचलितपणे ओपन करणे (फक्त याच दुकानदाराचे चॅट उघडेल)
       openConversation(targetConvId, storeNameDisplay, 'direct');
     }
   } catch(err) {
@@ -914,7 +911,7 @@ if ($('logout-btn')) {
     if (messagesChannel) sb.removeChannel(messagesChannel);
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     me = null; activeConv = null;
-    localStorage.removeItem('weavo_pending_bridge'); // लॉगआउट वेळी क्लियर करणे
+    localStorage.removeItem('weavo_pending_bridge');
     $('app').classList.remove('active');
     $('auth-screen').style.display = 'none';
     $('landing').style.display = 'block';
@@ -947,12 +944,9 @@ async function setupUserSession(user) {
 
   enterApp();
 
-  // 🚀 लॉगिन झाल्यावर किंवा सेशन मिळाल्यावर स्टोअर ब्रिज ट्रिगर करणे आणि नंतर क्लिअर करणे
   if (bridge.store && bridge.merchantMode !== 'true') {
     setTimeout(() => {
       handleStoreBridge(bridge.store);
-      // ब्रिज युज झाल्यावर पेंडिंग डेटा काढून टाकणे जेणेकरून नंतर त्रास होणार नाही
-      localStorage.removeItem('weavo_pending_bridge');
     }, 1000);
   }
 
@@ -1718,6 +1712,7 @@ let otherDirectUserId = null;
 let activeDisappearingSeconds = null;
 let typingChannel = null;
 let typingTimeout = null;
+let currentBridgeTargetConvId = null; // 👈 पर्टिकुलर दुकानदाराचे चॅट ट्रॅक करण्यासाठी
 
 async function openConversation(id, title, type) {
   if (amIInCall) { alert('कॉल चालू असताना दुसरा चॅट उघडता येणार नाही'); return; }
@@ -1899,16 +1894,17 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
-  // 🚀 ALL ERP कडून आलेला prefill_msg थेट चॅट बॉक्समध्ये ऑटो-इन्पुट करणारे लॉजिक
+  // 🚀 अत्यंत महत्त्वाचे: प्रीफिल्ड मेसेज फक्त आणि फक्त योग्य (तंतोतंत त्याच) दुकानदाराच्या चॅटमध्येच पेस्ट झाला पाहिजे
   const bridge = getBridgeParams();
-  if (bridge.prefillMsg) {
+  if (bridge.prefillMsg && currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
     setTimeout(() => {
       const msgInput = document.getElementById('msg-input');
       if (msgInput) {
         msgInput.value = decodeURIComponent(bridge.prefillMsg);
         msgInput.focus();
-        // युजरचा मेसेज एकदा इन्पुट झाल्यावर localStorage बॅकअप क्लिअर करणे
+        // एकदा योग्य चॅटमध्ये पेस्ट झाल्यावर मेसेज क्लिअर करणे जेणेकरून दुसऱ्या चॅटमध्ये जाणार नाही
         localStorage.removeItem('weavo_pending_bridge');
+        currentBridgeTargetConvId = null;
       }
     }, 600);
   }
@@ -3275,7 +3271,7 @@ function startEditMessage(msg) {
     if (error) { alert(error.message); return; }
     contentEl.textContent = newContent;
     if (!el.querySelector('.edited-tag')) {
-      const tag = document.span = document.createElement('span'); tag.className = 'edited-tag'; tag.textContent = ' (edited)';
+      const tag = document.createElement('span'); tag.className = 'edited-tag'; tag.textContent = ' (edited)';
       contentEl.appendChild(tag);
     }
   };
