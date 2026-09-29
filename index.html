@@ -688,7 +688,7 @@ if (backLandingBtn) {
   };
 }
 
-// 🌟 URL किंवा Backup मधून ब्रिज पॅरामीटर्स सुरक्षितपणे वाचणारा आणि सेव्ह करणारा फंक्शन
+// 🌟 URL किंवा LocalStorage मधून ब्रिज पॅरामीटर्स सुरक्षितपणे वाचणारा आणि सेव्ह करणारा फंक्शन
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -721,7 +721,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 मर्चंट आणि ग्राहक ओळखणारा अचूक स्टोअर ब्रिज (404 एरर न येणारी सुरक्षित क्वेरी)
+// 🌟 404/400 एरर्स पूर्णपणे टाळणारा आणि अचूक मर्चंट चॅट शोधणारा ब्रिज
 async function handleStoreBridge(storeUsername) {
   if (!storeUsername || !me) return;
   const bridge = getBridgeParams();
@@ -730,23 +730,20 @@ async function handleStoreBridge(storeUsername) {
     return;
   }
 
-  const cleanStoreName = storeUsername.replace(/_/g, ' ').trim();
+  const cleanQuery = storeUsername.trim();
   
   try {
     let storeUserId = null;
 
-    // 🛡️ 404 एरर टाळण्यासाठी फक्त profiles टेबल किंवा valid business युजरनेम तपासणे
-    const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', cleanStoreName).maybeSingle();
-    if (storeUser) {
-      storeUserId = storeUser.id;
+    // 🛡️ फक्त profiles टेबलमध्ये अचूक युजरनेम किंवा ईमेल शोधणे (404 एरर रोखण्यासाठी)
+    const { data: profileUser } = await sb.from('profiles').select('id').or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`).maybeSingle();
+    
+    if (profileUser) {
+      storeUserId = profileUser.id;
     } else {
-      // जर युजरनेमने नाही सापडला, तर businesses टेबलची सुरक्षित खात्री करणे
-      const { data: storeInfo } = await sb.from('businesses').select('owner_id').ilike('name', cleanStoreName).maybeSingle();
+      const { data: storeInfo } = await sb.from('businesses').select('owner_id').ilike('name', cleanQuery).maybeSingle();
       if (storeInfo && storeInfo.owner_id) {
         storeUserId = storeInfo.owner_id;
-      } else if (bridge.customerEmail) {
-        const { data: emailUser } = await sb.from('profiles').select('id').eq('email', bridge.customerEmail).maybeSingle();
-        if (emailUser) storeUserId = emailUser.id;
       }
     }
 
@@ -778,8 +775,9 @@ async function handleStoreBridge(storeUsername) {
     if (targetConvId) {
       currentBridgeTargetConvId = targetConvId; 
       await loadConversations();
+      
       const { data: storeProfile } = await sb.from('profiles').select('username').eq('id', storeUserId).single();
-      const storeNameDisplay = storeProfile ? '@' + storeProfile.username : '@' + storeUsername;
+      const storeNameDisplay = storeProfile ? '@' + storeProfile.username : '@' + cleanQuery;
       
       openConversation(targetConvId, storeNameDisplay, 'direct');
     }
@@ -1898,7 +1896,7 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
-  // 🚀 सुधारित आणि खात्रीशीर ऑटो-इन्सरशन लॉजिक (फक्त पर्टिकुलर दुकानदाराच्या चॅटसाठी)
+  // 🚀 सुरक्षित आणि अचूक पद्धतीने प्रीफिल्ड मेसेज इनपुट बॉक्समध्ये टाकणे (फक्त मर्चंटच्या चॅटसाठी)
   if (currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
     const bridge = getBridgeParams();
     if (bridge.prefillMsg) {
@@ -1907,7 +1905,6 @@ async function openConversation(id, title, type) {
         if (msgInput) {
           msgInput.value = decodeURIComponent(bridge.prefillMsg);
           msgInput.focus();
-          // एकदा यशस्वीरीत्या पेस्ट झाल्यावर डेटा साफ करणे जेणेकरून दुसऱ्या चॅटमध्ये जाणार नाही
           localStorage.removeItem('weavo_pending_bridge');
           currentBridgeTargetConvId = null;
         }
