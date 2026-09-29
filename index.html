@@ -668,6 +668,7 @@ let me = null;
 let activeConv = null;
 let messagesChannel = null;
 let isAuthProcessing = false;
+let currentBridgeTargetConvId = null; // 👈 पर्टिकुलर दुकानदाराचे चॅट आणि मेसेज ट्रॅक करण्यासाठी सुरक्षित व्हेरिएबल
 
 const $ = (id) => document.getElementById(id);
 
@@ -776,11 +777,12 @@ async function handleStoreBridge(storeUsername) {
     }
 
     if (targetConvId) {
+      currentBridgeTargetConvId = targetConvId; // 👈 पर्टिकुलर दुकानदाराचा चॅट आयडी सेव्ह करणे
       await loadConversations();
       const { data: storeProfile } = await sb.from('profiles').select('username').eq('id', storeUserId).single();
       const storeNameDisplay = storeProfile ? '@' + storeProfile.username : '@' + storeUsername;
       
-      // 🚀 अचूक चॅट विंडो स्वयंचलितपणे ओपन करणे (फक्त याच दुकानदाराचे चॅट उघडेल)
+      // 🚀 अचूक चॅट विंडो स्वयंचलितपणे ओपन करणे
       openConversation(targetConvId, storeNameDisplay, 'direct');
     }
   } catch(err) {
@@ -1012,6 +1014,12 @@ async function enterApp() {
   $('me-name').textContent = '@' + me.username;
   subscribeRealtime();
   loadConversations();
+
+  // 🚀 जर आधीपासून localStorage मध्ये पेंडिंग ब्रिज असेल, तर ऑटोमॅटिक चॅट ट्रिगर करणे
+  const bridge = getBridgeParams();
+  if (bridge.store && !activeConv) {
+    setTimeout(() => handleStoreBridge(bridge.store), 600);
+  }
 
   try {
     const { data: p } = await sb.from('profiles').select('avatar_url, hide_last_seen, hide_read_receipts, account_type, bio').eq('id', me.id).maybeSingle();
@@ -1712,7 +1720,6 @@ let otherDirectUserId = null;
 let activeDisappearingSeconds = null;
 let typingChannel = null;
 let typingTimeout = null;
-let currentBridgeTargetConvId = null; // 👈 पर्टिकुलर दुकानदाराचे चॅट ट्रॅक करण्यासाठी
 
 async function openConversation(id, title, type) {
   if (amIInCall) { alert('कॉल चालू असताना दुसरा चॅट उघडता येणार नाही'); return; }
@@ -1894,19 +1901,21 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
-  // 🚀 अत्यंत महत्त्वाचे: प्रीफिल्ड मेसेज फक्त आणि फक्त योग्य (तंतोतंत त्याच) दुकानदाराच्या चॅटमध्येच पेस्ट झाला पाहिजे
-  const bridge = getBridgeParams();
-  if (bridge.prefillMsg && currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
-    setTimeout(() => {
-      const msgInput = document.getElementById('msg-input');
-      if (msgInput) {
-        msgInput.value = decodeURIComponent(bridge.prefillMsg);
-        msgInput.focus();
-        // एकदा योग्य चॅटमध्ये पेस्ट झाल्यावर मेसेज क्लिअर करणे जेणेकरून दुसऱ्या चॅटमध्ये जाणार नाही
-        localStorage.removeItem('weavo_pending_bridge');
-        currentBridgeTargetConvId = null;
-      }
-    }, 600);
+  // 🚀 सुरक्षित आणि अचूक पद्धतीने प्रीफिल्ड मेसेज इनपुट बॉक्समध्ये टाकणे (फक्त मर्चंटच्या चॅटसाठी)
+  if (currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
+    const bridge = getBridgeParams();
+    if (bridge.prefillMsg) {
+      setTimeout(() => {
+        const msgInput = document.getElementById('msg-input');
+        if (msgInput) {
+          msgInput.value = decodeURIComponent(bridge.prefillMsg);
+          msgInput.focus();
+          // एकदा मेसेज इन्पुट झाल्यावर लोकल स्टोरेज आणि व्हेरिएबल साफ करणे
+          localStorage.removeItem('weavo_pending_bridge');
+          currentBridgeTargetConvId = null;
+        }
+      }, 500);
+    }
   }
 
   $('send-btn').onclick = sendMessage;
