@@ -687,22 +687,42 @@ if (backLandingBtn) {
   };
 }
 
-// 🌟 URL मधून स्टोअर आणि प्रीफिल्ड मेसेज सुरक्षितपणे वाचणारा फंक्शन
+// 🌟 URL किंवा Backup मधून ब्रिज पॅरामीटर्स वाचणारा आणि सेव्ह करणारा फंक्शन
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
     searchStr = '?' + window.location.hash.split('?')[1];
   }
   const params = new URLSearchParams(searchStr);
-  const store = params.get('store') || params.get('merchant');
-  const customerEmail = params.get('customer_email') || params.get('email');
-  const customerName = params.get('customer_name') || params.get('name');
-  const merchantMode = params.get('merchant_mode');
-  const prefillMsg = params.get('prefill_msg'); // 👈 ऑल ईआरपी ऑर्डर मेसेज कॅच करण्यासाठी
+  let store = params.get('store') || params.get('merchant');
+  let customerEmail = params.get('customer_email') || params.get('email');
+  let customerName = params.get('customer_name') || params.get('name');
+  let merchantMode = params.get('merchant_mode');
+  let prefillMsg = params.get('prefill_msg');
+
+  // जर URL मध्ये पॅरामीटर्स असतील तर localStorage मध्ये बॅकअप ठेवणे (लॉगिन नंतर वापरण्यासाठी)
+  if (store || prefillMsg) {
+    const bridgeObj = { store, customerEmail, customerName, merchantMode, prefillMsg };
+    localStorage.setItem('weavo_pending_bridge', JSON.stringify(bridgeObj));
+  } else {
+    // URL मध्ये नसतील तर localStorage मधून वाचणे
+    const saved = localStorage.getItem('weavo_pending_bridge');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        store = store || parsed.store;
+        customerEmail = customerEmail || parsed.customerEmail;
+        customerName = customerName || parsed.customerName;
+        merchantMode = merchantMode || parsed.merchantMode;
+        prefillMsg = prefillMsg || parsed.prefillMsg;
+      } catch(e) {}
+    }
+  }
+
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 मर्चंट आणि ग्राहक ओळखणारा अचूक स्टोअर ब्रिज
+// 🌟 मर्चंट आणि ग्राहक ओळखणारा अचूक स्टोअर ब्रिज (स्वयंचलित चॅट ओपनिंगसह)
 async function handleStoreBridge(storeUsername) {
   if (!storeUsername || !me) return;
   const bridge = getBridgeParams();
@@ -721,12 +741,12 @@ async function handleStoreBridge(storeUsername) {
     if (storeInfo && storeInfo.owner_id) {
       storeUserId = storeInfo.owner_id;
     } else {
-      // 2. profiles टेबलमध्ये username किंवा email तपापणे
+      // 2. profiles टेबलमध्ये username तपासणे
       const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
       if (storeUser) {
         storeUserId = storeUser.id;
       } else {
-        // जर युजरनेमने नाही सापडला, तर ईमेल किंवा Wix सामान्य युजर मॅपिंग तपासणे
+        // ईमेल किंवा Wix सामान्य युजर मॅपिंग तपासणे
         const { data: emailUser } = await sb.from('profiles').select('id').eq('email', bridge.customerEmail).maybeSingle();
         if (emailUser) storeUserId = emailUser.id;
       }
@@ -762,6 +782,8 @@ async function handleStoreBridge(storeUsername) {
       await loadConversations();
       const { data: storeProfile } = await sb.from('profiles').select('username').eq('id', storeUserId).single();
       const storeNameDisplay = storeProfile ? '@' + storeProfile.username : '@' + storeUsername;
+      
+      // 🚀 अचूक चॅट विंडो स्वयंचलितपणे ओपन करणे
       openConversation(targetConvId, storeNameDisplay, 'direct');
     }
   } catch(err) {
@@ -892,6 +914,7 @@ if ($('logout-btn')) {
     if (messagesChannel) sb.removeChannel(messagesChannel);
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     me = null; activeConv = null;
+    localStorage.removeItem('weavo_pending_bridge'); // लॉगआउट वेळी क्लियर करणे
     $('app').classList.remove('active');
     $('auth-screen').style.display = 'none';
     $('landing').style.display = 'block';
@@ -924,8 +947,13 @@ async function setupUserSession(user) {
 
   enterApp();
 
+  // 🚀 लॉगिन झाल्यावर किंवा सेशन मिळाल्यावर स्टोअर ब्रिज ट्रिगर करणे आणि नंतर क्लिअर करणे
   if (bridge.store && bridge.merchantMode !== 'true') {
-    setTimeout(() => handleStoreBridge(bridge.store), 1000);
+    setTimeout(() => {
+      handleStoreBridge(bridge.store);
+      // ब्रिज युज झाल्यावर पेंडिंग डेटा काढून टाकणे जेणेकरून नंतर त्रास होणार नाही
+      localStorage.removeItem('weavo_pending_bridge');
+    }, 1000);
   }
 
   try {
@@ -1879,6 +1907,8 @@ async function openConversation(id, title, type) {
       if (msgInput) {
         msgInput.value = decodeURIComponent(bridge.prefillMsg);
         msgInput.focus();
+        // युजरचा मेसेज एकदा इन्पुट झाल्यावर localStorage बॅकअप क्लिअर करणे
+        localStorage.removeItem('weavo_pending_bridge');
       }
     }, 600);
   }
@@ -3245,7 +3275,7 @@ function startEditMessage(msg) {
     if (error) { alert(error.message); return; }
     contentEl.textContent = newContent;
     if (!el.querySelector('.edited-tag')) {
-      const tag = document.createElement('span'); tag.className = 'edited-tag'; tag.textContent = ' (edited)';
+      const tag = document.span = document.createElement('span'); tag.className = 'edited-tag'; tag.textContent = ' (edited)';
       contentEl.appendChild(tag);
     }
   };
