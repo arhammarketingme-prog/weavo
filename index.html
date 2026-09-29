@@ -688,7 +688,7 @@ if (backLandingBtn) {
   };
 }
 
-// 🌟 URL किंवा LocalStorage मधून ब्रिज पॅरामीटर्स सुरक्षितपणे वाचणारा आणि सेव्ह करणारा फंक्शन
+// 🌟 URL किंवा LocalStorage मधून मर्चंट आणि ईमेल सुरक्षितपणे कॅच करणारे लॉजिक
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -721,16 +721,13 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 404/400 एरर्स न देणारा आणि ईमेल/युजरनेमने अचूक मर्चंट चॅट शोधणारा ब्रिज
+// 🌟 एरर-फ्री आणि 100% अचूक ईमेल/युजरनेम मॅपिंग ब्रिज फंक्शन
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
-  
-  if (bridge.merchantMode === 'true') {
-    return;
-  }
+  if (bridge.merchantMode === 'true') return;
 
-  // ऑल ईआरपी कडून आलेला store किंवा customerEmail वापरून मर्चंट शोधणे
+  // ऑल ईआरपी कडून आलेला store किंवा customerEmail शोधणे
   const queryParam = bridge.store || bridge.customerEmail;
   if (!queryParam) return;
 
@@ -739,19 +736,23 @@ async function handleStoreBridge() {
   try {
     let storeUserId = null;
 
-    // 1. प्रथम profiles टेबलमध्ये email किंवा username द्वारे मर्चंट शोधणे (कोणतेही 404 एरर येणार नाहीत)
+    // 1. थेट profiles टेबलमधून email किंवा username जुळतोय का ते पाहणे (कोणतेही 404 एरर येणार नाहीत)
     const { data: profileUser } = await sb.from('profiles')
       .select('id')
-      .or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`)
+      .or(`username.eq.${cleanQuery},email.eq.${cleanQuery}`)
       .maybeSingle();
     
     if (profileUser) {
       storeUserId = profileUser.id;
     } else {
-      // 2. जर प्रोफाईलमध्ये नसेल सापडला, तर businesses टेबलमधून owner_id शोधणे
-      const { data: storeInfo } = await sb.from('businesses').select('owner_id').ilike('name', cleanQuery).maybeSingle();
-      if (storeInfo && storeInfo.owner_id) {
-        storeUserId = storeInfo.owner_id;
+      // 2. जर केस-सेन्सिтивной ilike ने तपासायचे असल्यास
+      const { data: profileUserIlike } = await sb.from('profiles')
+        .select('id')
+        .or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`)
+        .maybeSingle();
+      
+      if (profileUserIlike) {
+        storeUserId = profileUserIlike.id;
       }
     }
 
@@ -925,7 +926,7 @@ if ($('logout-btn')) {
   };
 }
 
-// 🌟 युजर सेशन सेटअप करताना त्याचा ईमेल profiles टेबलमध्ये १००% सेव्ह करणारे लॉजिक
+// 🌟 युजर सेशन सेट करताना त्याच्या प्रोफाईलमध्ये ईमेल अचूकपणे सेव्ह करणारे लॉजिक
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
@@ -952,7 +953,6 @@ async function setupUserSession(user) {
 
   enterApp();
 
-  // 🌟 प्रोफाईल टेबलमध्ये युजरचा ईमेल अचूकपणे सेव्ह किंवा अपडेट करणे
   try {
     const { data: profile } = await sb.from('profiles').select('username, email').eq('id', user.id).maybeSingle();
     
@@ -960,7 +960,6 @@ async function setupUserSession(user) {
       me.username = profile.username;
       if ($('me-name')) $('me-name').textContent = '@' + me.username;
       
-      // जर प्रोफाइलमध्ये ईमेल नसेल तर तो अपडेट करणे
       if (!profile.email && user.email) {
         await sb.from('profiles').update({ email: user.email }).eq('id', user.id);
       }
@@ -986,7 +985,6 @@ async function setupUserSession(user) {
     isAuthProcessing = false;
   }
 
-  // मर्चंट ब्रिज ट्रिगर करणे
   if ((bridge.store || bridge.customerEmail) && bridge.merchantMode !== 'true') {
     setTimeout(() => {
       handleStoreBridge();
@@ -1920,7 +1918,7 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
-  // 🚀 सुरक्षित आणि अचूक ऑटो-पेस्ट लॉजिक (फक्त पर्टिकुलर मर्चंटच्या चॅट बॉक्ससाठी)
+  // 🚀 सुरक्षित आणि अचूक ऑटो-पेस्ट लॉजिक (फक्त योग्य मर्चंटच्या चॅटमध्येच मेसेज दिसेल)
   if (currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
     const bridge = getBridgeParams();
     if (bridge.prefillMsg) {
@@ -1932,7 +1930,7 @@ async function openConversation(id, title, type) {
           localStorage.removeItem('weavo_pending_bridge');
           currentBridgeTargetConvId = null;
         }
-      }, 500);
+      }, 600);
     }
   }
 
