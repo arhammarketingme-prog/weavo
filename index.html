@@ -668,7 +668,7 @@ let me = null;
 let activeConv = null;
 let messagesChannel = null;
 let isAuthProcessing = false;
-let currentBridgeTargetConvId = null; // 👈 पर्टिकुलर दुकानदाराचे चॅट आणि मेसेज ट्रॅक करण्यासाठी सुरक्षित व्हेरिएबल
+let currentBridgeTargetConvId = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -721,7 +721,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 मर्चंट आणि ग्राहक ओळखणारा अचूक स्टोअर ब्रिज (स्वयंचलित चॅट ओपनिंग व सुरक्षित प्रिफिल्ड मेसेजसह)
+// 🌟 मर्चंट आणि ग्राहक ओळखणारा अचूक स्टोअर ब्रिज (404 एरर न येणारी सुरक्षित क्वेरी)
 async function handleStoreBridge(storeUsername) {
   if (!storeUsername || !me) return;
   const bridge = getBridgeParams();
@@ -735,15 +735,15 @@ async function handleStoreBridge(storeUsername) {
   try {
     let storeUserId = null;
 
-    // 1. businesses टेबलमधून owner_id शोधणे
-    const { data: storeInfo } = await sb.from('businesses').select('owner_id, name').ilike('name', cleanStoreName).maybeSingle();
-    if (storeInfo && storeInfo.owner_id) {
-      storeUserId = storeInfo.owner_id;
+    // 🛡️ 404 एरर टाळण्यासाठी फक्त profiles टेबल किंवा valid business युजरनेम तपासणे
+    const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', cleanStoreName).maybeSingle();
+    if (storeUser) {
+      storeUserId = storeUser.id;
     } else {
-      // 2. profiles टेबलमध्ये username किंवा email तपासणे
-      const { data: storeUser } = await sb.from('profiles').select('id').ilike('username', storeUsername).maybeSingle();
-      if (storeUser) {
-        storeUserId = storeUser.id;
+      // जर युजरनेमने नाही सापडला, तर businesses टेबलची सुरक्षित खात्री करणे
+      const { data: storeInfo } = await sb.from('businesses').select('owner_id').ilike('name', cleanStoreName).maybeSingle();
+      if (storeInfo && storeInfo.owner_id) {
+        storeUserId = storeInfo.owner_id;
       } else if (bridge.customerEmail) {
         const { data: emailUser } = await sb.from('profiles').select('id').eq('email', bridge.customerEmail).maybeSingle();
         if (emailUser) storeUserId = emailUser.id;
@@ -754,7 +754,6 @@ async function handleStoreBridge(storeUsername) {
       return;
     }
 
-    // ग्राहक आणि दुकानदारामध्ये आधीपासून conversation आहे का तपासणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let existingConvId = null;
@@ -777,12 +776,11 @@ async function handleStoreBridge(storeUsername) {
     }
 
     if (targetConvId) {
-      currentBridgeTargetConvId = targetConvId; // 👈 पर्टिकुलर दुकानदाराचा चॅट आयडी सेव्ह करणे
+      currentBridgeTargetConvId = targetConvId; 
       await loadConversations();
       const { data: storeProfile } = await sb.from('profiles').select('username').eq('id', storeUserId).single();
       const storeNameDisplay = storeProfile ? '@' + storeProfile.username : '@' + storeUsername;
       
-      // 🚀 अचूक चॅट विंडो स्वयंचलितपणे ओपन करणे
       openConversation(targetConvId, storeNameDisplay, 'direct');
     }
   } catch(err) {
@@ -1015,7 +1013,6 @@ async function enterApp() {
   subscribeRealtime();
   loadConversations();
 
-  // 🚀 जर आधीपासून localStorage मध्ये पेंडिंग ब्रिज असेल, तर ऑटोमॅटिक चॅट ट्रिगर करणे
   const bridge = getBridgeParams();
   if (bridge.store && !activeConv) {
     setTimeout(() => handleStoreBridge(bridge.store), 600);
@@ -1901,7 +1898,7 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
-  // 🚀 सुरक्षित आणि अचूक पद्धतीने प्रीफिल्ड मेसेज इनपुट बॉक्समध्ये टाकणे (फक्त मर्चंटच्या चॅटसाठी)
+  // 🚀 सुधारित आणि खात्रीशीर ऑटो-इन्सरशन लॉजिक (फक्त पर्टिकुलर दुकानदाराच्या चॅटसाठी)
   if (currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
     const bridge = getBridgeParams();
     if (bridge.prefillMsg) {
@@ -1910,7 +1907,7 @@ async function openConversation(id, title, type) {
         if (msgInput) {
           msgInput.value = decodeURIComponent(bridge.prefillMsg);
           msgInput.focus();
-          // एकदा मेसेज इन्पुट झाल्यावर लोकल स्टोरेज आणि व्हेरिएबल साफ करणे
+          // एकदा यशस्वीरीत्या पेस्ट झाल्यावर डेटा साफ करणे जेणेकरून दुसऱ्या चॅटमध्ये जाणार नाही
           localStorage.removeItem('weavo_pending_bridge');
           currentBridgeTargetConvId = null;
         }
