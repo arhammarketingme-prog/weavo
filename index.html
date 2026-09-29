@@ -721,26 +721,27 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 404/400 एरर्स पूर्णपणे टाळणारा आणि अचूक मर्चंट चॅट शोधणारा ब्रिज
-async function handleStoreBridge(storeUsername) {
-  if (!storeUsername || !me) return;
+// 🌟 ईमेल आणि युजरनेमच्या आधारे अचूक दुकानदाराचे चॅट शोधून 404/400 एरर कायमचे रोखणारा ब्रिज
+async function handleStoreBridge(storeParam) {
+  if (!storeParam || !me) return;
   const bridge = getBridgeParams();
   
   if (bridge.merchantMode === 'true') {
     return;
   }
 
-  const cleanQuery = storeUsername.trim();
+  const cleanQuery = storeParam.trim();
   
   try {
     let storeUserId = null;
 
-    // 🛡️ फक्त profiles टेबलमध्ये अचूक युजरनेम किंवा ईमेल शोधणे (404 एरर रोखण्यासाठी)
+    // 1. जर storeParam हा ईमेल असेल किंवा युजरनेम असेल, तर profiles टेबलमध्ये सुरक्षितपणे शोधणे
     const { data: profileUser } = await sb.from('profiles').select('id').or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`).maybeSingle();
     
     if (profileUser) {
       storeUserId = profileUser.id;
     } else {
+      // 2. जर नसेल सापडला, तर businesses टेबलमधून owner_id शोधणे
       const { data: storeInfo } = await sb.from('businesses').select('owner_id').ilike('name', cleanQuery).maybeSingle();
       if (storeInfo && storeInfo.owner_id) {
         storeUserId = storeInfo.owner_id;
@@ -1896,7 +1897,7 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
-  // 🚀 सुरक्षित आणि अचूक पद्धतीने प्रीफिल्ड मेसेज इनपुट बॉक्समध्ये टाकणे (फक्त मर्चंटच्या चॅटसाठी)
+  // 🚀 सुरक्षित आणि अचूक ऑटो-पेस्ट लॉजिक (फक्त मर्चंटच्या चॅटसाठी)
   if (currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
     const bridge = getBridgeParams();
     if (bridge.prefillMsg) {
