@@ -721,7 +721,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 100% खात्रीशीर आणि स्वच्छ handleStoreBridge फंक्शन (400 एरर टाळण्यासाठी साधी select/insert पद्धत)
+// 🌟 100% खात्रीशीर handleStoreBridge फंक्शन (केवळ साध्या select वर आधारित, 409 एरर पूर्णपणे काढलेला)
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
@@ -735,35 +735,28 @@ async function handleStoreBridge() {
   try {
     let storeUserId = null;
 
-    // 1. profiles टेबलमध्ये username द्वारे शोधणे
+    // 1. profiles टेबलमध्ये username किंवा email द्वारे मर्चंट शोधणे
     let { data: profileUser } = await sb.from('profiles')
       .select('id, username')
-      .ilike('username', cleanQuery)
+      .or(`username.eq.${cleanQuery},email.eq.${cleanQuery}`)
       .maybeSingle();
     
     if (profileUser && profileUser.id) {
       storeUserId = profileUser.id;
     } else {
-      // 2. जर username ने नाही सापडला, तर नवीन प्रोफाईल तयार करणे
-      const fallbackName = cleanQuery.split('@')[0].replace(/[^a-z0-9_]/g, '_');
-      const targetEmail = cleanQuery.includes('@') ? cleanQuery : `${fallbackName}@erp.local`;
-      
-      const { data: newProf, error: insErr } = await sb.from('profiles').insert({
-        username: fallbackName,
-        email: targetEmail,
-        account_type: 'business'
-      }).select('id').maybeSingle();
-
-      if (newProf && newProf.id) {
-        storeUserId = newProf.id;
-      } else {
-        // जर आधीपासून अस्तित्वात असेल तर थेट ID मिळवणे
-        const { data: existing } = await sb.from('profiles').select('id').eq('username', fallbackName).maybeSingle();
-        if (existing) storeUserId = existing.id;
+      // 2. जर थेट नाही सापडला, तर पहिल्या पाच प्रोफाईल्समधून जुळणारा शोधणे
+      let { data: allProfiles } = await sb.from('profiles').select('id, username, email').limit(50);
+      const found = (allProfiles || []).find(p => 
+        (p.username && p.username.toLowerCase().includes(cleanQuery)) || 
+        (p.email && p.email.toLowerCase().includes(cleanQuery))
+      );
+      if (found) {
+        storeUserId = found.id;
       }
     }
 
     if (!storeUserId || storeUserId === me.id) {
+      console.warn("Store user not found in Weavo database:", cleanQuery);
       return;
     }
 
