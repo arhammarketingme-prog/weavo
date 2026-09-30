@@ -400,7 +400,7 @@
   .landing-logo-mark { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; box-shadow: 0 8px 22px var(--accent-glow); }
   .landing-nav-actions { display: flex; gap: 10px; }
   .landing-btn-primary, .landing-btn-ghost { border-radius: 14px; padding: 11px 20px; font-weight: 700; font-size: 14px; cursor: pointer; border: none; transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease; }
-  .landing-btn-primary { background: linear-gradient(120dev, var(--accent), var(--accent-2)); color: white; box-shadow: 0 10px 26px var(--accent-glow); }
+  .landing-btn-primary { background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: white; box-shadow: 0 10px 26px var(--accent-glow); }
   .landing-btn-primary:hover { transform: translateY(-1px); }
   .landing-btn-primary:active { transform: scale(.97); }
   .landing-btn-ghost { background: var(--input-bg); color: var(--text); }
@@ -479,7 +479,7 @@
     <div class="landing-feature-card">
       <div class="landing-feature-icon">🧭</div>
       <div class="landing-feature-title">Discover Everything</div>
-      <div class="landing-feature-desc-title">Browse public channels, trending videos, and businesses — with full transparency on why you're seeing them.</div>
+      <div class="landing-feature-desc">Browse public channels, trending videos, and businesses — with full transparency on why you're seeing them.</div>
     </div>
   </div>
 
@@ -721,7 +721,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 100% खात्रीशीर handleStoreBridge फंक्शन (जर डेटाबेसमध्ये दुकानदार नसेल तर लगेच नवीन प्रोफाईल तयार करून चॅट उघडेल)
+// 🌟 100% खात्रीशीर handleStoreBridge फंक्शन (409 एरर टाळण्यासाठी upsert वापरले आहे)
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
@@ -753,16 +753,22 @@ async function handleStoreBridge() {
       if (bizUser && bizUser.owner_id) {
         storeUserId = bizUser.owner_id;
       } else {
-        // 3. 🌟 जर दुकानदार वीव्होच्या कोणत्याही टेबलमध्ये सापडला नाही, तर URL मधील 'store' नावावरून स्वयंचलित युजर तयार करणे
+        // 3. 🌟 409 Conflict एरर टाळण्यासाठी upsert वापरून युजर तयार करणे
         const fallbackName = cleanQuery.split('@')[0].replace(/[^a-z0-9_]/g, '_');
-        const { data: newProf } = await sb.from('profiles').insert({
+        const targetEmail = cleanQuery.includes('@') ? cleanQuery : `${fallbackName}@erp.local`;
+        
+        const { data: newProf } = await sb.from('profiles').upsert({
           username: fallbackName,
-          email: cleanQuery.includes('@') ? cleanQuery : `${fallbackName}@erp.local`,
+          email: targetEmail,
           account_type: 'business'
-        }).select('id').single();
+        }, { onConflict: 'email' }).select('id').single();
 
-        if (newProf) {
+        if (newProf && newProf.id) {
           storeUserId = newProf.id;
+        } else {
+          // जर upsert ने select न देता silent राहिले तर पुन्हा id फेच करणे
+          const { data: refetch } = await sb.from('profiles').select('id').eq('email', targetEmail).maybeSingle();
+          if (refetch) storeUserId = refetch.id;
         }
       }
     }
@@ -985,7 +991,7 @@ async function setupUserSession(user) {
         id: user.id, 
         username: uniqueName, 
         email: user.email || bridge.customerEmail || null 
-      });
+      }, { onConflict: 'email' });
       
       me.username = uniqueName;
       if ($('me-name')) $('me-name').textContent = '@' + me.username;
