@@ -721,7 +721,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 100% खात्रीशीर handleStoreBridge फंक्शन (केवळ साध्या select वर आधारित, 409 एरर पूर्णपणे काढलेला)
+// 🌟 100% खात्रीशीर handleStoreBridge फंक्शन (जर डेटाबेसमध्ये दुकानदार नसेल तर आपोआप सेफ इन्सर्ट करून चॅट उघडेल)
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
@@ -737,26 +737,34 @@ async function handleStoreBridge() {
 
     // 1. profiles टेबलमध्ये username किंवा email द्वारे मर्चंट शोधणे
     let { data: profileUser } = await sb.from('profiles')
-      .select('id, username')
-      .or(`username.eq.${cleanQuery},email.eq.${cleanQuery}`)
+      .select('id, username, email')
+      .or(`username.ilike.%${cleanQuery}%,email.ilike.%${cleanQuery}%`)
       .maybeSingle();
     
     if (profileUser && profileUser.id) {
       storeUserId = profileUser.id;
     } else {
-      // 2. जर थेट नाही सापडला, तर पहिल्या पाच प्रोफाईल्समधून जुळणारा शोधणे
-      let { data: allProfiles } = await sb.from('profiles').select('id, username, email').limit(50);
-      const found = (allProfiles || []).find(p => 
-        (p.username && p.username.toLowerCase().includes(cleanQuery)) || 
-        (p.email && p.email.toLowerCase().includes(cleanQuery))
-      );
-      if (found) {
-        storeUserId = found.id;
+      // 2. 🌟 जर दुकानदार वीव्होच्या कोणत्याही टेबलमध्ये सापडला नाही, तर URL मधील 'store' नावावरून नवीन सुरक्षित युजर तयार करणे
+      const fallbackName = cleanQuery.split('@')[0].replace(/[^a-z0-9_]/g, '_');
+      const targetEmail = cleanQuery.includes('@') ? cleanQuery : `${fallbackName}@erp.local`;
+      
+      const { data: newProf } = await sb.from('profiles').insert({
+        username: fallbackName,
+        email: targetEmail,
+        account_type: 'business'
+      }).select('id').maybeSingle();
+
+      if (newProf && newProf.id) {
+        storeUserId = newProf.id;
+      } else {
+        // जर तो आधीपासूनच अस्तित्वात असेल, तर फक्त त्याचा ID शोधून काढणे
+        const { data: existing } = await sb.from('profiles').select('id').eq('email', targetEmail).maybeSingle();
+        if (existing) storeUserId = existing.id;
       }
     }
 
     if (!storeUserId || storeUserId === me.id) {
-      console.warn("Store user not found in Weavo database:", cleanQuery);
+      console.warn("Store user not found or is self:", cleanQuery);
       return;
     }
 
