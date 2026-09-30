@@ -688,7 +688,7 @@ if (backLandingBtn) {
   };
 }
 
-// 🌟 URL किंवा LocalStorage मधून ALL ERP कडून आलेला ईमेल आणि प्रीफिल्ड मेसेज सुरक्षितपणे कॅच करणे
+// 🌟 URL किंवा LocalStorage मधून ALL ERP कडून आलेला ईमेल, स्टोअर आणि मेसेज कॅच करणे
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -721,38 +721,57 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 100% अचूक ईमेल किंवा युजरनेम मॅच करून दुकानदाराचे चॅट ओपन करणारे सुरक्षित फंक्शन
+// 🌟 जीमेल/ईमेलच्या कॉमन दुव्याने मर्चंट शोधून किंवा स्वयंचलित बिझनेस प्रोफाईल तयार करून चॅट उघडणारे फंक्शन
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
   if (bridge.merchantMode === 'true') return;
 
-  // ALL ERP कडून आलेला store (किंवा merchant email)
-  const storeQuery = bridge.store;
-  if (!storeQuery) return;
+  const queryParam = bridge.store || bridge.customerEmail;
+  if (!queryParam) return;
 
-  const cleanQuery = storeQuery.trim().toLowerCase();
+  const cleanQuery = queryParam.trim().toLowerCase();
   
   try {
     let storeUserId = null;
 
-    // 1. थेट profiles टेबलमध्ये email किंवा username नुसार दुकानदाराचा user_id शोधणे (कोणताही 404 एरर येणार नाही)
-    const { data: profileUser, error: pErr } = await sb.from('profiles')
-      .select('id, username, email')
+    // 1. profiles टेबलमध्ये email किंवा username द्वारे मर्चंट शोधणे
+    let { data: profileUser } = await sb.from('profiles')
+      .select('id')
       .or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`)
       .maybeSingle();
     
-    if (profileUser && profileUser.id) {
+    if (profileUser) {
       storeUserId = profileUser.id;
     } else {
-      // 2. जर नाही सापडला तर business_profiles मधून owner_id शोधणे
-      const { data: bizUser } = await sb.from('business_profiles')
-        .select('owner_id')
+      // 2. business_profiles टेबलमध्ये नाव किंवा owner शोधणे
+      let { data: bizUser } = await sb.from('business_profiles')
+        .select('owner_id, name')
         .ilike('name', cleanQuery)
         .maybeSingle();
       
       if (bizUser && bizUser.owner_id) {
         storeUserId = bizUser.owner_id;
+      } else {
+        // 3. 🌟 अत्यंत महत्त्वाचे: जर दुकानदार वीव्होमध्ये अस्तित्वात नसेल, तर ALL ERP च्या डेटाने त्याची स्वयंचलित (Auto) प्रोफाईल व बिझनेस प्रोफाईल तयार करणे!
+        const autoUsername = cleanQuery.split('@')[0].replace(/[^a-z0-9_]/g, '_');
+        
+        // नवीन युजर प्रोफाईल तयार करणे
+        const { data: newProfile, errP } = await sb.from('profiles').insert({
+          username: autoUsername,
+          email: cleanQuery,
+          account_type: 'business'
+        }).select('id').single();
+
+        if (newProfile) {
+          storeUserId = newProfile.id;
+          // बिझनेस प्रोफाईल तयार करणे
+          await sb.from('business_profiles').upsert({
+            owner_id: storeUserId,
+            name: cleanQuery,
+            category: 'General Store'
+          }, { onConflict: 'owner_id' });
+        }
       }
     }
 
@@ -926,7 +945,7 @@ if ($('logout-btn')) {
   };
 }
 
-// 🌟 गुगल किंवा ईमेल लॉगिन केल्यावर युजरचा ईमेल `profiles` टेबलमध्ये स्वयंचलितपणे सेव्ह करणारी यंत्रणा
+// 🌟 युजर सेशन सेट करताना ईमेल सिंक करणारी यंत्रणा
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
@@ -960,7 +979,6 @@ async function setupUserSession(user) {
       me.username = profile.username;
       if ($('me-name')) $('me-name').textContent = '@' + me.username;
       
-      // जर प्रोफाईलमध्ये ईमेल नसेल तर तो अपडेट करणे
       if (!profile.email && user.email) {
         await sb.from('profiles').update({ email: user.email }).eq('id', user.id);
       }
@@ -971,7 +989,6 @@ async function setupUserSession(user) {
         uniqueName = `${baseName}_${Math.floor(100 + Math.random() * 900)}`;
       }
       
-      // प्रोफाईल टेबलमध्ये id, username सोबत 'email' देखील इन्सर्ट करणे
       await sb.from('profiles').upsert({ 
         id: user.id, 
         username: uniqueName, 
@@ -1920,7 +1937,7 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
-  // 🚀 फिक्स: योग्य मर्चंटच्या चॅट बॉक्समध्येच ऑर्डर मेसेज ऑटो-पेस्ट करणे
+  // 🚀 योग्य मर्चंटच्या चॅट बॉक्समध्येच ऑर्डर मेसेज स्वयंचलितपणे ऑटो-पेस्ट करणे
   if (currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
     const bridge = getBridgeParams();
     if (bridge.prefillMsg) {
