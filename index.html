@@ -688,7 +688,7 @@ if (backLandingBtn) {
   };
 }
 
-// 🌟 URL किंवा LocalStorage मधून मर्चंट आणि ईमेल सुरक्षितपणे कॅच करणारे लॉजिक
+// 🌟 URL किंवा LocalStorage मधून ALL ERP कडून आलेला ईमेल आणि प्रीफिल्ड मेसेज सुरक्षितपणे कॅच करणे
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -721,38 +721,38 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 एरर-फ्री आणि 100% अचूक ईमेल/युजरनेम मॅपिंग ब्रिज फंक्शन
+// 🌟 100% अचूक ईमेल किंवा युजरनेम मॅच करून दुकानदाराचे चॅट ओपन करणारे सुरक्षित फंक्शन
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
   if (bridge.merchantMode === 'true') return;
 
-  // ऑल ईआरपी कडून आलेला store किंवा customerEmail शोधणे
-  const queryParam = bridge.store || bridge.customerEmail;
-  if (!queryParam) return;
+  // ALL ERP कडून आलेला store (किंवा merchant email)
+  const storeQuery = bridge.store;
+  if (!storeQuery) return;
 
-  const cleanQuery = queryParam.trim();
+  const cleanQuery = storeQuery.trim().toLowerCase();
   
   try {
     let storeUserId = null;
 
-    // 1. थेट profiles टेबलमधून email किंवा username जुळतोय का ते पाहणे (कोणतेही 404 एरर येणार नाहीत)
-    const { data: profileUser } = await sb.from('profiles')
-      .select('id')
-      .or(`username.eq.${cleanQuery},email.eq.${cleanQuery}`)
+    // 1. थेट profiles टेबलमध्ये email किंवा username नुसार दुकानदाराचा user_id शोधणे (कोणताही 404 एरर येणार नाही)
+    const { data: profileUser, error: pErr } = await sb.from('profiles')
+      .select('id, username, email')
+      .or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`)
       .maybeSingle();
     
-    if (profileUser) {
+    if (profileUser && profileUser.id) {
       storeUserId = profileUser.id;
     } else {
-      // 2. जर केस-सेन्सिтивной ilike ने तपासायचे असल्यास
-      const { data: profileUserIlike } = await sb.from('profiles')
-        .select('id')
-        .or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`)
+      // 2. जर नाही सापडला तर business_profiles मधून owner_id शोधणे
+      const { data: bizUser } = await sb.from('business_profiles')
+        .select('owner_id')
+        .ilike('name', cleanQuery)
         .maybeSingle();
       
-      if (profileUserIlike) {
-        storeUserId = profileUserIlike.id;
+      if (bizUser && bizUser.owner_id) {
+        storeUserId = bizUser.owner_id;
       }
     }
 
@@ -926,7 +926,7 @@ if ($('logout-btn')) {
   };
 }
 
-// 🌟 युजर सेशन सेट करताना त्याच्या प्रोफाईलमध्ये ईमेल अचूकपणे सेव्ह करणारे लॉजिक
+// 🌟 गुगल किंवा ईमेल लॉगिन केल्यावर युजरचा ईमेल `profiles` टेबलमध्ये स्वयंचलितपणे सेव्ह करणारी यंत्रणा
 async function setupUserSession(user) {
   if (!user || isAuthProcessing || me) return;
   isAuthProcessing = true;
@@ -960,6 +960,7 @@ async function setupUserSession(user) {
       me.username = profile.username;
       if ($('me-name')) $('me-name').textContent = '@' + me.username;
       
+      // जर प्रोफाईलमध्ये ईमेल नसेल तर तो अपडेट करणे
       if (!profile.email && user.email) {
         await sb.from('profiles').update({ email: user.email }).eq('id', user.id);
       }
@@ -970,6 +971,7 @@ async function setupUserSession(user) {
         uniqueName = `${baseName}_${Math.floor(100 + Math.random() * 900)}`;
       }
       
+      // प्रोफाईल टेबलमध्ये id, username सोबत 'email' देखील इन्सर्ट करणे
       await sb.from('profiles').upsert({ 
         id: user.id, 
         username: uniqueName, 
@@ -1918,7 +1920,7 @@ async function openConversation(id, title, type) {
   refreshGroupReadTicks();
   loadConversations();
 
-  // 🚀 सुरक्षित आणि अचूक ऑटो-पेस्ट लॉजिक (फक्त योग्य मर्चंटच्या चॅटमध्येच मेसेज दिसेल)
+  // 🚀 फिक्स: योग्य मर्चंटच्या चॅट बॉक्समध्येच ऑर्डर मेसेज ऑटो-पेस्ट करणे
   if (currentBridgeTargetConvId && id === currentBridgeTargetConvId) {
     const bridge = getBridgeParams();
     if (bridge.prefillMsg) {
