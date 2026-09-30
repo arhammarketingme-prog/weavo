@@ -721,7 +721,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 100% खात्रीशीर handleStoreBridge फंक्शन (409 एरर टाळण्यासाठी upsert वापरले आहे)
+// 🌟 100% खात्रीशीर आणि स्वच्छ handleStoreBridge फंक्शन (400 एरर टाळण्यासाठी साधी select/insert पद्धत)
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
@@ -735,41 +735,31 @@ async function handleStoreBridge() {
   try {
     let storeUserId = null;
 
-    // 1. profiles टेबलमध्ये username किंवा email द्वारे मर्चंट शोधणे
+    // 1. profiles टेबलमध्ये username द्वारे शोधणे
     let { data: profileUser } = await sb.from('profiles')
-      .select('id, username, email')
-      .or(`username.ilike.%${cleanQuery}%,email.ilike.%${cleanQuery}%`)
+      .select('id, username')
+      .ilike('username', cleanQuery)
       .maybeSingle();
     
     if (profileUser && profileUser.id) {
       storeUserId = profileUser.id;
     } else {
-      // 2. business_profiles मध्ये शोधणे
-      let { data: bizUser } = await sb.from('business_profiles')
-        .select('owner_id, name')
-        .ilike('name', `%${cleanQuery}%`)
-        .maybeSingle();
+      // 2. जर username ने नाही सापडला, तर नवीन प्रोफाईल तयार करणे
+      const fallbackName = cleanQuery.split('@')[0].replace(/[^a-z0-9_]/g, '_');
+      const targetEmail = cleanQuery.includes('@') ? cleanQuery : `${fallbackName}@erp.local`;
       
-      if (bizUser && bizUser.owner_id) {
-        storeUserId = bizUser.owner_id;
-      } else {
-        // 3. 🌟 409 Conflict एरर टाळण्यासाठी upsert वापरून युजर तयार करणे
-        const fallbackName = cleanQuery.split('@')[0].replace(/[^a-z0-9_]/g, '_');
-        const targetEmail = cleanQuery.includes('@') ? cleanQuery : `${fallbackName}@erp.local`;
-        
-        const { data: newProf } = await sb.from('profiles').upsert({
-          username: fallbackName,
-          email: targetEmail,
-          account_type: 'business'
-        }, { onConflict: 'email' }).select('id').single();
+      const { data: newProf, error: insErr } = await sb.from('profiles').insert({
+        username: fallbackName,
+        email: targetEmail,
+        account_type: 'business'
+      }).select('id').maybeSingle();
 
-        if (newProf && newProf.id) {
-          storeUserId = newProf.id;
-        } else {
-          // जर upsert ने select न देता silent राहिले तर पुन्हा id फेच करणे
-          const { data: refetch } = await sb.from('profiles').select('id').eq('email', targetEmail).maybeSingle();
-          if (refetch) storeUserId = refetch.id;
-        }
+      if (newProf && newProf.id) {
+        storeUserId = newProf.id;
+      } else {
+        // जर आधीपासून अस्तित्वात असेल तर थेट ID मिळवणे
+        const { data: existing } = await sb.from('profiles').select('id').eq('username', fallbackName).maybeSingle();
+        if (existing) storeUserId = existing.id;
       }
     }
 
@@ -991,7 +981,7 @@ async function setupUserSession(user) {
         id: user.id, 
         username: uniqueName, 
         email: user.email || bridge.customerEmail || null 
-      }, { onConflict: 'email' });
+      }, { onConflict: 'id' });
       
       me.username = uniqueName;
       if ($('me-name')) $('me-name').textContent = '@' + me.username;
