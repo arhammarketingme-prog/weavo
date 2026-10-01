@@ -627,7 +627,7 @@ async function signInWithGoogle() {
   if (error && errEl) errEl.textContent = error.message;
 }
 
-// 🌟 वैयक्तिक युजर प्रोफाईलला स्पर्श न करता, फक्त बिझनेस स्टोअर अचूक शोधणारे isolate केलेले फंक्शन
+// 🌟 सुरक्षित ब्रिज पॅरामिटर्स वाचणारे फंक्शन
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -654,34 +654,50 @@ function getBridgeParams() {
   return { store, customerEmail, prefillMsg };
 }
 
+// 🌟 400 एरर पूर्णपणे दूर करणारे आणि अचूक बिझनेस चॅट ओपन करणारे फंक्शन
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
   let storeQuery = bridge.store;
-  if (!storeQuery || storeQuery === 'store') return; // जर स्टोअरचे नाव नसेल तर पूर्णपणे बाजूला सरकणे
+  if (!storeQuery || storeQuery === 'store') return;
 
   const cleanQuery = storeQuery.trim().toLowerCase();
   
   try {
     let storeUserId = null;
-    let storeDisplayName = '@' + cleanQuery;
+    let storeDisplayName = '🏪 ' + cleanQuery;
 
-    // १. फक्‍त business_profiles टेबलमधून दुकानाचा खरा मालक (owner_id) शोधणे (वैयक्तिक प्रोफाईलला हात न लावता)
-    const { data: bizList } = await sb.from('business_profiles').select('owner_id, name, slug');
-    if (bizList && bizList.length > 0) {
-      const foundBiz = bizList.find(b => 
-        (b.name && b.name.toLowerCase().includes(cleanQuery)) || 
-        (b.slug && b.slug.toLowerCase() === cleanQuery)
-      );
+    // १. business_profiles टेबलमधून सुरक्षितपणे owner_id शोधणे (कोणतीही 400 एरर येणार नाही)
+    const { data: bizList, error: bizErr } = await sb.from('business_profiles').select('owner_id, name');
+    if (!bizErr && bizList && bizList.length > 0) {
+      const foundBiz = bizList.find(b => {
+        const bName = (b.name || '').toLowerCase();
+        return bName.includes(cleanQuery);
+      });
       if (foundBiz && foundBiz.owner_id) {
         storeUserId = foundBiz.owner_id;
-        if (foundBiz.name) storeDisplayName = '🏪 ' + foundBiz.name; // थेट दुकानाचे नाव दिसेल
+        if (foundBiz.name) storeDisplayName = '🏪 ' + foundBiz.name;
+      }
+    }
+
+    // २. जर business_profiles मध्ये नाही सापडला, तर profiles टेबल तपासणे
+    if (!storeUserId) {
+      const { data: profList, error: profErr } = await sb.from('profiles').select('id, username, email');
+      if (!profErr && profList && profList.length > 0) {
+        const foundProf = profList.find(p => 
+          (p.username && p.username.toLowerCase().includes(cleanQuery)) || 
+          (p.email && p.email.toLowerCase() === cleanQuery)
+        );
+        if (foundProf && foundProf.id) {
+          storeUserId = foundProf.id;
+          if (foundProf.username) storeDisplayName = '@' + foundProf.username;
+        }
       }
     }
 
     if (!storeUserId || storeUserId === me.id) return;
 
-    // २. ग्राहक आणि या विशिष्ट दुकानदारामध्ये चॅट शोधणे किंवा तयार करणे
+    // ३. ग्राहक आणि दुकानदार यांच्यातील चॅट कन्वर्सेशन जोडणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let targetConvId = null;
@@ -708,14 +724,13 @@ async function handleStoreBridge() {
       openConversation(targetConvId, storeDisplayName, 'direct');
     }
   } catch(err) {
-    console.error("Bridge error:", err);
+    console.error("Safe Bridge error:", err);
   }
 }
 
 async function setupUserSession(user) {
   if (!user || me) return;
   
-  // वैयक्तिक युजर प्रोफाईल डेटाबेसवरून सुरक्षितपणे लोड करणे (कधीही ओव्हरराईट होणार नाही)
   const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
   let validUsername = profile?.username || user.user_metadata?.name || user.email?.split('@')[0] || 'user';
 
