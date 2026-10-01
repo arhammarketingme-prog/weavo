@@ -627,7 +627,6 @@ async function signInWithGoogle() {
   if (error && errEl) errEl.textContent = error.message;
 }
 
-// 🌟 सुरक्षित ब्रिज पॅरामिटर्स वाचणारे फंक्शन
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -654,7 +653,6 @@ function getBridgeParams() {
   return { store, customerEmail, prefillMsg };
 }
 
-// 🌟 400 एरर पूर्णपणे दूर करणारे आणि अचूक बिझनेस चॅट ओपन करणारे फंक्शन
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
@@ -667,12 +665,12 @@ async function handleStoreBridge() {
     let storeUserId = null;
     let storeDisplayName = '🏪 ' + cleanQuery;
 
-    // १. business_profiles टेबलमधून सुरक्षितपणे owner_id शोधणे (कोणतीही 400 एरर येणार नाही)
-    const { data: bizList, error: bizErr } = await sb.from('business_profiles').select('owner_id, name');
+    const { data: bizList, error: bizErr } = await sb.from('business_profiles').select('owner_id, name, slug');
     if (!bizErr && bizList && bizList.length > 0) {
       const foundBiz = bizList.find(b => {
         const bName = (b.name || '').toLowerCase();
-        return bName.includes(cleanQuery);
+        const bSlug = (b.slug || '').toLowerCase();
+        return bName.includes(cleanQuery) || bSlug === cleanQuery;
       });
       if (foundBiz && foundBiz.owner_id) {
         storeUserId = foundBiz.owner_id;
@@ -680,7 +678,6 @@ async function handleStoreBridge() {
       }
     }
 
-    // २. जर business_profiles मध्ये नाही सापडला, तर profiles टेबल तपासणे
     if (!storeUserId) {
       const { data: profList, error: profErr } = await sb.from('profiles').select('id, username, email');
       if (!profErr && profList && profList.length > 0) {
@@ -697,7 +694,6 @@ async function handleStoreBridge() {
 
     if (!storeUserId || storeUserId === me.id) return;
 
-    // ३. ग्राहक आणि दुकानदार यांच्यातील चॅट कन्वर्सेशन जोडणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let targetConvId = null;
@@ -764,6 +760,7 @@ if ($('logout-btn')) {$('logout-btn').onclick = async () => {
   };
 }
 
+// 🌟 साईडबारच्या चॅट लिस्टमध्ये "Chat" किंवा जुन्या नावाऐवजी अचूक दुकानाचे नाव (🏪 दुकाननाव) दाखवणारे फंक्शन
 async function loadConversations() {
   const { data: memberRows } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
   const ids = (memberRows || []).map(r => r.conversation_id);
@@ -772,11 +769,34 @@ async function loadConversations() {
   if (!ids.length) return;
 
   const { data: convs } = await sb.from('conversations').select('id, type, name').in('id', ids);
+
+  const { data: allBiz } = await sb.from('business_profiles').select('owner_id, name');
+  const bizMap = {};
+  if (allBiz) {
+    allBiz.forEach(b => { bizMap[b.owner_id] = b.name; });
+  }
+
   for (const c of convs || []) {
+    let displayTitle = c.name || 'Chat';
+
+    if (c.type === 'direct') {
+      const { data: otherMembers } = await sb.from('conversation_members')
+        .select('user_id')
+        .eq('conversation_id', c.id)
+        .neq('user_id', me.id);
+      
+      if (otherMembers && otherMembers.length > 0) {
+        const otherUserId = otherMembers[0].user_id;
+        if (bizMap[otherUserId]) {
+          displayTitle = '🏪 ' + bizMap[otherUserId];
+        }
+      }
+    }
+
     const div = document.createElement('div');
     div.className = 'conv-item' + (c.id === activeConv ? ' active' : '');
-    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${escapeHtml(c.name || 'Chat')}</div></div>`;
-    div.onclick = () => openConversation(c.id, c.name || 'Chat', c.type);
+    div.innerHTML = `<div class="conv-avatar">💬</div><div class="conv-text"><div class="who">${escapeHtml(displayTitle)}</div></div>`;
+    div.onclick = () => openConversation(c.id, displayTitle, c.type);
     list.appendChild(div);
   }
 }
