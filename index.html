@@ -721,7 +721,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 100% खात्रीशीर handleStoreBridge फंक्शन (जर डेटाबेसमध्ये दुकानदार नसेल तर आपोआप सेफ इन्सर्ट करून चॅट उघडेल)
+// 🌟 100% अचूक business_profiles आणि profiles मधील owner_id शोधणारे handleStoreBridge फंक्शन
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
@@ -735,31 +735,41 @@ async function handleStoreBridge() {
   try {
     let storeUserId = null;
 
-    // 1. profiles टेबलमध्ये username किंवा email द्वारे मर्चंट शोधणे
-    let { data: profileUser } = await sb.from('profiles')
-      .select('id, username, email')
-      .or(`username.ilike.%${cleanQuery}%,email.ilike.%${cleanQuery}%`)
+    // 1. 🌟 सर्वप्रथम business_profiles टेबलमधून store slug / owner_username / name द्वारे owner_id शोधणे
+    let { data: bizProfile } = await sb.from('business_profiles')
+      .select('owner_id, name')
+      .or(`name.ilike.%${cleanQuery}%`)
       .maybeSingle();
-    
-    if (profileUser && profileUser.id) {
-      storeUserId = profileUser.id;
+
+    if (bizProfile && bizProfile.owner_id) {
+      storeUserId = bizProfile.owner_id;
     } else {
-      // 2. 🌟 जर दुकानदार वीव्होच्या कोणत्याही टेबलमध्ये सापडला नाही, तर URL मधील 'store' नावावरून नवीन सुरक्षित युजर तयार करणे
+      // 2. profiles टेबलमध्ये username किंवा email द्वारे मर्चंट शोधणे
+      let { data: profileUser } = await sb.from('profiles')
+        .select('id, username, email')
+        .or(`username.ilike.%${cleanQuery}%,email.ilike.%${cleanQuery}%`)
+        .maybeSingle();
+      
+      if (profileUser && profileUser.id) {
+        storeUserId = profileUser.id;
+      }
+    }
+
+    // 3. जर अजूनही युजर सापडला नाही, तर URL मधील 'store' नावावरून सुरक्षित मर्चंट तयार करणे किंवा मॅच करणे
+    if (!storeUserId) {
       const fallbackName = cleanQuery.split('@')[0].replace(/[^a-z0-9_]/g, '_');
       const targetEmail = cleanQuery.includes('@') ? cleanQuery : `${fallbackName}@erp.local`;
       
-      const { data: newProf } = await sb.from('profiles').insert({
-        username: fallbackName,
-        email: targetEmail,
-        account_type: 'business'
-      }).select('id').maybeSingle();
-
-      if (newProf && newProf.id) {
-        storeUserId = newProf.id;
+      const { data: existing } = await sb.from('profiles').select('id').eq('email', targetEmail).maybeSingle();
+      if (existing) {
+        storeUserId = existing.id;
       } else {
-        // जर तो आधीपासूनच अस्तित्वात असेल, तर फक्त त्याचा ID शोधून काढणे
-        const { data: existing } = await sb.from('profiles').select('id').eq('email', targetEmail).maybeSingle();
-        if (existing) storeUserId = existing.id;
+        const { data: newProf } = await sb.from('profiles').insert({
+          username: fallbackName,
+          email: targetEmail,
+          account_type: 'business'
+        }).select('id').maybeSingle();
+        if (newProf) storeUserId = newProf.id;
       }
     }
 
