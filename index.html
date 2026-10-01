@@ -721,7 +721,7 @@ function getBridgeParams() {
   return { store, customerEmail, customerName, merchantMode, prefillMsg };
 }
 
-// 🌟 100% अचूक business_profiles आणि profiles मधील owner_id शोधणारे handleStoreBridge फंक्शन
+// 🌟 अत्यंत सुरक्षित आणि एरर-फ्री handleStoreBridge फंक्शन (बिझनेस प्रोफाईल आणि मर्चंट मालक अचूक शोधण्यासाठी)
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
@@ -736,25 +736,31 @@ async function handleStoreBridge() {
     let storeUserId = null;
     let storeDisplayName = '@' + cleanQuery;
 
-    // १. सर्वप्रथम business_profiles टेबलमधून दुकानाच्या नावावरून किंवा स्लगवरून खऱ्या मालकाचा owner_id शोधणे
-    let { data: bizProfile } = await sb.from('business_profiles')
-      .select('owner_id, name, slug')
-      .or(`name.ilike.%${cleanQuery}%,slug.ilike.%${cleanQuery}%`)
-      .maybeSingle();
+    // १. business_profiles टेबलमधून सुरक्षितपणे दुकान किंवा मर्चंट शोधणे
+    const { data: bizList } = await sb.from('business_profiles').select('owner_id, name, slug');
+    if (bizList && bizList.length > 0) {
+      const foundBiz = bizList.find(b => 
+        (b.name && b.name.toLowerCase().includes(cleanQuery)) || 
+        (b.slug && b.slug.toLowerCase() === cleanQuery)
+      );
+      if (foundBiz && foundBiz.owner_id) {
+        storeUserId = foundBiz.owner_id;
+        if (foundBiz.name) storeDisplayName = '@' + foundBiz.name;
+      }
+    }
 
-    if (bizProfile && bizProfile.owner_id) {
-      storeUserId = bizProfile.owner_id;
-      if (bizProfile.name) storeDisplayName = '@' + bizProfile.name;
-    } else {
-      // २. जर business_profiles मध्ये नाही सापडला, तर profiles टेबलमधून username किंवा email द्वारे मर्चंट शोधणे
-      let { data: profileUser } = await sb.from('profiles')
-        .select('id, username, email')
-        .or(`username.ilike.%${cleanQuery}%,email.ilike.%${cleanQuery}%`)
-        .maybeSingle();
-      
-      if (profileUser && profileUser.id) {
-        storeUserId = profileUser.id;
-        if (profileUser.username) storeDisplayName = '@' + profileUser.username;
+    // २. जर business_profiles मध्ये नाही सापडला, तर profiles मधून युजर शोधणे
+    if (!storeUserId) {
+      const { data: profList } = await sb.from('profiles').select('id, username, email');
+      if (profList && profList.length > 0) {
+        const foundProf = profList.find(p => 
+          (p.username && p.username.toLowerCase().includes(cleanQuery)) || 
+          (p.email && p.email.toLowerCase() === cleanQuery)
+        );
+        if (foundProf && foundProf.id) {
+          storeUserId = foundProf.id;
+          if (foundProf.username) storeDisplayName = '@' + foundProf.username;
+        }
       }
     }
 
@@ -763,19 +769,20 @@ async function handleStoreBridge() {
       const fallbackName = cleanQuery.split('@')[0].replace(/[^a-z0-9_]/g, '_');
       const targetEmail = cleanQuery.includes('@') ? cleanQuery : `${fallbackName}@erp.local`;
       
-      const { data: existing } = await sb.from('profiles').select('id, username').eq('email', targetEmail).maybeSingle();
-      if (existing) {
-        storeUserId = existing.id;
-        if (existing.username) storeDisplayName = '@' + existing.username;
+      const { data: newProf, error: insErr } = await sb.from('profiles').insert({
+        username: fallbackName,
+        email: targetEmail,
+        account_type: 'business'
+      }).select('id, username').maybeSingle();
+
+      if (!insErr && newProf) {
+        storeUserId = newProf.id;
+        storeDisplayName = '@' + newProf.username;
       } else {
-        const { data: newProf } = await sb.from('profiles').insert({
-          username: fallbackName,
-          email: targetEmail,
-          account_type: 'business'
-        }).select('id, username').maybeSingle();
-        if (newProf) {
-          storeUserId = newProf.id;
-          if (newProf.username) storeDisplayName = '@' + newProf.username;
+        const { data: existing } = await sb.from('profiles').select('id, username').eq('email', targetEmail).maybeSingle();
+        if (existing) {
+          storeUserId = existing.id;
+          storeDisplayName = '@' + existing.username;
         }
       }
     }
@@ -785,17 +792,18 @@ async function handleStoreBridge() {
       return;
     }
 
-    // ४. ग्राहक आणि बिझनेस मालक यांच्यामधील conversation शोधणे किंवा नवीन बिझनेस चॅट तयार करणे
+    // ४. ग्राहक आणि बिझनेस मालक यांच्यामधील चॅट कन्वर्सेशन जोडणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
-    let existingConvId = null;
+    let targetConvId = null;
 
-    if (myIds.length) {
+    if (myIds.length > 0) {
       const { data: theirConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', storeUserId).in('conversation_id', myIds);
-      if (theirConvs && theirConvs.length) existingConvId = theirConvs[0].conversation_id;
+      if (theirConvs && theirConvs.length > 0) {
+        targetConvId = theirConvs[0].conversation_id;
+      }
     }
 
-    let targetConvId = existingConvId;
     if (!targetConvId) {
       const { data: newConv, error: convErr } = await sb.from('conversations').insert({ type: 'direct', created_by: me.id }).select().single();
       if (!convErr && newConv) {
@@ -813,7 +821,7 @@ async function handleStoreBridge() {
       openConversation(targetConvId, storeDisplayName, 'direct');
     }
   } catch(err) {
-    console.error("Business Bridge chat open error:", err);
+    console.error("Safe Bridge chat open error:", err);
   }
 }
 
