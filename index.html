@@ -468,7 +468,7 @@
     </div>
     <div class="landing-feature-card">
       <div class="landing-feature-icon">🔐</div>
-      <div class="landing-feature-title">Landing Privacy</div>
+      <div class="landing-feature-title">Privacy You Control</div>
       <div class="landing-feature-desc">Hide your last-seen, read receipts, block anyone — and log in with a Passkey instead of a password.</div>
     </div>
     <div class="landing-feature-card">
@@ -540,8 +540,34 @@
     </div>
     <div id="global-search-wrap">
       <input id="global-search-input" placeholder="🔍 सगळीकडे शोधा..." />
+      <div id="global-search-results" style="display:none"></div>
     </div>
     <div id="new-chat"><input id="new-chat-username" placeholder="username टाका (@ शिवाय)..." /><button id="new-chat-btn">Chat</button></div>
+    <div id="tab-row">
+      <button id="tab-toggle-group" class="link-btn">+ नवीन Group</button>
+      <button id="tab-toggle-channel" class="link-btn">+ नवीन Channel</button>
+      <button id="tab-toggle-business" class="link-btn">🏢 Discover Businesses</button>
+      <button id="tab-toggle-stories" class="link-btn">📸 Stories</button>
+      <button id="tab-toggle-reels" class="link-btn">🎬 Short Videos</button>
+      <button id="tab-toggle-discover-hub" class="link-btn">🧭 Discover (सगळं एकत्र)</button>
+      <button id="tab-toggle-starred" class="link-btn">⭐ Starred Messages</button>
+      <button id="install-app-btn" class="link-btn" style="display:none">📲 App Install करा</button>
+      <button id="admin-panel-btn" class="link-btn" style="display:none">🛡 Admin Panel</button>
+      <button id="tab-toggle-discover" class="link-btn">🔍 Discover Channels</button>
+    </div>
+    <div id="new-group" style="display:none">
+      <input id="group-name" placeholder="Group चं नाव" />
+      <input id="group-usernames" placeholder="usernames, कॉमाने वेगळे (उदा: raj, priya)" />
+      <button id="new-group-btn">Group तयार करा</button>
+    </div>
+    <div id="new-channel" style="display:none">
+      <input id="channel-name" placeholder="Channel चं नाव" />
+      <input id="channel-desc" placeholder="छोटं वर्णन (optional)" />
+      <label style="font-size:12px; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="channel-public" checked /> Public (कोणीही शोधून join करू शकेल)</label>
+      <button id="new-channel-btn">Channel तयार करा</button>
+    </div>
+    <div id="discover-panel" style="display:none"></div>
+    <div id="discover-business-panel" style="display:none"></div>
     <div id="conv-list"></div>
   </div>
   <div id="chat-area"><div id="empty-state">डावीकडून चॅट निवडा किंवा नवीन सुरू करा</div></div>
@@ -584,7 +610,6 @@ if (themeBtn) {
   };
 }
 
-// गुगल लॉगिन फंक्शन पूर्णपणे पूर्ववत केले आहे
 async function signInWithGoogle() {
   const errEl = $('error');
   if (errEl) errEl.textContent = '';
@@ -602,7 +627,7 @@ async function signInWithGoogle() {
   if (error && errEl) errEl.textContent = error.message;
 }
 
-// 🌟 मूळ फीचर्स ठेवून फक्त अचूक बिझनेस स्टोअर ब्रिज फंक्शन
+// 🌟 वैयक्तिक युजर प्रोफाईलला स्पर्श न करता, फक्त बिझनेस स्टोअर अचूक शोधणारे isolate केलेले फंक्शन
 function getBridgeParams() {
   let searchStr = window.location.search;
   if (!searchStr && window.location.hash.includes('?')) {
@@ -613,7 +638,7 @@ function getBridgeParams() {
   let customerEmail = params.get('customer_email') || params.get('email');
   let prefillMsg = params.get('prefill_msg');
 
-  if (store || prefillMsg || customerEmail) {
+  if (store && store !== 'store') {
     localStorage.setItem('weavo_pending_bridge', JSON.stringify({ store, customerEmail, prefillMsg }));
   } else {
     const saved = localStorage.getItem('weavo_pending_bridge');
@@ -632,8 +657,8 @@ function getBridgeParams() {
 async function handleStoreBridge() {
   if (!me) return;
   const bridge = getBridgeParams();
-  let storeQuery = bridge.store || bridge.customerEmail;
-  if (!storeQuery || storeQuery === 'store') return; // 'store' किंवा रिकामे असल्यास बाईपास करणे
+  let storeQuery = bridge.store;
+  if (!storeQuery || storeQuery === 'store') return; // जर स्टोअरचे नाव नसेल तर पूर्णपणे बाजूला सरकणे
 
   const cleanQuery = storeQuery.trim().toLowerCase();
   
@@ -641,7 +666,7 @@ async function handleStoreBridge() {
     let storeUserId = null;
     let storeDisplayName = '@' + cleanQuery;
 
-    // १. business_profiles मधून दुकान शोधणे
+    // १. फक्‍त business_profiles टेबलमधून दुकानाचा खरा मालक (owner_id) शोधणे (वैयक्तिक प्रोफाईलला हात न लावता)
     const { data: bizList } = await sb.from('business_profiles').select('owner_id, name, slug');
     if (bizList && bizList.length > 0) {
       const foundBiz = bizList.find(b => 
@@ -650,28 +675,13 @@ async function handleStoreBridge() {
       );
       if (foundBiz && foundBiz.owner_id) {
         storeUserId = foundBiz.owner_id;
-        if (foundBiz.name) storeDisplayName = '@' + foundBiz.name;
-      }
-    }
-
-    // २. profiles मधून युजर शोधणे
-    if (!storeUserId) {
-      const { data: profList } = await sb.from('profiles').select('id, username, email');
-      if (profList && profList.length > 0) {
-        const foundProf = profList.find(p => 
-          (p.username && p.username.toLowerCase().includes(cleanQuery)) || 
-          (p.email && p.email.toLowerCase() === cleanQuery)
-        );
-        if (foundProf && foundProf.id) {
-          storeUserId = foundProf.id;
-          if (foundProf.username) storeDisplayName = '@' + foundProf.username;
-        }
+        if (foundBiz.name) storeDisplayName = '🏪 ' + foundBiz.name; // थेट दुकानाचे नाव दिसेल
       }
     }
 
     if (!storeUserId || storeUserId === me.id) return;
 
-    // ३. चॅट कन्वर्सेशन जोडणे
+    // २. ग्राहक आणि या विशिष्ट दुकानदारामध्ये चॅट शोधणे किंवा तयार करणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let targetConvId = null;
@@ -704,7 +714,12 @@ async function handleStoreBridge() {
 
 async function setupUserSession(user) {
   if (!user || me) return;
-  me = { id: user.id, username: user.user_metadata?.name || user.email?.split('@')[0] || 'user', email: user.email };
+  
+  // वैयक्तिक युजर प्रोफाईल डेटाबेसवरून सुरक्षितपणे लोड करणे (कधीही ओव्हरराईट होणार नाही)
+  const { data: profile } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
+  let validUsername = profile?.username || user.user_metadata?.name || user.email?.split('@')[0] || 'user';
+
+  me = { id: user.id, username: validUsername, email: user.email };
   
   if (window.location.hash && window.location.hash.includes('access_token')) {
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
