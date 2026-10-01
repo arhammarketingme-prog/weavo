@@ -734,17 +734,19 @@ async function handleStoreBridge() {
   
   try {
     let storeUserId = null;
+    let storeDisplayName = '@' + cleanQuery;
 
-    // 1. 🌟 सर्वप्रथम business_profiles टेबलमधून store slug / owner_username / name द्वारे owner_id शोधणे
+    // १. सर्वप्रथम business_profiles टेबलमधून दुकानाच्या नावावरून किंवा स्लगवरून खऱ्या मालकाचा owner_id शोधणे
     let { data: bizProfile } = await sb.from('business_profiles')
-      .select('owner_id, name')
-      .or(`name.ilike.%${cleanQuery}%`)
+      .select('owner_id, name, slug')
+      .or(`name.ilike.%${cleanQuery}%,slug.ilike.%${cleanQuery}%`)
       .maybeSingle();
 
     if (bizProfile && bizProfile.owner_id) {
       storeUserId = bizProfile.owner_id;
+      if (bizProfile.name) storeDisplayName = '@' + bizProfile.name;
     } else {
-      // 2. profiles टेबलमध्ये username किंवा email द्वारे मर्चंट शोधणे
+      // २. जर business_profiles मध्ये नाही सापडला, तर profiles टेबलमधून username किंवा email द्वारे मर्चंट शोधणे
       let { data: profileUser } = await sb.from('profiles')
         .select('id, username, email')
         .or(`username.ilike.%${cleanQuery}%,email.ilike.%${cleanQuery}%`)
@@ -752,24 +754,29 @@ async function handleStoreBridge() {
       
       if (profileUser && profileUser.id) {
         storeUserId = profileUser.id;
+        if (profileUser.username) storeDisplayName = '@' + profileUser.username;
       }
     }
 
-    // 3. जर अजूनही युजर सापडला नाही, तर URL मधील 'store' नावावरून सुरक्षित मर्चंट तयार करणे किंवा मॅच करणे
+    // ३. जर तरीही युजर सापडला नाही, तर नवीन बिझनेस युजर तयार करणे
     if (!storeUserId) {
       const fallbackName = cleanQuery.split('@')[0].replace(/[^a-z0-9_]/g, '_');
       const targetEmail = cleanQuery.includes('@') ? cleanQuery : `${fallbackName}@erp.local`;
       
-      const { data: existing } = await sb.from('profiles').select('id').eq('email', targetEmail).maybeSingle();
+      const { data: existing } = await sb.from('profiles').select('id, username').eq('email', targetEmail).maybeSingle();
       if (existing) {
         storeUserId = existing.id;
+        if (existing.username) storeDisplayName = '@' + existing.username;
       } else {
         const { data: newProf } = await sb.from('profiles').insert({
           username: fallbackName,
           email: targetEmail,
           account_type: 'business'
-        }).select('id').maybeSingle();
-        if (newProf) storeUserId = newProf.id;
+        }).select('id, username').maybeSingle();
+        if (newProf) {
+          storeUserId = newProf.id;
+          if (newProf.username) storeDisplayName = '@' + newProf.username;
+        }
       }
     }
 
@@ -778,7 +785,7 @@ async function handleStoreBridge() {
       return;
     }
 
-    // ग्राहक आणि दुकानदारामध्ये conversation शोधणे किंवा तयार करणे
+    // ४. ग्राहक आणि बिझनेस मालक यांच्यामधील conversation शोधणे किंवा नवीन बिझनेस चॅट तयार करणे
     const { data: myConvs } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
     const myIds = (myConvs || []).map(r => r.conversation_id);
     let existingConvId = null;
@@ -803,14 +810,10 @@ async function handleStoreBridge() {
     if (targetConvId) {
       currentBridgeTargetConvId = targetConvId; 
       await loadConversations();
-      
-      const { data: storeProfile } = await sb.from('profiles').select('username').eq('id', storeUserId).single();
-      const storeNameDisplay = storeProfile ? '@' + storeProfile.username : '@' + cleanQuery;
-      
-      openConversation(targetConvId, storeNameDisplay, 'direct');
+      openConversation(targetConvId, storeDisplayName, 'direct');
     }
   } catch(err) {
-    console.error("Bridge chat open error:", err);
+    console.error("Business Bridge chat open error:", err);
   }
 }
 
